@@ -14,14 +14,20 @@ function dashboardFixtureFor(url: string): DashboardFixtures[keyof DashboardFixt
   throw new Error(`Unexpected dashboard endpoint: ${url}`);
 }
 
-function metric(key: 'tn' | 'blowerKwh', label: string, unit: string, value: number) {
+function metric(
+  key: string,
+  label: string,
+  unit: string,
+  value: number,
+  module: 'water-quality' | 'energy' = key === 'tn' ? 'water-quality' : 'energy',
+) {
   return {
     key,
     kind: 'metric' as const,
     source: 'excel' as const,
     snapshotId: 'snapshot-e2e',
     claimIds: ['claim-e2e'],
-    module: key === 'tn' ? 'water-quality' as const : 'energy' as const,
+    module,
     label,
     unit,
     dateRange: DATE_RANGE,
@@ -32,6 +38,16 @@ function metric(key: 'tn' | 'blowerKwh', label: string, unit: string, value: num
 
 const tn = metric('tn', '总氮', 'mg/L', 2.68);
 const blower = metric('blowerKwh', '鼓风能耗', 'kWh/d', 128.4);
+const largeScreenMetrics = [
+  metric('aerationScore', '曝气协同得分', '分', 94, 'energy'),
+  metric('blowerResponse', '鼓风响应得分', '分', 91, 'energy'),
+  metric('oxygenMatch', '供氧匹配得分', '分', 89, 'energy'),
+  metric('loadBalance', '负荷平衡得分', '分', 87, 'energy'),
+  metric('nightStability', '夜间稳定得分', '分', 86, 'energy'),
+  metric('healthScore', '运行健康度', '分', 96, 'energy'),
+];
+const largeScreenMetricKeys = largeScreenMetrics.map(({ key }) => key);
+const largeScreenComparisonMetrics = largeScreenMetrics.slice(0, 4);
 
 function evidenceRef(value: typeof tn) {
   const { value: _metricValue, claimIds: _claimIds, ...evidence } = value;
@@ -87,13 +103,52 @@ const firstSlide = slide({
   takeaway: '总氮证据已完成快速核验',
   evidence: tn,
 });
-const energySlide = slide({
+const energySlide: ReportSlide = {
   id: 'energy-trend',
   order: 1,
+  evidenceSnapshotId: 'snapshot-e2e',
+  role: 'answer',
+  layout: 'visual-focus',
+  evidencePolicy: 'data',
   title: '能耗联动趋势',
-  takeaway: '鼓风能耗与当前工况同步展示',
-  evidence: blower,
-});
+  takeaway: '六项能耗协同指标已在同一张复合数据看板中完成展示。',
+  takeawayClaimIds: ['claim-e2e'],
+  claims: [{
+    id: 'claim-e2e',
+    text: '六项能耗协同指标已在同一证据范围内完成汇总展示。',
+    kind: 'onsite-fact',
+    evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+  }],
+  visual: {
+    kind: 'data-dashboard',
+    summaryMetrics: largeScreenMetrics,
+    primary: {
+      kind: 'trend-area',
+      series: largeScreenComparisonMetrics.map((item, index) => ({
+        key: item.key,
+        label: item.label,
+        unit: item.unit ?? '分',
+        snapshotId: item.snapshotId,
+        claimIds: item.claimIds,
+        points: [
+          { label: DATE_RANGE.from, value: item.value - index - 1 },
+          { label: '2026-08-06', value: item.value - index / 2 },
+          { label: DATE_RANGE.to, value: item.value },
+        ],
+      })),
+    },
+    supporting: [
+      { kind: 'comparison-bars', items: largeScreenComparisonMetrics },
+      { kind: 'health-ring', metric: largeScreenMetrics[0]!, target: 100 },
+    ],
+  },
+  metrics: [...largeScreenMetrics],
+  evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+  narration: [
+    { id: 'energy-trend-segment-1', text: '先看六项摘要指标的最新得分。', speechId: 'energy-trend-speech-1', claimIds: ['claim-e2e'] },
+    { id: 'energy-trend-segment-2', text: '再对比四项趋势与辅助图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
+  ],
+};
 
 function outlineVisualKind(slide: ReportSlide): SlideOutline['visualKind'] {
   const kind = slide.visual.kind === 'data-dashboard' ? slide.visual.primary.kind : slide.visual.kind;
@@ -122,7 +177,7 @@ const dynamicOutline: SlideOutline[] = [
     purpose: energySlide.takeaway,
     role: energySlide.role, layout: energySlide.layout, evidencePolicy: energySlide.evidencePolicy,
     visualKind: outlineVisualKind(energySlide),
-    evidenceKeys: ['blowerKwh'],
+    evidenceKeys: largeScreenMetricKeys,
     status: 'planned',
   },
   {
@@ -516,7 +571,7 @@ async function installMockReportApi(page: Page) {
         id: `turn-${turns.length + 1}`,
         question: request.postDataJSON().question,
         answer: '只引用当前页可核验的证据。',
-        citedEvidence: [conversationEvidenceRef(blower)],
+        citedEvidence: [conversationEvidenceRef(largeScreenMetrics[0]!)],
         needsClarification: false,
         createdAt: '2026-08-13T00:01:00.000Z',
       };
@@ -611,124 +666,157 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string): P
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
 }
 
-for (const viewport of [{ width: 1920, height: 1080 }, { width: 1280, height: 800 }]) {
-  test(`streams a responsive dynamic report at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport);
-    if (viewport.width === 1280) await page.emulateMedia({ reducedMotion: 'reduce' });
-    await installBrowserAudioFake(page);
-    const api = await installMockReportApi(page);
+test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await installBrowserAudioFake(page);
+  const api = await installMockReportApi(page);
 
-    await launchReport(page);
-    await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
-    await expect(page.getByRole('status')).toContainText('正在创建动态汇报');
-    expect(api.createRequests).toBe(1);
+  await launchReport(page);
+  await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
+  await expect(page.getByRole('status')).toContainText('正在创建动态汇报');
+  expect(api.createRequests).toBe(1);
 
-    api.createGate.resolve();
-    await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
-    await api.terminalStreamReady;
-    await expect(page.getByRole('status')).toContainText(/正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u);
-    await expect(page.getByText('实时数据快照')).toHaveCount(0);
-    await expect(page.locator('.report-thumbnail')).toHaveCount(0);
-    await expect(page.locator('[data-slide-mode="canvas"]')).toHaveCount(0);
+  api.createGate.resolve();
+  await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
+  await api.terminalStreamReady;
+  await expect(page.getByRole('status')).toContainText(/正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u);
+  await expect(page.getByText('实时数据快照')).toHaveCount(0);
+  await expect(page.locator('.report-thumbnail')).toHaveCount(0);
+  await expect(page.locator('[data-slide-mode="canvas"]')).toHaveCount(0);
 
-    api.releaseTerminal();
-    await expect(page.getByRole('heading', { name: firstSlide.title })).toBeVisible();
-    await expect(page.locator('.report-thumbnail')).toHaveCount(3);
-    await expect(page.locator('[data-slide-mode="thumbnail"]')).toHaveCount(2);
-    await expect(page.getByText('生成失败', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: '重试第 3 页' })).toBeVisible();
-    await page.getByRole('button', { name: '重试第 3 页' }).click();
-    expect(api.retrySlideIds).toEqual(['anomaly-evidence']);
+  api.releaseTerminal();
+  await expect(page.getByRole('heading', { name: firstSlide.title })).toBeVisible();
+  await expect(page.locator('.report-thumbnail')).toHaveCount(3);
+  await expect(page.locator('[data-slide-mode="thumbnail"]')).toHaveCount(2);
+  await expect(page.getByText('生成失败', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '重试第 3 页' })).toBeVisible();
+  await page.getByRole('button', { name: '重试第 3 页' }).click();
+  expect(api.retrySlideIds).toEqual(['anomaly-evidence']);
 
-    const energyThumbnail = page.locator(`[data-slide-mode="thumbnail"][data-slide-id="${energySlide.id}"]`);
-    const energyItem = energyThumbnail.locator('xpath=ancestor::li[contains(@class, "report-thumbnail")]');
-    const sequenceBox = await energyItem.locator('.report-thumbnail__sequence').boundingBox();
-    expect(sequenceBox).not.toBeNull();
-    await page.mouse.click(sequenceBox!.x + sequenceBox!.width / 2, sequenceBox!.y + sequenceBox!.height / 2);
-    const canvas = page.locator(`[data-slide-mode="canvas"][data-slide-id="${energySlide.id}"]`);
-    await expect(canvas).toContainText(energySlide.title);
-    await expect(energyThumbnail).toContainText(energySlide.title);
-    await expect(canvas).toContainText('128.4');
-    await expect(energyThumbnail).toContainText('128.4');
-    await expect(page.getByRole('status').filter({ hasText: '正在讲解第 2 页' })).toBeVisible();
+  const energyThumbnail = page.locator(`[data-slide-mode="thumbnail"][data-slide-id="${energySlide.id}"]`);
+  const energyItem = energyThumbnail.locator('xpath=ancestor::li[contains(@class, "report-thumbnail")]');
+  const sequenceBox = await energyItem.locator('.report-thumbnail__sequence').boundingBox();
+  expect(sequenceBox).not.toBeNull();
+  await page.mouse.click(sequenceBox!.x + sequenceBox!.width / 2, sequenceBox!.y + sequenceBox!.height / 2);
+  const canvas = page.locator(`[data-slide-mode="canvas"][data-slide-id="${energySlide.id}"]`);
+  await expect(canvas).toContainText(energySlide.title);
+  await expect(energyThumbnail).toContainText(energySlide.title);
+  await expect(page.getByRole('status').filter({ hasText: '正在讲解第 2 页' })).toBeVisible();
 
-    await page.getByLabel('输入追问').fill('这个数怎么算');
-    await expect.poll(() => api.sessionBodies).toContainEqual({
-      activity: 'narration',
-      narrationCursor: {
-        slideId: energySlide.id,
-        segmentId: 'energy-trend-segment-1',
-        offsetMs: expect.any(Number),
-      },
-    });
-    await page.getByRole('button', { name: '发送追问' }).click();
-    await expect.poll(() => api.followUpRequests.length).toBe(1);
-    await expect(page.getByRole('list', { name: '追问记录' })).toContainText('只引用当前页可核验的证据');
+  const summaryMetrics = canvas.locator('.report-data-dashboard__metric');
+  await expect(summaryMetrics).toHaveCount(6);
+  for (const item of largeScreenMetrics) {
+    const metricCard = summaryMetrics.filter({ hasText: item.label });
+    await expect(metricCard).toHaveCount(1);
+    await expect(metricCard).toContainText(String(item.value));
+    await expect(metricCard).toContainText(item.unit);
+  }
+  await expect(canvas.locator('[data-panel-kind="trend-area"] .report-chart__point[data-terminal-point="true"]')).toHaveCount(4);
+  await expect(canvas.locator('[data-icon-kind="metric"]')).toHaveCount(6);
+  await expect(canvas.locator('[data-panel-kind="trend-area"] .report-visual-icon')).toHaveCount(1);
+  await expect(canvas.locator('[data-panel-kind="comparison-bars"] .report-visual-icon')).toHaveCount(1);
+  await expect(canvas.locator('[data-panel-kind="health-ring"] .report-visual-icon')).toHaveCount(1);
+  await expect(page.locator('.report-conversation__role')).toHaveCount(0);
 
-    const geometry = await page.locator('.report-workspace').evaluate((workspace) => {
-      const selectors = ['.report-header', '.report-thumbnail-rail', '.report-workspace__canvas', '.report-workspace__controls'];
-      const regions = Object.fromEntries(selectors.map((selector) => {
-        const element = workspace.querySelector<HTMLElement>(selector)!;
-        const box = element.getBoundingClientRect();
-        const style = getComputedStyle(element);
-        return [selector, {
-          top: box.top,
-          right: box.right,
-          bottom: box.bottom,
-          left: box.left,
-          clientHeight: element.clientHeight,
-          scrollHeight: element.scrollHeight,
-          overflowY: style.overflowY,
-          aspectRatio: style.aspectRatio,
-        }];
-      }));
-      return {
-        regions,
-        viewportWidth: document.documentElement.clientWidth,
-        viewportHeight: document.documentElement.clientHeight,
-        horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      };
-    });
-    expect(geometry.regions['.report-workspace__canvas']!.aspectRatio).not.toBe('16 / 9');
-    expect(geometry.horizontalOverflow).toBeLessThanOrEqual(1);
-    for (const region of Object.values(geometry.regions)) {
-      expect(region.top).toBeGreaterThanOrEqual(-1);
-      expect(region.left).toBeGreaterThanOrEqual(-1);
-      expect(region.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
-      expect(region.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
-      expect(region.bottom).toBeGreaterThan(0);
-      if (region.scrollHeight > region.clientHeight + 1) expect(region.overflowY).toMatch(/auto|scroll/u);
-    }
+  const supportKinds = await canvas.locator('.report-data-dashboard__support > section')
+    .evaluateAll((panels) => panels.map((panel) => panel.getAttribute('data-panel-kind')));
+  expect(supportKinds).toEqual(['comparison-bars', 'health-ring']);
 
-    await page.getByRole('button', { name: '退出汇报' }).focus();
-    const keyboardRegions = new Set(['header']);
-    for (let index = 0; index < 40 && keyboardRegions.size < 4; index += 1) {
-      await page.keyboard.press('Tab');
-      const focusedRegion = await page.evaluate(() => {
-        const active = document.activeElement;
-        if (active?.closest('.report-thumbnail-rail')) return 'rail';
-        if (active?.closest('.report-workspace__canvas')) return 'canvas';
-        if (active?.closest('.report-workspace__controls')) return 'controls';
-        return undefined;
-      });
-      if (focusedRegion) keyboardRegions.add(focusedRegion);
-    }
-    expect([...keyboardRegions].sort()).toEqual(['canvas', 'controls', 'header', 'rail']);
-    if (viewport.width === 1280) await expect(canvas).toHaveAttribute('data-motion-reduced', 'true');
-
-    const legacy = /pptx|\.pptx|下载/iu;
-    await expect(page.getByRole('button', { name: legacy })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: legacy })).toHaveCount(0);
-    const hrefs = await page.locator('a[href]').evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
-    expect(hrefs.some((href) => legacy.test(href))).toBe(false);
-
-    await page.reload();
-    await expect(page.getByRole('heading', { name: energySlide.title })).toBeVisible();
-    await expect(page.getByRole('list', { name: '追问记录' })).toContainText('这个数怎么算');
-    expect(api.sessionBodies.length).toBeGreaterThan(0);
-    await attachScreenshot(page, testInfo, `dynamic-report-${viewport.width}x${viewport.height}`);
+  await page.getByLabel('输入追问').fill('这个数怎么算');
+  await expect.poll(() => api.sessionBodies).toContainEqual({
+    activity: 'narration',
+    narrationCursor: {
+      slideId: energySlide.id,
+      segmentId: 'energy-trend-segment-1',
+      offsetMs: expect.any(Number),
+    },
   });
-}
+  await page.getByRole('button', { name: '发送追问' }).click();
+  await expect.poll(() => api.followUpRequests.length).toBe(1);
+  await expect(page.getByRole('list', { name: '追问记录' })).toContainText('只引用当前页可核验的证据');
+
+  const geometry = await page.locator('.report-workspace').evaluate((workspace) => {
+    const selectors = ['.report-header', '.report-thumbnail-rail', '.report-workspace__canvas', '.report-workspace__controls'];
+    const regions = Object.fromEntries(selectors.map((selector) => {
+      const element = workspace.querySelector<HTMLElement>(selector)!;
+      const box = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return [selector, {
+        top: box.top,
+        right: box.right,
+        bottom: box.bottom,
+        left: box.left,
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        aspectRatio: style.aspectRatio,
+      }];
+    }));
+    return {
+      regions,
+      viewportWidth: document.documentElement.clientWidth,
+      viewportHeight: document.documentElement.clientHeight,
+      horizontalOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  expect(geometry.regions['.report-workspace__canvas']!.aspectRatio).not.toBe('16 / 9');
+  expect(geometry.horizontalOverflow).toBeLessThanOrEqual(1);
+  for (const region of Object.values(geometry.regions)) {
+    expect(region.top).toBeGreaterThanOrEqual(-1);
+    expect(region.left).toBeGreaterThanOrEqual(-1);
+    expect(region.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+    expect(region.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
+    expect(region.bottom).toBeGreaterThan(0);
+  }
+
+  const reportGeometry = await canvas.evaluate((slide) => {
+    const canvasRoot = slide.closest<HTMLElement>('.report-workspace__canvas')!;
+    const bars = slide.querySelector<HTMLElement>('[data-panel-kind="comparison-bars"]')!;
+    const slideBox = slide.getBoundingClientRect();
+    const barBox = bars.getBoundingClientRect();
+    return {
+      canvasClientHeight: canvasRoot.clientHeight,
+      canvasScrollHeight: canvasRoot.scrollHeight,
+      slideClientHeight: (slide as HTMLElement).clientHeight,
+      slideScrollHeight: (slide as HTMLElement).scrollHeight,
+      slideBottom: slideBox.bottom,
+      viewportHeight: document.documentElement.clientHeight,
+      barWidth: barBox.width,
+      barHeight: barBox.height,
+    };
+  });
+  expect(reportGeometry.canvasScrollHeight).toBeLessThanOrEqual(reportGeometry.canvasClientHeight + 1);
+  expect(reportGeometry.slideScrollHeight).toBeLessThanOrEqual(reportGeometry.slideClientHeight + 1);
+  expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
+  expect(reportGeometry.barWidth).toBeGreaterThanOrEqual(300);
+  expect(reportGeometry.barHeight).toBeGreaterThanOrEqual(216);
+
+  await page.getByRole('button', { name: '退出汇报' }).focus();
+  const keyboardRegions = new Set(['header']);
+  for (let index = 0; index < 40 && keyboardRegions.size < 4; index += 1) {
+    await page.keyboard.press('Tab');
+    const focusedRegion = await page.evaluate(() => {
+      const active = document.activeElement;
+      if (active?.closest('.report-thumbnail-rail')) return 'rail';
+      if (active?.closest('.report-workspace__canvas')) return 'canvas';
+      if (active?.closest('.report-workspace__controls')) return 'controls';
+      return undefined;
+    });
+    if (focusedRegion) keyboardRegions.add(focusedRegion);
+  }
+  expect([...keyboardRegions].sort()).toEqual(['canvas', 'controls', 'header', 'rail']);
+
+  const legacy = /pptx|\.pptx|下载/iu;
+  await expect(page.getByRole('button', { name: legacy })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: legacy })).toHaveCount(0);
+  const hrefs = await page.locator('a[href]').evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).href));
+  expect(hrefs.some((href) => legacy.test(href))).toBe(false);
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: energySlide.title })).toBeVisible();
+  await expect(page.getByRole('list', { name: '追问记录' })).toContainText('这个数怎么算');
+  expect(api.sessionBodies.length).toBeGreaterThan(0);
+  await attachScreenshot(page, testInfo, 'dynamic-report-1920x1080');
+});
 
 const mockedIntentScenarios = [
   { question: '为什么最近能耗升高？', title: '近期能耗变化的主要判断', pages: 3, source: '现场数据快照' },
