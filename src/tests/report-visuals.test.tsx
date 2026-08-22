@@ -293,17 +293,19 @@ it('renders a zero-support dashboard with an explicit full-height primary layout
   expect(reportStyles).toContain('.report-data-dashboard[data-support-count="0"]');
 });
 
-it('renders a one-support dashboard with the existing split layout hook', () => {
+it('renders a one-support dashboard with a single support panel under the split-layout hook', () => {
   const visual = dataDashboardFixture({
     supporting: [{ kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 }],
   });
   const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
   const dashboard = container.querySelector('.report-data-dashboard');
+  const supportPanels = container.querySelectorAll<HTMLElement>('.report-data-dashboard__support > section');
 
   expect(dashboard).toHaveAttribute('data-support-count', '1');
   expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(1);
-  expect(reportStyles).toContain('.report-data-dashboard[data-support-count="1"]');
+  expect(supportPanels).toHaveLength(1);
+  expect(supportPanels[0]).toHaveAttribute('data-panel-kind', 'health-ring');
 });
 
 it('renders only the primary composite chart in thumbnail mode', () => {

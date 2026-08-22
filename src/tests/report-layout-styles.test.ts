@@ -63,3 +63,14 @@ it('uses the approved no-scroll 1920 dashboard geometry', () => {
   expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);/su);
   expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(0,\s*1fr\);/su);
 });
+
+it('pins the one-support dashboard at the 63/37 split with a single full-height support row', () => {
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/su);
+});
+
+it('keeps dashboard panels and charts on the full-height propagation chain', () => {
+  expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*min-height:\s*0;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-visual-renderer,\s*\.report-data-dashboard\s+\.report-visual,\s*\.report-data-dashboard\s+\.report-visual__graphic\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*none;/su);
+});
