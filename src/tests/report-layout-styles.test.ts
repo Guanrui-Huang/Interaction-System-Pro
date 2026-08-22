@@ -71,6 +71,12 @@ it('pins the one-support dashboard at the 63/37 split with a single full-height 
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*min-height:\s*0;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+>\s+\.report-slide__visual\s+>\s+\.report-visual-renderer--canvas\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-visual-renderer,\s*\.report-data-dashboard\s+\.report-visual,\s*\.report-data-dashboard\s+\.report-visual__graphic\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*none;/su);
+});
+
+it('scales supporting health rings from available panel height without changing the primary ring cap', () => {
+  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*340px\);[^}]*margin:\s*auto;/su);
+  expect(css).toMatch(/\.report-data-dashboard__support\s*>\s*section\[data-panel-kind=['"]health-ring['"]\]\s+\.report-health-ring\s*\{[^}]*width:\s*auto;[^}]*height:\s*min\(100%,\s*340px\);[^}]*max-width:\s*100%;[^}]*aspect-ratio:\s*1\s*\/\s*1;/su);
 });
