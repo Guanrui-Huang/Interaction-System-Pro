@@ -59,6 +59,49 @@ const identityEvidence: ReportEvidenceBundle = {
     limitations: ['现场结论只引用已提供证据'],
   },
 };
+const denseMetricKeys = [
+  'processedM3',
+  'informationCount',
+  'complianceRate',
+  'healthScore',
+  'qualityScore',
+  'flowScore',
+  'energyScore',
+  'carbonSourceScore',
+  'tn',
+];
+const denseEvidence: ReportEvidenceBundle = {
+  snapshotId: 'evidence:dense',
+  analysis: {
+    scope: {
+      modules: ['overview', 'health', 'water-quality'],
+      metrics: denseMetricKeys,
+      dateRange: { from: '2026-08-01', to: '2026-08-31' },
+      sampleCount: 31,
+      granularity: 'daily',
+    },
+    definitions: denseMetricKeys.map((key, index) => ({
+      key,
+      label: `指标 ${index + 1}`,
+      unit: '分',
+    })),
+    series: [
+      { date: '2026-08-01', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 80 + index])) },
+      { date: '2026-08-31', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 81 + index])) },
+    ],
+    aggregates: Object.fromEntries(denseMetricKeys.map((key, index) => [key, {
+      min: 80 + index,
+      max: 81 + index,
+      average: 80.5 + index,
+      latest: 81 + index,
+      changeRate: 1 / (80 + index),
+    }])),
+    thresholdBreaches: [],
+    correlations: [],
+    alerts: [],
+  },
+  knowledge: [],
+};
 
 const knowledgePage = {
   title: '脱氮原理',
@@ -314,50 +357,45 @@ describe('planReport', () => {
     expect(prompt).toContain('不得依赖页面滚动');
   });
 
+  it('backfills omitted analyzed metrics onto paginated metric-report pages', async () => {
+    const result = await planReport(
+      input(denseEvidence, '请完整解释所有现场指标'),
+      provider({
+        slides: [{
+          title: '完整指标解释',
+          purpose: '解释全部指标',
+          role: 'answer',
+          layout: 'visual-focus',
+          visualKind: 'kpi-grid',
+          evidenceKeys: denseMetricKeys.slice(0, 4),
+        }],
+      }),
+    );
+
+    expect(result.map(({ evidenceKeys }) => evidenceKeys)).toEqual([
+      denseMetricKeys.slice(0, 5),
+      denseMetricKeys.slice(5),
+    ]);
+    expect(result.flatMap(({ evidenceKeys }) => evidenceKeys)).toEqual(denseMetricKeys);
+  });
+
+  it('rejects plans that omit analyzed metrics when no compatible metric-report page can represent them', async () => {
+    await expect(planReport(
+      input(denseEvidence, '请完整解释所有现场指标'),
+      provider({
+        slides: [{
+          title: '健康评分',
+          purpose: '概览单项健康评分',
+          role: 'answer',
+          layout: 'visual-focus',
+          visualKind: 'health-ring',
+          evidenceKeys: ['healthScore'],
+        }],
+      }),
+    )).rejects.toThrow('REPORT_OUTLINE_INVALID');
+  });
+
   it('preserves the report max slides failure after pagination expands dense pages', async () => {
-    const denseMetricKeys = [
-      'processedM3',
-      'informationCount',
-      'complianceRate',
-      'healthScore',
-      'qualityScore',
-      'flowScore',
-      'energyScore',
-      'carbonSourceScore',
-      'tn',
-    ];
-    const denseEvidence: ReportEvidenceBundle = {
-      snapshotId: 'evidence:dense',
-      analysis: {
-        scope: {
-          modules: ['overview', 'health', 'water-quality'],
-          metrics: denseMetricKeys,
-          dateRange: { from: '2026-08-01', to: '2026-08-31' },
-          sampleCount: 31,
-          granularity: 'daily',
-        },
-        definitions: denseMetricKeys.map((key, index) => ({
-          key,
-          label: `指标 ${index + 1}`,
-          unit: '分',
-        })),
-        series: [
-          { date: '2026-08-01', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 80 + index])) },
-          { date: '2026-08-31', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 81 + index])) },
-        ],
-        aggregates: Object.fromEntries(denseMetricKeys.map((key, index) => [key, {
-          min: 80 + index,
-          max: 81 + index,
-          average: 80.5 + index,
-          latest: 81 + index,
-          changeRate: 1 / (80 + index),
-        }])),
-        thresholdBreaches: [],
-        correlations: [],
-        alerts: [],
-      },
-      knowledge: [],
-    };
     const denseSlides = Array.from({ length: 7 }, (_, index) => ({
       title: `密集指标页 ${index + 1}`,
       purpose: `解释密集指标页 ${index + 1}`,
