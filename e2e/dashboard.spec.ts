@@ -766,9 +766,16 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   await expect(page.getByRole('list', { name: '追问记录' })).toContainText('只引用当前页可核验的证据');
 
   const geometry = await page.locator('.report-workspace').evaluate((workspace) => {
-    const selectors = ['.report-header', '.report-thumbnail-rail', '.report-workspace__canvas', '.report-workspace__controls'];
+    const selectors = [
+      '.report-header',
+      '.report-thumbnail-rail',
+      '.report-workspace__canvas',
+      '.report-subtitle-bar',
+      '.report-workspace__chat',
+    ];
     const regions = Object.fromEntries(selectors.map((selector) => {
-      const element = workspace.querySelector<HTMLElement>(selector)!;
+      const element = workspace.querySelector<HTMLElement>(selector) ?? document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing geometry region: ${selector}`);
       const box = element.getBoundingClientRect();
       const style = getComputedStyle(element);
       return [selector, {
@@ -828,12 +835,12 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       const active = document.activeElement;
       if (active?.closest('.report-thumbnail-rail')) return 'rail';
       if (active?.closest('.report-workspace__canvas')) return 'canvas';
-      if (active?.closest('.report-workspace__controls')) return 'controls';
+      if (active?.closest('.report-workspace__chat')) return 'chat';
       return undefined;
     });
     if (focusedRegion) keyboardRegions.add(focusedRegion);
   }
-  expect([...keyboardRegions].sort()).toEqual(['canvas', 'controls', 'header', 'rail']);
+  expect([...keyboardRegions].sort()).toEqual(['canvas', 'chat', 'header', 'rail']);
 
   const legacy = /pptx|\.pptx|下载/iu;
   await expect(page.getByRole('button', { name: legacy })).toHaveCount(0);
