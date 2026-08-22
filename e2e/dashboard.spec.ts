@@ -701,13 +701,15 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
 
   await launchReport(page);
   await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('正在创建动态汇报');
+  await expect(page.getByRole('status').filter({ hasText: '正在创建动态汇报' })).toContainText('正在创建动态汇报');
   expect(api.createRequests).toBe(1);
 
   api.createGate.resolve();
   await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
   await api.terminalStreamReady;
-  await expect(page.getByRole('status')).toContainText(/正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u);
+  await expect(page.getByRole('status').filter({
+    hasText: /正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u,
+  })).toContainText(/正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u);
   await expect(page.getByText('实时数据快照')).toHaveCount(0);
   await expect(page.locator('.report-thumbnail')).toHaveCount(0);
   await expect(page.locator('[data-slide-mode="canvas"]')).toHaveCount(0);
