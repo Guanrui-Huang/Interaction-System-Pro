@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ATOMIC_VISUAL_KINDS } from '../../shared/report';
 import type { AnalysisEvidence } from '../src/domain/analysis-evidence';
+import type { AnalysisMetricKey } from '../src/domain/analysis-plan';
 import type { ReportEvidenceBundle } from '../src/domain/report-evidence';
 import type { DeepSeekCompletionRequest } from '../src/services/deepseek-client';
 import {
@@ -59,7 +60,7 @@ const identityEvidence: ReportEvidenceBundle = {
     limitations: ['现场结论只引用已提供证据'],
   },
 };
-const denseMetricKeys = [
+const denseMetricKeys: AnalysisMetricKey[] = [
   'processedM3',
   'informationCount',
   'complianceRate',
