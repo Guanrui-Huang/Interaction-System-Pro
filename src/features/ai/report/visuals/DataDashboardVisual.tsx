@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { DataDashboardVisualSpec } from '../../../../../shared/report';
 import { AtomicVisualRenderer } from './AtomicVisualRenderer';
 import { ReportVisualErrorBoundary } from './ReportVisualErrorBoundary';
@@ -16,10 +17,19 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
     );
   }
 
+  const summaryColumns = Math.min(Math.max(visual.summaryMetrics.length, 1), 4);
+  const summaryRows = Math.ceil(visual.summaryMetrics.length / 4);
+  const supporting = [...visual.supporting].sort((left, right) => (
+    Number(right.kind === 'comparison-bars') - Number(left.kind === 'comparison-bars')
+  ));
+  const summaryStyle = {
+    '--report-summary-columns': String(summaryColumns),
+  } as CSSProperties & { '--report-summary-columns': string };
+
   return (
-    <div className="report-data-dashboard" data-support-count={visual.supporting.length}>
+    <div className="report-data-dashboard" data-support-count={visual.supporting.length} data-summary-rows={summaryRows}>
       {visual.summaryMetrics.length > 0 && (
-        <dl className="report-data-dashboard__metrics" aria-label="关键指标摘要">
+        <dl className="report-data-dashboard__metrics" style={summaryStyle} aria-label="关键指标摘要">
           {visual.summaryMetrics.map((metric) => (
             <div className="report-data-dashboard__metric" key={`${metric.snapshotId}:${metric.key}`}>
               <dt>
@@ -44,9 +54,9 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
           <AtomicVisualRenderer visual={visual.primary} mode={mode} />
         </ReportVisualErrorBoundary>
       </section>
-      {visual.supporting.length > 0 && (
+      {supporting.length > 0 && (
         <div className="report-data-dashboard__support" aria-label="辅助图">
-          {visual.supporting.map((item, index) => (
+          {supporting.map((item, index) => (
             <section key={`${item.kind}-${index + 1}`} data-panel-kind={item.kind} aria-label={`辅助图 ${index + 1}`}>
               <div className="report-data-dashboard__panel-label">
                 <ReportVisualIcon kind={item.kind} />

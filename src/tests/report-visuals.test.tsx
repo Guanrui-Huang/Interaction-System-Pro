@@ -221,6 +221,30 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
 });
 
+it('renders six summary metrics without truncation and uses four columns per row', () => {
+  const metrics = Array.from({ length: 6 }, (_, index) => metric(`metric-${index}`, `指标 ${index + 1}`, 90 + index, '分'));
+  const { container } = render(<VisualRenderer visual={dataDashboardFixture({ summaryMetrics: metrics })} mode="canvas" />);
+  const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard')!;
+  const summary = container.querySelector<HTMLElement>('.report-data-dashboard__metrics')!;
+
+  expect(container.querySelectorAll('.report-data-dashboard__metric')).toHaveLength(6);
+  expect(summary.style.getPropertyValue('--report-summary-columns')).toBe('4');
+  expect(dashboard).toHaveAttribute('data-summary-rows', '2');
+});
+
+it('promotes comparison bars to the larger supporting slot', () => {
+  const visual = dataDashboardFixture({
+    supporting: [
+      { kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 },
+      { kind: 'comparison-bars', items: [metric('tn', '总氮', 2.4), metric('ammonia', '氨氮', 0.5)] },
+    ],
+  });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const panels = Array.from(container.querySelectorAll<HTMLElement>('.report-data-dashboard__support > section'));
+
+  expect(panels.map((panel) => panel.dataset.panelKind)).toEqual(['comparison-bars', 'health-ring']);
+});
+
 it('renders one decorative metric icon inside each KPI grid card', () => {
   const visual: Extract<VisualSpec, { kind: 'kpi-grid' }> = {
     kind: 'kpi-grid',
@@ -238,6 +262,24 @@ it('renders one decorative metric icon inside each KPI grid card', () => {
     expect(card).toHaveTextContent(visual.metrics[index]!.label);
     expect(card.querySelector('[data-icon-kind="metric"]')).not.toBeNull();
   }
+});
+
+it('caps KPI grids at four columns while preserving every metric card', () => {
+  const visual: Extract<VisualSpec, { kind: 'kpi-grid' }> = {
+    kind: 'kpi-grid',
+    metrics: [
+      metric('tn', '总氮', 2.4),
+      metric('ammonia', '氨氮', 0.5),
+      metric('tp', '总磷', 0.3),
+      metric('cod', 'COD', 28),
+      metric('health', '运行健康度', 92, '分'),
+    ],
+  };
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const grid = container.querySelector<HTMLElement>('.report-kpi-grid')!;
+
+  expect(container.querySelectorAll('.report-kpi')).toHaveLength(5);
+  expect(grid.style.getPropertyValue('--report-kpi-columns')).toBe('4');
 });
 
 it('renders a zero-support dashboard with an explicit full-height primary layout hook', () => {

@@ -56,15 +56,10 @@ it('keeps the mint send control contrasted through hover and focus', () => {
   expect(mintStateRule).toMatch(/background:\s*var\(--report-mint\);/u);
 });
 
-it('stacks dashboard metrics, primary and support regions at an 820px viewport', () => {
-  const narrowStart = css.indexOf('@media (max-width: 899px)');
-  const narrowEnd = css.indexOf('@media (max-width: 1180px)', narrowStart);
-  const narrowCss = css.slice(narrowStart, narrowEnd);
-
-  expect(narrowStart).toBeGreaterThanOrEqual(0);
-  expect(narrowEnd).toBeGreaterThan(narrowStart);
-  expect(820).toBeLessThanOrEqual(899);
-  expect(narrowCss).toMatch(/\.report-data-dashboard,\s*\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics"\s+"primary"\s+"support";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/su);
-  expect(narrowCss).toMatch(/\.report-data-dashboard\[data-support-count="0"\]\s*\{[^}]*grid-template-areas:\s*"metrics"\s+"primary";/su);
-  expect(narrowCss).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/su);
+it('uses the approved no-scroll 1920 dashboard geometry', () => {
+  expect(css).toMatch(/\.report-workspace__canvas\s*\{[^}]*overflow:\s*hidden;/su);
+  expect(css).toMatch(/\.report-slide--canvas\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);/su);
+  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(0,\s*1fr\);/su);
 });
