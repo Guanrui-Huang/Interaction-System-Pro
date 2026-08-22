@@ -278,6 +278,25 @@ it('marks slide sections with the visual kind for composite layout CSS', () => {
   expect(slide).toHaveClass('report-slide--visual-data-dashboard');
 });
 
+it('adds restrained inline icons to the page heading, metric cards and dashboard panels', () => {
+  const visual = dataDashboardFixture({
+    summaryMetrics: [metric('tn'), metric('ammonia'), metric('tp'), metric('cod')],
+  });
+  const { container } = render(<ReportSlideView
+    slide={slideFixture({ visual })}
+    mode="canvas"
+    active
+  />);
+
+  expect(container.querySelector('[data-icon-kind="data-dashboard"]')).not.toBeNull();
+  expect(container.querySelectorAll('[data-icon-kind="metric"]')).toHaveLength(visual.summaryMetrics.length);
+  expect(container.querySelector('[data-panel-kind="trend-area"] .report-visual-icon')).not.toBeNull();
+  expect(container.querySelector('[data-panel-kind="comparison-bars"] .report-visual-icon')).not.toBeNull();
+  for (const icon of container.querySelectorAll('.report-visual-icon')) {
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+  }
+});
+
 it.each([
   visualFixture('concept-map') as Extract<VisualSpec, { kind: 'concept-map' }>,
   visualFixture('capability-map') as Extract<VisualSpec, { kind: 'capability-map' }>,

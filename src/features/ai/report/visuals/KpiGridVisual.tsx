@@ -1,4 +1,5 @@
 import type { VisualSpec } from '../../../../../shared/report';
+import { ReportVisualIcon } from './ReportVisualIcon';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
 type KpiGridSpec = Extract<VisualSpec, { kind: 'kpi-grid' }>;
@@ -10,7 +11,10 @@ export function KpiGridVisual({ visual }: { visual: KpiGridSpec }) {
       <div className="report-kpi-grid">
         {visual.metrics.map((item) => (
           <article className="report-kpi" key={item.key}>
-            <span>{item.label}</span>
+            <span className="report-kpi__label">
+              <ReportVisualIcon kind="metric" />
+              <span>{item.label}</span>
+            </span>
             <strong data-motion-number data-final-value={item.value}>{formatReportNumber(item.value)}</strong>
             <small>{item.unit ?? '—'}</small>
             {item.status && <em>{item.status}</em>}

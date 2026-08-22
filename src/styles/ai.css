@@ -230,7 +230,7 @@
 .report-slide--layout-diagnostic-overview { grid-template-columns: minmax(19rem, 1fr) minmax(19rem, 1fr); grid-template-areas: "heading evidence" "visual visual"; }
 .report-slide__guide { position: absolute; z-index: 3; left: 0; top: 0; bottom: 0; width: 2px; background: var(--report-cyan); box-shadow: 0 0 14px rgb(44 228 245 / 64%); }
 .report-slide__heading { grid-area: heading; align-self: center; min-width: 0; }
-.report-slide__heading > p:first-child { margin: 0 0 20px; color: #6f98a5; font: 11px "JetBrains Mono", monospace; letter-spacing: .12em; }
+.report-slide__heading > p:first-child { display: inline-flex; align-items: center; gap: .5rem; margin: 0 0 20px; color: #6f98a5; font: 11px "JetBrains Mono", monospace; letter-spacing: .12em; }
 .report-slide__heading > p:first-child span { color: var(--report-cyan); }
 .report-slide__heading h2 { margin: 0; color: #f3fcfd; font-size: clamp(28px, 4cqw, 58px); font-weight: 650; letter-spacing: -.035em; line-height: 1.08; }
 .report-slide__takeaway { max-width: 34rem; margin-top: 24px; padding-left: 14px; border-left: 1px solid rgb(44 228 245 / 42%); color: #9db9c1; font-size: clamp(14px, 1.35cqw, 18px); line-height: 1.75; }
@@ -253,6 +253,17 @@
 .report-trend__legend-swatch { width: 1.35rem; height: .18rem; border-radius: 999px; box-shadow: 0 0 5px rgb(44 228 245 / 28%); }
 .report-trend__legend small { color: #72949e; font: .62rem "JetBrains Mono", monospace; }
 .report-visual-renderer--thumbnail .report-trend__legend { display: none; }
+.report-visual-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  color: rgb(110 201 219 / 78%);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .report-slide--visual-data-dashboard.report-slide--canvas {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "heading" "visual" "evidence";
@@ -274,7 +285,13 @@
 }
 .report-data-dashboard__metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .55rem; margin: 0; }
 .report-data-dashboard__metric { min-width: 0; padding: .62rem .75rem; border: 1px solid rgb(111 175 192 / 18%); background: rgb(7 19 27 / 48%); }
+.report-data-dashboard__metric dt,
+.report-data-dashboard__panel-label,
+.report-kpi__label { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
 .report-data-dashboard__metric dt { color: #7fa0aa; font-size: .7rem; }
+.report-data-dashboard__metric dt span,
+.report-data-dashboard__panel-label span,
+.report-kpi__label span { min-width: 0; }
 .report-data-dashboard__metric dd { display: flex; align-items: baseline; gap: .3rem; margin: .28rem 0 0; }
 .report-data-dashboard__metric strong { color: #efffff; font: 650 1.28rem "JetBrains Mono", monospace; }
 .report-data-dashboard__metric span,
@@ -283,6 +300,7 @@
 .report-data-dashboard__support > section { min-width: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); }
 .report-data-dashboard__primary { grid-area: primary; }
 .report-data-dashboard__support { grid-area: support; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; min-height: 0; }
+.report-data-dashboard__panel-label { margin: 0 0 .45rem; color: #7fa0aa; font-size: .68rem; letter-spacing: .04em; }
 .report-data-dashboard[data-support-count="0"] {
   grid-template-areas: "metrics" "primary";
   grid-template-rows: auto minmax(0, 1fr);
@@ -298,7 +316,7 @@
 .report-visual__error { display: grid; min-height: 7rem; place-content: center; margin: 0; color: var(--report-warn); font-size: .75rem; text-align: center; }
 .report-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .report-kpi { display: grid; grid-template-columns: 1fr auto; padding: 16px; border-top: 1px solid rgb(44 228 245 / 42%); background: rgb(7 19 27 / 52%); }
-.report-kpi span { grid-column: 1 / -1; color: #7fa0aa; font-size: 12px; }
+.report-kpi__label { grid-column: 1 / -1; color: #7fa0aa; font-size: 12px; }
 .report-kpi strong { margin-top: 7px; color: #e8ffff; font: 650 clamp(24px, 3cqw, 42px) "JetBrains Mono", monospace; }
 .report-kpi small { align-self: end; padding-bottom: 6px; color: #7fa0aa; font: 11px "JetBrains Mono", monospace; }
 .report-kpi em { grid-column: 1 / -1; margin-top: 5px; color: var(--report-mint); font-size: 11px; font-style: normal; }

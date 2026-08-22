@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { ReportSlide } from '../../../../shared/report';
 import { ReportEvidenceDrawer } from './ReportEvidenceDrawer';
 import { useReportSlideMotion } from './useReportSlideMotion';
+import { ReportVisualIcon } from './visuals/ReportVisualIcon';
 import { VisualRenderer, type VisualMode } from './visuals/VisualRenderer';
 
 type ReportSlideViewProps = {
@@ -35,7 +36,10 @@ export function ReportSlideView({ slide, mode, active, animate = true, onFirstAc
     >
       <div className="report-slide__guide" aria-hidden="true" />
       <header className="report-slide__heading">
-        <p><span>{String(slide.order + 1).padStart(2, '0')}</span> / LIVE REPORT</p>
+        <p>
+          <ReportVisualIcon kind={slide.visual.kind} />
+          <span>{String(slide.order + 1).padStart(2, '0')}</span> / LIVE REPORT
+        </p>
         {mode === 'canvas'
           ? <h2 ref={headingRef} tabIndex={-1}>{slide.title}</h2>
           : <p className="report-slide__thumbnail-title">{slide.title}</p>}
