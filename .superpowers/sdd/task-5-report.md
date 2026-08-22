@@ -24,3 +24,10 @@
 
 - `server/.env.example` was already modified before this task and was left untouched as requested.
 - Scope was kept to inline icon semantics and styling only; no Task 6 layout changes were implemented.
+
+## Reviewer Follow-up (2026-08-22)
+
+- Scope: Hardened `src/tests/report-visuals.test.tsx` on top of `d730092` without changing production code.
+- Added a rendered KPI-grid assertion that requires one decorative metric icon per KPI card.
+- Tightened decorative icon coverage to require both `aria-hidden="true"` and `focusable="false"`.
+- Verification: `node_modules/.bin/vitest src/tests/report-visuals.test.tsx --run` passed with `37 passed`.

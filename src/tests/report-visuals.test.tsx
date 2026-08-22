@@ -221,6 +221,25 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
 });
 
+it('renders one decorative metric icon inside each KPI grid card', () => {
+  const visual: Extract<VisualSpec, { kind: 'kpi-grid' }> = {
+    kind: 'kpi-grid',
+    metrics: [
+      metric('tn', '总氮', 2.4),
+      metric('ammonia', '氨氮', 0.5),
+      metric('tp', '总磷', 0.3),
+    ],
+  };
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const cards = Array.from(container.querySelectorAll<HTMLElement>('.report-kpi'));
+
+  expect(cards).toHaveLength(visual.metrics.length);
+  for (const [index, card] of cards.entries()) {
+    expect(card).toHaveTextContent(visual.metrics[index]!.label);
+    expect(card.querySelector('[data-icon-kind="metric"]')).not.toBeNull();
+  }
+});
+
 it('renders a zero-support dashboard with an explicit full-height primary layout hook', () => {
   const visual = dataDashboardFixture({ supporting: [] });
   const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
@@ -294,6 +313,7 @@ it('adds restrained inline icons to the page heading, metric cards and dashboard
   expect(container.querySelector('[data-panel-kind="comparison-bars"] .report-visual-icon')).not.toBeNull();
   for (const icon of container.querySelectorAll('.report-visual-icon')) {
     expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(icon).toHaveAttribute('focusable', 'false');
   }
 });
 
