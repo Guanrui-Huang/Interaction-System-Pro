@@ -1,0 +1,16 @@
+node_modules/
+.superpowers/
+artifacts/
+docs/superpowers/
+task-*-report.md
+.npm-cache/
+.pnpm-store/
+dist/
+dist-server/
+tmp/
+*.tsbuildinfo
+server/.env
+test-results/
+playwright-report/
+/stitch_project_11671430195625544636/
+/.worktrees/

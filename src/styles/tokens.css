@@ -1,0 +1,34 @@
+:root {
+  color-scheme: dark;
+  --bg: #090f17;
+  --bg-deep: #060b12;
+  --panel: rgb(18 30 43 / 72%);
+  --panel-strong: rgb(15 25 37 / 88%);
+  --panel-highlight: rgb(95 221 255 / 8%);
+  --line: rgb(160 199 221 / 16%);
+  --line-strong: rgb(112 232 255 / 42%);
+  --cyan: #2ce4f5;
+  --cyan-bright: #9bf8ff;
+  --mint: #23efb1;
+  --blue: #38a9ff;
+  --chart-trend-start: #21F4B7;
+  --chart-trend-end: #27C8FF;
+  --chart-ring-start: #24E4C1;
+  --chart-ring-end: #35A9FF;
+  --chart-bar-blue-start: #1689DC;
+  --chart-bar-blue-end: #2CE4F5;
+  --chart-bar-green-start: #19BFA0;
+  --chart-bar-green-end: #42F0C7;
+  --chart-axis: #8FA8B7;
+  --chart-alert: #FF714D;
+  --text: #eff8fc;
+  --muted: #8ea4b4;
+  --dim: #587080;
+  --danger: #ff7682;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-panel: 0 28px 70px rgb(0 0 0 / 42%), inset 0 1px 0 rgb(255 255 255 / 8%);
+  --font-sans: Inter, "Microsoft YaHei", "PingFang SC", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Mono", "Microsoft YaHei", monospace;
+}

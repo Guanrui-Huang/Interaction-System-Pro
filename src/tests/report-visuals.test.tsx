@@ -1,0 +1,441 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import type { BoundMetric, ReportEvidenceRef, ReportSlide, VisualSpec } from '../../shared/report';
+import { VISUAL_KINDS } from '../../shared/report';
+import { ReportEvidenceDrawer } from '../features/ai/report/ReportEvidenceDrawer';
+import { ReportSlideView } from '../features/ai/report/ReportSlideView';
+import { ReportVisualErrorBoundary } from '../features/ai/report/visuals/ReportVisualErrorBoundary';
+import { VisualRenderer } from '../features/ai/report/visuals/VisualRenderer';
+
+const reportStyles = readFileSync(resolve(process.cwd(), 'src/styles/ai.css'), 'utf8');
+
+const metric = (key = 'tn', label = '总氮', value = 2.4, unit = 'mg/L'): BoundMetric => ({
+  key,
+  kind: 'metric',
+  source: 'excel',
+  snapshotId: 'snapshot-1',
+  module: 'water-quality',
+  label,
+  unit,
+  value,
+  dateRange: { from: '2026-07-01', to: '2026-07-31' },
+  sampleCount: 31,
+  claimIds: ['claim-1'],
+});
+
+const evidence = (key = 'tn', label = '总氮', unit = 'mg/L'): ReportEvidenceRef => ({
+  key,
+  kind: 'metric',
+  source: 'excel',
+  snapshotId: 'snapshot-1',
+  module: 'water-quality',
+  label,
+  unit,
+  dateRange: { from: '2026-07-01', to: '2026-07-31' },
+  sampleCount: 31,
+});
+
+function visualFixture(kind: typeof VISUAL_KINDS[number]): VisualSpec {
+  switch (kind) {
+    case 'kpi-grid':
+      return { kind, metrics: [metric()] };
+    case 'trend-line':
+    case 'trend-area':
+      return { kind, series: [{ key: 'tn', label: '总氮', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'], points: [{ label: '07-01', value: 2.2 }, { label: '07-31', value: 2.4 }] }] };
+    case 'comparison-bars':
+      return { kind, items: [metric('tn', '总氮', 2.4), metric('tp', '总磷', 0.3)] };
+    case 'health-ring':
+      return { kind, metric: metric('health', '运行健康度', 92, '分'), target: 95 };
+    case 'radar':
+      return { kind, axes: [{ key: 'stable', label: '稳定性', value: 92, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] }, { key: 'energy', label: '能效', value: 81, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] }, { key: 'quality', label: '水质', value: 95, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] }] };
+    case 'scatter':
+      return {
+        kind,
+        x: { ...evidence('flow', '处理量', 'm³/d'), claimIds: ['claim-1'] },
+        y: { ...evidence('energy', '单位能耗', 'kWh/m³'), claimIds: ['claim-1'] },
+        points: [{ label: '07-01', x: 2100, y: .31, claimIds: ['claim-1'] }, { label: '07-31', x: 2300, y: .28, claimIds: ['claim-1'] }],
+        caveat: '统计关联不等于因果关系',
+      };
+    case 'alert-timeline':
+      return { kind, items: [{ id: 'alert-1', date: '2026-07-18', level: '中', label: '氨氮波动', detail: '两小时内恢复。', snapshotId: 'snapshot-1', claimIds: ['claim-1'] }] };
+    case 'process-flow':
+    case 'recommendation-path':
+      return { kind, provenance: 'model-knowledge', steps: [{ id: 'step-1', title: '复核曝气', detail: '核对风机频率与溶解氧。', claimIds: ['claim-1'] }] };
+    case 'concept-map':
+      return {
+        kind,
+        nodes: [
+          { id: 'opaque-source-id', title: '进水总氮长周期波动与多因素协同控制', detail: '需结合来水负荷、水温与碳源变化综合判断', claimIds: ['claim-1'] },
+          { id: 'opaque-process-id', title: '生物脱氮过程稳定性', detail: '反映硝化与反硝化协同效果', claimIds: ['claim-1'] },
+          { id: 'opaque-outcome-id', title: '出水总氮达标裕度', detail: '体现最终风险缓冲空间', claimIds: ['claim-1'] },
+        ],
+        edges: [
+          { from: 'opaque-source-id', to: 'opaque-process-id', label: '影响负荷', claimIds: ['claim-1'] },
+          { from: 'opaque-process-id', to: 'opaque-outcome-id', claimIds: ['claim-1'] },
+        ],
+      };
+    case 'capability-map':
+      return { kind, items: [{ id: 'capability-1', title: '跨周期水质趋势识别与异常根因辅助判断', detail: '结合长时序变化、告警节点与运行工况识别值班人员需要复核的关键环节', claimIds: ['claim-1'] }] };
+    case 'data-dashboard':
+      return dataDashboardFixture();
+    default: {
+      const exhaustive: never = kind;
+      return exhaustive;
+    }
+  }
+}
+
+function dataDashboardFixture(overrides: Partial<Extract<VisualSpec, { kind: 'data-dashboard' }>> = {}): Extract<VisualSpec, { kind: 'data-dashboard' }> {
+  return {
+    kind: 'data-dashboard',
+    summaryMetrics: [metric('tn', '总氮', 2.4), metric('ammonia', '氨氮', 0.5)],
+    primary: {
+      kind: 'trend-area',
+      series: [{
+        key: 'tn',
+        label: '总氮',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 2.2 }, { label: '07-31', value: 2.4 }],
+      }],
+    },
+    supporting: [
+      { kind: 'comparison-bars', items: [metric('tn', '总氮', 2.4), metric('ammonia', '氨氮', 0.5)] },
+      { kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 },
+    ],
+    ...overrides,
+  };
+}
+
+function slideFixture(overrides: Partial<ReportSlide> = {}): ReportSlide {
+  return {
+    id: 'slide-1',
+    order: 0,
+    evidenceSnapshotId: 'snapshot-1', role: 'answer', layout: 'visual-focus', evidencePolicy: 'data',
+    title: '总氮趋势',
+    takeaway: '总氮保持稳定。',
+    takeawayClaimIds: ['claim-1'],
+    claims: [{ id: 'claim-1', text: '总氮保持稳定。', kind: 'onsite-fact', evidenceRefs: [evidence()] }],
+    visual: visualFixture('trend-line'),
+    metrics: [metric()],
+    evidenceRefs: [evidence()],
+    narration: [
+      { id: 'segment-1', text: '第一段。', speechId: 'speech-1', claimIds: ['claim-1'] },
+      { id: 'segment-2', text: '第二段。', speechId: 'speech-2', claimIds: ['claim-1'] },
+    ],
+    ...overrides,
+  };
+}
+
+it('uses the approved shared gradients and globally unique SVG IDs across report charts', () => {
+  const { container } = render(<>
+    <VisualRenderer visual={{
+      kind: 'trend-area',
+      series: [
+        {
+          key: 'tn',
+          label: '总氮',
+          unit: 'mg/L',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 2.2 }, { label: '07-15', value: 2.5 }, { label: '07-31', value: 2.4 }],
+        },
+        {
+          key: 'tp',
+          label: '总磷',
+          unit: 'mg/L',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 0.22 }, { label: '07-15', value: 0.28 }, { label: '07-31', value: 0.25 }],
+        },
+      ],
+    }} mode="canvas" />
+    <VisualRenderer visual={visualFixture('comparison-bars')} mode="canvas" />
+    <VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />
+  </>);
+
+  expect(Array.from(container.querySelectorAll('linearGradient stop')).map((stop) => stop.getAttribute('stop-color')))
+    .toEqual(expect.arrayContaining(['#21F4B7', '#27C8FF', '#24E4C1', '#35A9FF', '#1689DC', '#2CE4F5']));
+  expect(new Set(Array.from(container.querySelectorAll('[id]')).map(({ id }) => id)).size)
+    .toBe(container.querySelectorAll('[id]').length);
+});
+
+it('distinguishes multi-series trends with controlled gradients and an accessible visual legend', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'trend-area',
+    series: [
+      {
+        key: 'tn', label: '总氮', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 2.2 }, { label: '07-31', value: 2.4 }],
+      },
+      {
+        key: 'ammonia', label: '氨氮', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 0.42 }, { label: '07-31', value: 0.5 }],
+      },
+      {
+        key: 'tp', label: '总磷', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 0.22 }, { label: '07-31', value: 0.25 }],
+      },
+    ],
+  }} mode="canvas" />);
+
+  const lineGradients = Array.from(container.querySelectorAll<SVGLinearGradientElement>('linearGradient[id^="report-trend-line-"]'));
+  const stopColors = (gradient: SVGLinearGradientElement) => (
+    Array.from(gradient.querySelectorAll('stop'), (stop) => stop.getAttribute('stop-color'))
+  );
+  expect(lineGradients.map(stopColors)).toEqual([
+    ['#21F4B7', '#27C8FF'],
+    ['#1689DC', '#2CE4F5'],
+    ['#19BFA0', '#42F0C7'],
+  ]);
+  expect(new Set(lineGradients.map(({ id }) => id)).size).toBe(lineGradients.length);
+
+  const legend = screen.getByRole('list', { name: '趋势序列图例' });
+  expect(within(legend).getByText('总氮')).toBeVisible();
+  expect(within(legend).getByText('氨氮')).toBeVisible();
+  expect(within(legend).getByText('总磷')).toBeVisible();
+});
+
+it.each(VISUAL_KINDS)('renders registered visual %s without raw markup injection', (kind) => {
+  const { container } = render(<VisualRenderer visual={visualFixture(kind)} mode="canvas" />);
+  const graphics = screen.getAllByRole('img');
+
+  expect(graphics.length).toBeGreaterThan(0);
+  for (const graphic of graphics) {
+    expect(graphic).toHaveAccessibleName(/.+/);
+  }
+  expect(container.querySelector('script, style, iframe')).toBeNull();
+  expect(container.innerHTML).not.toContain('dangerouslySetInnerHTML');
+});
+
+it('renders a metric strip, one primary chart and at most two supporting charts', () => {
+  const visual = visualFixture('data-dashboard');
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+
+  expect(container.querySelectorAll('.report-data-dashboard__metric')).toHaveLength(2);
+  expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
+  expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
+});
+
+it('renders a zero-support dashboard with an explicit full-height primary layout hook', () => {
+  const visual = dataDashboardFixture({ supporting: [] });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const dashboard = container.querySelector('.report-data-dashboard');
+
+  expect(dashboard).toHaveAttribute('data-support-count', '0');
+  expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
+  expect(container.querySelector('.report-data-dashboard__support')).toBeNull();
+  expect(reportStyles).toContain('.report-data-dashboard[data-support-count="0"]');
+});
+
+it('renders a one-support dashboard with the existing split layout hook', () => {
+  const visual = dataDashboardFixture({
+    supporting: [{ kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 }],
+  });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const dashboard = container.querySelector('.report-data-dashboard');
+
+  expect(dashboard).toHaveAttribute('data-support-count', '1');
+  expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
+  expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(1);
+  expect(reportStyles).toContain('.report-data-dashboard[data-support-count="1"]');
+});
+
+it('renders only the primary composite chart in thumbnail mode', () => {
+  const visual = visualFixture('data-dashboard');
+  const { container } = render(<VisualRenderer visual={visual} mode="thumbnail" />);
+
+  expect(container.querySelector('.report-data-dashboard__primary')).toBeTruthy();
+  expect(container.querySelector('.report-data-dashboard__metrics')).toBeNull();
+  expect(container.querySelector('.report-data-dashboard__support')).toBeNull();
+});
+
+it('isolates a failed child chart instead of blanking the report page', () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const Broken = () => {
+    throw new Error('chart failed');
+  };
+
+  render(<ReportVisualErrorBoundary label="辅助图 1"><Broken /></ReportVisualErrorBoundary>);
+
+  expect(screen.getByRole('alert')).toHaveTextContent('辅助图 1暂时无法显示，请查看本页证据数据。');
+  consoleError.mockRestore();
+});
+
+it('marks slide sections with the visual kind for composite layout CSS', () => {
+  const { container } = render(<ReportSlideView
+    slide={slideFixture({ visual: visualFixture('data-dashboard') })}
+    mode="canvas"
+    active
+  />);
+  const slide = container.querySelector('.report-slide');
+
+  expect(slide).toHaveAttribute('data-visual-kind', 'data-dashboard');
+  expect(slide).toHaveClass('report-slide--visual-data-dashboard');
+});
+
+it.each([
+  visualFixture('concept-map') as Extract<VisualSpec, { kind: 'concept-map' }>,
+  visualFixture('capability-map') as Extract<VisualSpec, { kind: 'capability-map' }>,
+] as const)('renders intent-first knowledge visual $kind in canvas and thumbnail modes', (visual) => {
+  const { container } = render(<><VisualRenderer visual={visual} mode="canvas" /><VisualRenderer visual={visual} mode="thumbnail" /></>);
+
+  expect(container.querySelectorAll(`[data-visual-kind="${visual.kind}"]`)).toHaveLength(2);
+  expect(container.querySelectorAll(visual.kind === 'concept-map' ? '.report-concept-map__node strong' : '.report-capability-map__item strong')).toHaveLength(
+    (visual.kind === 'concept-map' ? visual.nodes.length : visual.items.length) * 2,
+  );
+});
+
+it('renders every concept relationship semantically without exposing opaque node IDs', () => {
+  const visual = visualFixture('concept-map') as Extract<VisualSpec, { kind: 'concept-map' }>;
+  const { container } = render(<><VisualRenderer visual={visual} mode="canvas" /><VisualRenderer visual={visual} mode="thumbnail" /></>);
+
+  expect(container.querySelector('.report-concept-map__edges')).toBeNull();
+  expect(container.querySelectorAll('.report-concept-map__relation')).toHaveLength(visual.edges.length * 2);
+  for (const graphic of screen.getAllByRole('img')) {
+    expect(graphic).toHaveAccessibleName(/进水总氮长周期波动与多因素协同控制/);
+    expect(graphic).toHaveAccessibleName(/进水总氮长周期波动与多因素协同控制 → 生物脱氮过程稳定性（影响负荷）/);
+    expect(graphic).toHaveAccessibleName(/生物脱氮过程稳定性 → 出水总氮达标裕度（关联）/);
+  }
+  for (const table of screen.getAllByRole('table', { name: '概念关系数据表' })) {
+    expect(table).toHaveTextContent('关系：进水总氮长周期波动与多因素协同控制 → 生物脱氮过程稳定性');
+    expect(table).toHaveTextContent('影响负荷');
+    expect(table).toHaveTextContent('关系：生物脱氮过程稳定性 → 出水总氮达标裕度');
+    expect(table).toHaveTextContent('关联');
+  }
+  expect(screen.queryByText('opaque-source-id')).not.toBeInTheDocument();
+  expect(screen.queryByText('opaque-process-id')).not.toBeInTheDocument();
+  expect(screen.queryByText('opaque-outcome-id')).not.toBeInTheDocument();
+});
+
+it('renders a single concept node without inventing a relationship', () => {
+  render(<VisualRenderer visual={{
+    kind: 'concept-map',
+    nodes: [{ id: 'only-node-id', title: '单一概念节点', detail: '暂无关联关系', claimIds: ['claim-1'] }],
+    edges: [],
+  }} mode="canvas" />);
+
+  expect(screen.getByRole('img')).toHaveAccessibleName('概念关系图：单一概念节点');
+  expect(screen.queryByRole('list', { name: '概念关系' })).not.toBeInTheDocument();
+  expect(screen.getByRole('table', { name: '概念关系数据表' })).toHaveTextContent('单一概念节点');
+});
+
+it('preserves long capability titles and details in its accessible table in both modes', () => {
+  const visual = visualFixture('capability-map') as Extract<VisualSpec, { kind: 'capability-map' }>;
+  render(<><VisualRenderer visual={visual} mode="canvas" /><VisualRenderer visual={visual} mode="thumbnail" /></>);
+
+  for (const table of screen.getAllByRole('table', { name: '能力地图数据表' })) {
+    expect(table).toHaveTextContent('跨周期水质趋势识别与异常根因辅助判断');
+    expect(table).toHaveTextContent('结合长时序变化、告警节点与运行工况识别值班人员需要复核的关键环节');
+  }
+});
+
+it('exposes chart values in a screen-reader-only data table', () => {
+  const { container } = render(<VisualRenderer visual={visualFixture('trend-line')} mode="canvas" />);
+
+  expect(screen.getByRole('table', { name: '总氮数据表' })).toBeInTheDocument();
+  expect(container.querySelector('table')?.closest('.sr-only')).not.toBeNull();
+  expect(screen.getByRole('cell', { name: '2.4' })).toBeInTheDocument();
+});
+
+it('draws mixed-sign comparison bars away from a true zero baseline', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'comparison-bars',
+    items: [metric('gain', '正偏差', 6, 'mg/L'), metric('loss', '负偏差', -4, 'mg/L')],
+  }} mode="canvas" />);
+  const baseline = Number(container.querySelector('.report-chart__baseline')?.getAttribute('y1'));
+  const [positive, negative] = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar'));
+  const positiveY = Number(positive?.getAttribute('y'));
+  const positiveHeight = Number(positive?.getAttribute('height'));
+  const negativeY = Number(negative?.getAttribute('y'));
+  const negativeHeight = Number(negative?.getAttribute('height'));
+
+  expect(positiveY).toBeLessThan(baseline);
+  expect(positiveY + positiveHeight).toBeCloseTo(baseline, 5);
+  expect(negativeY).toBeCloseTo(baseline, 5);
+  expect(negativeHeight).toBeGreaterThan(0);
+});
+
+it('draws an all-negative comparison set downward from a zero baseline', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'comparison-bars',
+    items: [metric('loss-a', '偏差 A', -2, 'mg/L'), metric('loss-b', '偏差 B', -6, 'mg/L')],
+  }} mode="canvas" />);
+  const baseline = Number(container.querySelector('.report-chart__baseline')?.getAttribute('y1'));
+  const bars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar'));
+
+  expect(bars).toHaveLength(2);
+  for (const bar of bars) {
+    expect(Number(bar.getAttribute('y'))).toBeCloseTo(baseline, 5);
+    expect(Number(bar.getAttribute('height'))).toBeGreaterThan(0);
+  }
+});
+
+it('builds a stable trend x domain from labels in every series', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'trend-line',
+    series: [
+      { key: 'first', label: '首序列', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'], points: [{ label: '07-01', value: 2.1 }] },
+      { key: 'second', label: '缺测序列', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'], points: [{ label: '07-02', value: 2.2 }, { label: '07-03', value: 2.3 }] },
+    ],
+  }} mode="canvas" />);
+  const xPositions = Array.from(container.querySelectorAll<SVGCircleElement>('.report-chart__point'))
+    .map((circle) => Number(circle.getAttribute('cx')));
+
+  expect(xPositions).toHaveLength(3);
+  expect(new Set(xPositions).size).toBe(3);
+  expect(xPositions[1]).toBeLessThan(xPositions[2]!);
+});
+
+it('allocates unique SVG IDs when the same visual appears in canvas and thumbnails', () => {
+  const visual = visualFixture('trend-area');
+  const { container } = render(<><VisualRenderer visual={visual} mode="canvas" /><VisualRenderer visual={visual} mode="thumbnail" /></>);
+  const ids = Array.from(container.querySelectorAll<SVGElement>('svg [id]')).map((node) => node.id);
+
+  expect(ids.length).toBeGreaterThan(0);
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const reference of Array.from(container.querySelectorAll<SVGElement>('[clip-path]'))) {
+    const id = reference.getAttribute('clip-path')?.match(/^url\(#(.+)\)$/)?.[1];
+    expect(id && container.querySelector(`[id="${id}"]`)).not.toBeNull();
+  }
+});
+
+it('always presents the fixed scatter correlation caveat', () => {
+  render(<VisualRenderer visual={visualFixture('scatter')} mode="canvas" />);
+
+  expect(screen.getByText('统计关联不等于因果关系')).toBeVisible();
+});
+
+it('keeps detailed evidence collapsed and limits it to already-bound slide data', async () => {
+  const user = userEvent.setup();
+  render(<ReportEvidenceDrawer slide={slideFixture()} />);
+
+  expect(screen.queryByRole('table', { name: '证据明细' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '展开证据明细' }));
+  expect(screen.getByRole('table', { name: '证据明细' })).toHaveTextContent('总氮');
+  expect(screen.getByRole('table', { name: '证据明细' })).toHaveTextContent('2.4');
+  expect(screen.queryByText(/工作簿|任意单元格/)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: '收起证据明细' }));
+  expect(screen.queryByRole('table', { name: '证据明细' })).not.toBeInTheDocument();
+});
+
+it('states evidence insufficiency instead of presenting an unsupported conclusion', () => {
+  render(<ReportSlideView
+    slide={slideFixture({
+      title: '证据不足',
+      takeaway: '证据不足，无法确认该页结论。',
+      visual: { kind: 'recommendation-path', provenance: 'model-knowledge', steps: [{ id: 'safe-1', title: '证据不足', detail: '请补充经过验证的数据证据。', claimIds: ['claim-1'] }] },
+      metrics: [],
+      evidenceRefs: [],
+    })}
+    mode="canvas"
+    active
+  />);
+
+  expect(screen.getByText('证据不足，无法确认该页结论。')).toBeVisible();
+  expect(screen.getByText('本页没有可核验的现场数据证据。')).toBeVisible();
+});
