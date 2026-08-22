@@ -276,9 +276,25 @@ it('shows the submitted user question in visible history while the follow-up req
   await user.click(screen.getByRole('button', { name: '发送追问' }));
 
   const history = screen.getByRole('list', { name: '追问记录' });
+  const userMessages = within(history).getAllByRole('listitem', { name: '用户消息' });
+  const assistantMessages = within(history).getAllByRole('listitem', { name: 'AI 消息' });
+  expect(userMessages).toHaveLength(2);
+  expect(assistantMessages).toHaveLength(1);
+  expect(userMessages[0]).toHaveTextContent('分析总氮趋势');
+  expect(userMessages[1]).toHaveTextContent('新的追问');
+  expect(assistantMessages[0]).toHaveTextContent('初始回答');
   expect(within(history).getByText('新的追问')).toBeVisible();
   expect(within(history).getByText('思考 1s ›')).toBeVisible();
-  expect(within(history).getAllByText('AI 汇报')).toHaveLength(1);
+});
+
+it('keeps message roles accessible without rendering visible role labels', () => {
+  renderFollowUp();
+
+  expect(screen.getByRole('listitem', { name: '用户消息' })).toHaveTextContent('分析总氮趋势');
+  expect(screen.getByRole('listitem', { name: 'AI 消息' })).toHaveTextContent('初始回答');
+  expect(document.querySelector('.report-conversation__role')).toBeNull();
+  expect(screen.queryByText('你', { exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByText('AI 汇报', { exact: true })).not.toBeInTheDocument();
 });
 
 it('advances the active thinking time once per second and freezes the completed duration', async () => {

@@ -508,7 +508,7 @@
 }
 .report-conversation__message {
   display: grid;
-  gap: .35rem;
+  gap: .2rem;
   min-width: 0;
   padding: .75rem .85rem;
   border: 1px solid rgb(44 228 245 / 18%);
@@ -543,7 +543,6 @@
   font: 11px "JetBrains Mono", "Microsoft YaHei", monospace;
   letter-spacing: 0;
 }
-.report-conversation__role { margin: 0; color: #9bc5ce; font: 11px "JetBrains Mono", "Microsoft YaHei", monospace; letter-spacing: .08em; }
 .report-conversation__text { margin: 0; color: #e8ffff; font-size: .82rem; line-height: 1.6; overflow-wrap: anywhere; }
 .report-conversation__status { margin: 0; color: var(--report-mint); font-size: .72rem; }
 .report-follow-up__history ul,

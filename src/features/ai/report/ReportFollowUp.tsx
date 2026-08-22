@@ -19,8 +19,8 @@ export type ReportFollowUpProps = UseReportFollowUpInput & {
 const FEED_BOTTOM_TOLERANCE_PX = 48;
 
 function ConversationMessage(
-  { role, text, messageClassName, children, live }: {
-    role: '你' | 'AI 汇报';
+  { speaker, text, messageClassName, children, live }: {
+    speaker: 'user' | 'assistant';
     text: string;
     messageClassName: string;
     children?: ReactNode;
@@ -28,8 +28,11 @@ function ConversationMessage(
   },
 ) {
   return (
-    <li className={`report-conversation__message ${messageClassName}`} {...(live ? { 'aria-live': live } : {})}>
-      <p className="report-conversation__role"><strong>{role}</strong></p>
+    <li
+      className={`report-conversation__message ${messageClassName}`}
+      aria-label={speaker === 'user' ? '用户消息' : 'AI 消息'}
+      {...(live ? { 'aria-live': live } : {})}
+    >
       <p className="report-conversation__text">{text}</p>
       {children}
     </li>
@@ -113,7 +116,7 @@ export function ReportFollowUp(props: ReportFollowUpProps) {
         onScroll={trackFeedPosition}
       >
         <ConversationMessage
-          role="你"
+          speaker="user"
           text={props.initialQuestion}
           messageClassName="report-conversation__message--user"
         />
@@ -125,7 +128,7 @@ export function ReportFollowUp(props: ReportFollowUpProps) {
           now={props.now}
         />
         <ConversationMessage
-          role="AI 汇报"
+          speaker="assistant"
           text={props.initialAnswerPending || props.initialAnswerInterrupted
             ? (props.generationLabel ?? '正在生成汇报')
             : (props.initialAnswer ?? props.generationLabel ?? '')}
@@ -134,14 +137,14 @@ export function ReportFollowUp(props: ReportFollowUpProps) {
         {model.history.flatMap((turn) => [
           <ConversationMessage
             key={`${turn.id}-question`}
-            role="你"
+            speaker="user"
             text={turn.question}
             messageClassName="report-conversation__message--user"
           />,
           <ReportThinkingTime key={`${turn.id}-thinking`} durationMs={turn.thinkingDurationMs} now={props.now} />,
           <ConversationMessage
             key={`${turn.id}-answer`}
-            role="AI 汇报"
+            speaker="assistant"
             text={turn.answer}
             messageClassName="report-conversation__message--assistant"
           >
@@ -155,7 +158,7 @@ export function ReportFollowUp(props: ReportFollowUpProps) {
         ])}
         {model.activeQuestion && (
           <ConversationMessage
-            role="你"
+            speaker="user"
             text={model.activeQuestion}
             messageClassName="report-conversation__message--user"
           />

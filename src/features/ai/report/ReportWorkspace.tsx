@@ -50,8 +50,7 @@ function ReportConversationShell(
       <ol className="report-follow-up__history report-conversation__feed" aria-label="追问记录">
         {initialQuestion && (
           <>
-            <li className="report-conversation__message report-conversation__message--user">
-              <p className="report-conversation__role"><strong>你</strong></p>
+            <li className="report-conversation__message report-conversation__message--user" aria-label="用户消息">
               <p className="report-conversation__text">{initialQuestion}</p>
             </li>
             <ReportThinkingTime
@@ -62,8 +61,7 @@ function ReportConversationShell(
             />
           </>
         )}
-        <li className="report-conversation__message report-conversation__message--assistant">
-          <p className="report-conversation__role"><strong>AI 汇报</strong></p>
+        <li className="report-conversation__message report-conversation__message--assistant" aria-label="AI 消息">
           <p className="report-conversation__text">{message}</p>
         </li>
       </ol>

@@ -371,10 +371,14 @@ it('renders the original question and the first report takeaway in the conversat
   render(<ReportWorkspace session={session(snapshot())} />);
 
   const conversation = screen.getByRole('region', { name: '汇报对话区' });
+  const history = screen.getByRole('list', { name: '追问记录' });
   expect(conversation).toHaveTextContent('分析水厂运行状态');
   expect(conversation).toHaveTextContent('总氮趋势保持稳定。');
-  expect(conversation).toHaveTextContent('你');
-  expect(conversation).toHaveTextContent('AI 汇报');
+  expect(within(history).getByRole('listitem', { name: '用户消息' })).toHaveTextContent('分析水厂运行状态');
+  expect(within(history).getByRole('listitem', { name: 'AI 消息' })).toHaveTextContent('总氮趋势保持稳定。');
+  expect(history.querySelector('.report-conversation__role')).toBeNull();
+  expect(within(history).queryByText('你', { exact: true })).not.toBeInTheDocument();
+  expect(within(history).queryByText('AI 汇报', { exact: true })).not.toBeInTheDocument();
 });
 
 it('uses the first valid playable slide takeaway for the initial AI conversation message', () => {
@@ -641,8 +645,14 @@ it('shows the original launch question in the no-snapshot creating conversation 
   render(<ReportWorkspace session={session(null, { phase: 'creating' })} launchQuestion="分析总氮趋势" />);
 
   const conversation = screen.getByRole('region', { name: '汇报对话区' });
+  const history = screen.getByRole('list', { name: '追问记录' });
   expect(conversation).toHaveTextContent('分析总氮趋势');
   expect(conversation).toHaveTextContent('正在创建动态汇报');
+  expect(within(history).getByRole('listitem', { name: '用户消息' })).toHaveTextContent('分析总氮趋势');
+  expect(within(history).getByRole('listitem', { name: 'AI 消息' })).toHaveTextContent('正在创建动态汇报');
+  expect(history.querySelector('.report-conversation__role')).toBeNull();
+  expect(within(history).queryByText('你', { exact: true })).not.toBeInTheDocument();
+  expect(within(history).queryByText('AI 汇报', { exact: true })).not.toBeInTheDocument();
   expect(screen.getByRole('textbox', { name: '输入追问' })).toBeDisabled();
   expect(screen.getByRole('button', { name: '语音追问' })).toBeDisabled();
   expect(screen.getByRole('button', { name: '语音追问' })).toHaveAttribute('title', '语音追问');
