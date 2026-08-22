@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route, type TestInfo } from 'playwright/test';
 import { ATOMIC_VISUAL_KINDS, type ConversationTurn, type CreateReportResponse, type FollowUpResponse, type ReportEvent, type ReportJobSnapshot, type ReportSlide, type SlideOutline } from '../shared/report';
+import type { AnalysisMetricKey } from '../server/src/domain/analysis-plan';
 import { createDashboardFixtures, type DashboardFixtures } from './dashboard-fixtures';
 
 const REPORT_ID = 'report-mocked-dynamic';
@@ -15,12 +16,39 @@ function dashboardFixtureFor(url: string): DashboardFixtures[keyof DashboardFixt
 }
 
 function metric(
-  key: string,
+  key: AnalysisMetricKey,
   label: string,
   unit: string,
   value: number,
-  module: 'water-quality' | 'energy' = key === 'tn' ? 'water-quality' : 'energy',
 ) {
+  const module: NonNullable<ReportSlide['metrics'][number]['module']> = (() => {
+    switch (key) {
+      case 'tn':
+      case 'ammonia':
+      case 'tp':
+      case 'cod':
+      case 'ss':
+        return 'water-quality';
+      case 'processedM3':
+      case 'informationCount':
+      case 'complianceRate':
+        return 'overview';
+      case 'totalKwh':
+      case 'kwhPerM3':
+      case 'blowerKwh':
+      case 'carbonSourceKg':
+      case 'carbonEmissionKg':
+      case 'carbonReductionKg':
+      case 'savedYuan':
+        return 'energy';
+      case 'healthScore':
+      case 'qualityScore':
+      case 'flowScore':
+      case 'energyScore':
+      case 'carbonSourceScore':
+        return 'health';
+    }
+  })();
   return {
     key,
     kind: 'metric' as const,
@@ -39,12 +67,12 @@ function metric(
 const tn = metric('tn', '总氮', 'mg/L', 2.68);
 const blower = metric('blowerKwh', '鼓风能耗', 'kWh/d', 128.4);
 const largeScreenMetrics = [
-  metric('aerationScore', '曝气协同得分', '分', 94, 'energy'),
-  metric('blowerResponse', '鼓风响应得分', '分', 91, 'energy'),
-  metric('oxygenMatch', '供氧匹配得分', '分', 89, 'energy'),
-  metric('loadBalance', '负荷平衡得分', '分', 87, 'energy'),
-  metric('nightStability', '夜间稳定得分', '分', 86, 'energy'),
-  metric('healthScore', '运行健康度', '分', 96, 'energy'),
+  metric('qualityScore', '出水水质得分', '分', 94),
+  metric('flowScore', '水量波动得分', '分', 91),
+  metric('energyScore', '电耗得分', '分', 89),
+  metric('carbonSourceScore', '碳源消耗得分', '分', 87),
+  metric('healthScore', '综合健康评分', '分', 96),
+  metric('blowerKwh', '鼓风能耗', 'kWh/d', 128.4),
 ];
 const largeScreenMetricKeys = largeScreenMetrics.map(({ key }) => key);
 const largeScreenComparisonMetrics = largeScreenMetrics.slice(0, 4);
