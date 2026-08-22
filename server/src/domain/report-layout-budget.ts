@@ -113,18 +113,19 @@ function ensureMetricCoverage(
   if (!analysis?.scope.metrics.length) return outlines.map((outline) => ({ ...outline, evidenceKeys: [...outline.evidenceKeys] }));
 
   const descriptors = new Map(reportEvidenceCatalog(bundle).map((item) => [item.key, item]));
-  const requiredMetricKeys = analysis.scope.metrics.filter((key) => {
+  const requiredMetricKeys = [...analysis.scope.metrics];
+  const metricDescriptors = new Map(requiredMetricKeys.map((key) => {
     const descriptor = descriptors.get(key);
-    return descriptor?.source === 'excel' && descriptor.kind === 'metric';
-  });
-  if (requiredMetricKeys.length !== analysis.scope.metrics.length) failOutline();
+    if (descriptor?.kind !== 'metric') failOutline();
+    return [key, descriptor];
+  }));
 
   const directMetricKeySet = new Set<string>(requiredMetricKeys);
   const pointCountByKey = new Map(requiredMetricKeys.map((key) => [
     key,
-    descriptors.get(key)?.seriesPoints ?? 0,
+    metricDescriptors.get(key)?.seriesPoints ?? 0,
   ]));
-  const unitByKey = new Map(requiredMetricKeys.map((key) => [key, descriptors.get(key)?.unit]));
+  const unitByKey = new Map(requiredMetricKeys.map((key) => [key, metricDescriptors.get(key)?.unit]));
 
   const coveredKeys = new Set(
     outlines.flatMap((outline) => directMetricKeysFor(outline, directMetricKeySet)),
