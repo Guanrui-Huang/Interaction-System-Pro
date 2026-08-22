@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { BusinessPage } from '../../../shared/dashboard';
-import { ATOMIC_VISUAL_KINDS, type SlideOutline } from '../../../shared/report';
+import {
+  ATOMIC_VISUAL_KINDS,
+  REPORT_MAX_SLIDES,
+  type SlideOutline,
+} from '../../../shared/report';
 import { redactAnalysisText } from '../domain/analysis-evidence';
 import {
   ReportContentValidationError,
@@ -11,6 +15,7 @@ import {
   validateModelReportPlan,
 } from '../domain/report-content-validation';
 import type { ReportEvidenceBundle } from '../domain/report-evidence';
+import { paginateLargeScreenOutlines } from '../domain/report-layout-budget';
 import {
   requestDeepSeekCompletion,
   type DeepSeekCompletionRequest,
@@ -44,6 +49,8 @@ function outputShape(): string {
 const VISUAL_EVIDENCE_RULES = [
   '可视化证据硬约束：scatter 必须且只能绑定 2 个 Excel metric；health-ring 必须且只能绑定 1 个 metric；trend-line/trend-area 的 Excel metric 都必须至少有 2 个时间点；alert-timeline 的 Excel 证据只能是 alert；process-flow/recommendation-path/concept-map/capability-map 必须包含 model-knowledge（身份页除外）。',
   '同一页需要分析 3 个以上指标时，拆成多页或改用 kpi-grid、comparison-bars、radar，不得把 3 个以上指标放入 scatter。',
+  '大屏容量硬约束：目标画布为 1920×1080，每行最多 4 个指标卡、单页最多 2 行指标卡；指标超过单页物理容量时规划连续页面，所有相关指标必须在某一页出现，不得只保留前 3 项或前 4 项。',
+  '无滚动硬约束：一页只安排一个主图和最多两个辅助图；流程、建议、告警或知识项目较多时按完整语义组拆页，不得依赖页面滚动或缩小到不可读。',
   '现场数据页采用图表优先：有至少两个时间点时优先 trend-area/trend-line；有至少两个同单位可比值时优先 comparison-bars；得分或百分比可使用 health-ring/radar。',
   '只在证据无法形成趋势、比较、评分、关联或告警图时选择 kpi-grid。不要返回 data-dashboard；组合图表由服务端根据不可变证据生成。',
 ] as const;
@@ -127,8 +134,12 @@ export async function planReport(
     })),
     invalidError: () => new ReportContentValidationError('REPORT_OUTLINE_INVALID'),
   });
+  const paginated = paginateLargeScreenOutlines(validated, input.evidence);
+  if (paginated.length > REPORT_MAX_SLIDES) {
+    throw new ReportContentValidationError('REPORT_OUTLINE_INVALID');
+  }
   const createSlideId = dependencies.createSlideId ?? (() => randomUUID());
-  return validated.map((slide, order) => ({
+  return paginated.map((slide, order) => ({
     ...slide,
     id: createSlideId(order),
     order,

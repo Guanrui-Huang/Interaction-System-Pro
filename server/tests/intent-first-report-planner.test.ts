@@ -309,6 +309,68 @@ describe('planReport', () => {
     expect(prompt).not.toContain(`"visualKind":"${[...ATOMIC_VISUAL_KINDS, 'data-dashboard'].join('|')}"`);
     expect(prompt).toContain('现场数据页采用图表优先：有至少两个时间点时优先 trend-area/trend-line；有至少两个同单位可比值时优先 comparison-bars；得分或百分比可使用 health-ring/radar。');
     expect(prompt).toContain('只在证据无法形成趋势、比较、评分、关联或告警图时选择 kpi-grid。不要返回 data-dashboard；组合图表由服务端根据不可变证据生成。');
+    expect(prompt).toContain('目标画布为 1920×1080');
+    expect(prompt).toContain('所有相关指标必须在某一页出现');
+    expect(prompt).toContain('不得依赖页面滚动');
+  });
+
+  it('preserves the report max slides failure after pagination expands dense pages', async () => {
+    const denseMetricKeys = [
+      'processedM3',
+      'informationCount',
+      'complianceRate',
+      'healthScore',
+      'qualityScore',
+      'flowScore',
+      'energyScore',
+      'carbonSourceScore',
+      'tn',
+    ];
+    const denseEvidence: ReportEvidenceBundle = {
+      snapshotId: 'evidence:dense',
+      analysis: {
+        scope: {
+          modules: ['overview', 'health', 'water-quality'],
+          metrics: denseMetricKeys,
+          dateRange: { from: '2026-08-01', to: '2026-08-31' },
+          sampleCount: 31,
+          granularity: 'daily',
+        },
+        definitions: denseMetricKeys.map((key, index) => ({
+          key,
+          label: `指标 ${index + 1}`,
+          unit: '分',
+        })),
+        series: [
+          { date: '2026-08-01', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 80 + index])) },
+          { date: '2026-08-31', values: Object.fromEntries(denseMetricKeys.map((key, index) => [key, 81 + index])) },
+        ],
+        aggregates: Object.fromEntries(denseMetricKeys.map((key, index) => [key, {
+          min: 80 + index,
+          max: 81 + index,
+          average: 80.5 + index,
+          latest: 81 + index,
+          changeRate: 1 / (80 + index),
+        }])),
+        thresholdBreaches: [],
+        correlations: [],
+        alerts: [],
+      },
+      knowledge: [],
+    };
+    const denseSlides = Array.from({ length: 7 }, (_, index) => ({
+      title: `密集指标页 ${index + 1}`,
+      purpose: `解释密集指标页 ${index + 1}`,
+      role: 'answer' as const,
+      layout: 'visual-focus' as const,
+      visualKind: 'kpi-grid' as const,
+      evidenceKeys: denseMetricKeys,
+    }));
+
+    await expect(planReport(
+      input(denseEvidence, '请逐页展示完整指标'),
+      provider({ slides: denseSlides }),
+    )).rejects.toThrow('REPORT_OUTLINE_INVALID');
   });
 
   it('allows enough time for real outline planning responses', async () => {
