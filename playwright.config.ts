@@ -17,7 +17,7 @@ export default defineConfig({
     { name: 'integration', testMatch: 'integration.spec.ts' },
   ],
   webServer: {
-    command: 'pnpm exec tsc -b && pnpm exec vite build && pnpm exec tsx e2e/server.ts',
+    command: './node_modules/.bin/tsc -b && ./node_modules/.bin/vite build && ./node_modules/.bin/tsx e2e/server.ts',
     url: `${dashboardUrl}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
