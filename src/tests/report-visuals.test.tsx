@@ -375,20 +375,78 @@ it('draws an all-negative comparison set downward from a zero baseline', () => {
   }
 });
 
-it('builds a stable trend x domain from labels in every series', () => {
+it('draws one fully visible terminal marker per trend series', () => {
   const { container } = render(<VisualRenderer visual={{
     kind: 'trend-line',
     series: [
-      { key: 'first', label: '首序列', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'], points: [{ label: '07-01', value: 2.1 }] },
-      { key: 'second', label: '缺测序列', unit: 'mg/L', snapshotId: 'snapshot-1', claimIds: ['claim-1'], points: [{ label: '07-02', value: 2.2 }, { label: '07-03', value: 2.3 }] },
+      {
+        key: 'first',
+        label: '首序列',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 2.1 }, { label: '07-02', value: 2.2 }],
+      },
+      {
+        key: 'second',
+        label: '缺测序列',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 1.8 }, { label: '07-03', value: 2.3 }],
+      },
     ],
   }} mode="canvas" />);
-  const xPositions = Array.from(container.querySelectorAll<SVGCircleElement>('.report-chart__point'))
-    .map((circle) => Number(circle.getAttribute('cx')));
 
-  expect(xPositions).toHaveLength(3);
-  expect(new Set(xPositions).size).toBe(3);
-  expect(xPositions[1]).toBeLessThan(xPositions[2]!);
+  const clip = container.querySelector<SVGRectElement>('clipPath rect')!;
+  const clipLeft = Number(clip.getAttribute('x'));
+  const clipRight = clipLeft + Number(clip.getAttribute('width'));
+  const markers = Array.from(container.querySelectorAll<SVGCircleElement>('[data-terminal-point="true"]'));
+
+  expect(markers).toHaveLength(2);
+  for (const marker of markers) {
+    const cx = Number(marker.getAttribute('cx'));
+    const radius = Number(marker.getAttribute('r'));
+    const stroke = Number(marker.getAttribute('stroke-width'));
+    expect(cx - radius - stroke / 2).toBeGreaterThanOrEqual(clipLeft);
+    expect(cx + radius + stroke / 2).toBeLessThanOrEqual(clipRight);
+  }
+  expect(markers.map((marker) => Number(marker.getAttribute('cx')))).toEqual([...markers.map((marker) => Number(marker.getAttribute('cx')))].sort((a, b) => a - b));
+});
+
+it('renders one point node per series endpoint in a three-series trend', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'trend-line',
+    series: [
+      {
+        key: 'first',
+        label: '首序列',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 2.1 }, { label: '07-02', value: 2.2 }, { label: '07-03', value: 2.4 }],
+      },
+      {
+        key: 'second',
+        label: '次序列',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 1.8 }, { label: '07-02', value: 1.9 }, { label: '07-03', value: 2.0 }],
+      },
+      {
+        key: 'third',
+        label: '第三序列',
+        unit: 'mg/L',
+        snapshotId: 'snapshot-1',
+        claimIds: ['claim-1'],
+        points: [{ label: '07-01', value: 0.8 }, { label: '07-02', value: 0.9 }, { label: '07-03', value: 1.0 }],
+      },
+    ],
+  }} mode="canvas" />);
+
+  expect(container.querySelectorAll('.report-chart__point')).toHaveLength(3);
+  expect(container.querySelectorAll('[data-terminal-point="true"]')).toHaveLength(3);
 });
 
 it('allocates unique SVG IDs when the same visual appears in canvas and thumbnails', () => {

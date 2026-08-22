@@ -8,6 +8,9 @@ type TrendSpec = Extract<VisualSpec, { kind: 'trend-line' | 'trend-area' }>;
 const WIDTH = 640;
 const HEIGHT = 260;
 const PAD = { top: 22, right: 22, bottom: 36, left: 48 };
+const POINT_RADIUS = 4;
+const POINT_STROKE_WIDTH = 2;
+const POINT_INSET = POINT_RADIUS + POINT_STROKE_WIDTH / 2;
 
 function paletteForSeries(index: number) {
   return index === 0
@@ -23,18 +26,20 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
   const reactId = useId().replace(/:/g, '');
   const clipId = `report-trend-clip-${reactId}`;
   const labels = [...new Set(visual.series.flatMap((item) => item.points.map((point) => point.label)))];
-  const x = scalePoint<string>().domain(labels).range([PAD.left, WIDTH - PAD.right]);
+  const xStart = PAD.left + POINT_INSET;
+  const xEnd = WIDTH - PAD.right - POINT_INSET;
+  const x = scalePoint<string>().domain(labels).range([xStart, xEnd]);
   const domain = extent(allValues(visual.series));
   const low = domain[0] ?? 0;
   const high = domain[1] ?? low + 1;
   const margin = Math.max((high - low) * .12, Math.abs(high || 1) * .04);
   const y = scaleLinear().domain([low - margin, high + margin]).nice().range([HEIGHT - PAD.bottom, PAD.top]);
   const linePath = line<{ label: string; value: number }>()
-    .x((point) => x(point.label) ?? PAD.left)
+    .x((point) => x(point.label) ?? xStart)
     .y((point) => y(point.value))
     .curve(curveMonotoneX);
   const areaPath = area<{ label: string; value: number }>()
-    .x((point) => x(point.label) ?? PAD.left)
+    .x((point) => x(point.label) ?? xStart)
     .y0(HEIGHT - PAD.bottom)
     .y1((point) => y(point.value))
     .curve(curveMonotoneX);
@@ -89,10 +94,11 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
             const lineId = `report-trend-line-${reactId}-${index}`;
             const fillId = `report-trend-fill-${reactId}-${index}`;
             const palette = paletteForSeries(index);
+            const terminal = item.points.at(-1);
             return <g key={item.key}>
             {visual.kind === 'trend-area' && <path className="report-chart__area" d={areaPath(item.points) ?? undefined} fill={`url(#${fillId})`} opacity={1 - index * .18} />}
             <path className="report-chart__line" data-motion-line d={linePath(item.points) ?? undefined} stroke={`url(#${lineId})`} />
-            {item.points.map((point) => <circle className="report-chart__point" key={point.label} cx={x(point.label)} cy={y(point.value)} r="4" fill={palette.end} stroke={palette.start} />)}
+            {terminal ? <circle className="report-chart__point" data-terminal-point="true" key={terminal.label} cx={x(terminal.label) ?? xStart} cy={y(terminal.value)} r={POINT_RADIUS} strokeWidth={POINT_STROKE_WIDTH} fill={palette.end} stroke={palette.start} /> : null}
           </g>;
           })}
         </g>
