@@ -591,7 +591,7 @@ export function boundMetricsForReport(
   return metricLikeKeys(keys, bundle).map((key) => ({
     ...metricFor(key, bundle),
     claimIds: claimIdsForEvidenceKey(key, claims),
-  })).slice(0, 3);
+  }));
 }
 
 function claimIdsForEvidenceKey(key: string, claims: readonly BoundClaim[]): string[] {

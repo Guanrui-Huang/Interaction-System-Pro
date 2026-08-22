@@ -67,6 +67,39 @@ const flowScoreEvidence: ReportEvidenceBundle = {
   analysis: flowScoreAnalysis,
   knowledge: [],
 };
+const fourScoreAnalysis: AnalysisEvidence = {
+  scope: {
+    modules: ['health'],
+    metrics: ['healthScore', 'qualityScore', 'flowScore', 'energyScore'],
+    dateRange: { from: '2026-08-30', to: '2026-08-31' },
+    sampleCount: 2,
+    granularity: 'daily',
+  },
+  definitions: [
+    { key: 'healthScore', label: '综合健康评分', unit: '分' },
+    { key: 'qualityScore', label: '出水水质得分', unit: '分' },
+    { key: 'flowScore', label: '水量波动得分', unit: '分' },
+    { key: 'energyScore', label: '电耗得分', unit: '分' },
+  ],
+  series: [
+    { date: '2026-08-30', values: { healthScore: 92, qualityScore: 94, flowScore: 80, energyScore: 89 } },
+    { date: '2026-08-31', values: { healthScore: 93, qualityScore: 95, flowScore: 81, energyScore: 90 } },
+  ],
+  aggregates: {
+    healthScore: { min: 92, max: 93, average: 92.5, latest: 93, changeRate: 1 / 92 },
+    qualityScore: { min: 94, max: 95, average: 94.5, latest: 95, changeRate: 1 / 94 },
+    flowScore: { min: 80, max: 81, average: 80.5, latest: 81, changeRate: 1 / 80 },
+    energyScore: { min: 89, max: 90, average: 89.5, latest: 90, changeRate: 1 / 89 },
+  },
+  thresholdBreaches: [],
+  correlations: [],
+  alerts: [],
+};
+const fourScoreEvidence: ReportEvidenceBundle = {
+  snapshotId: 'evidence:four-score-v1',
+  analysis: fourScoreAnalysis,
+  knowledge: [],
+};
 const energyEvidence: ReportEvidenceBundle = {
   snapshotId: 'evidence:energy-v1',
   analysis: {
@@ -220,6 +253,47 @@ describe('composeSlide', () => {
     });
     expect(slide.metrics).toHaveLength(2);
     expect(slide.evidenceRefs.map(({ key }) => key)).toEqual(['tn', 'ammonia']);
+  });
+
+  it('binds every explained score into metrics, summary, trend and comparison visuals', async () => {
+    const keys = ['healthScore', 'qualityScore', 'flowScore', 'energyScore'] as const;
+    const slide = await composeSlide({
+      outline: outline({
+        title: '健康得分概览',
+        purpose: '说明核心健康得分现状',
+        visualKind: 'kpi-grid',
+        evidenceKeys: [...keys],
+      }),
+      evidence: fourScoreEvidence,
+    }, provider(onsiteDraft({
+      title: '健康得分概览',
+      takeaway: '综合健康评分 93 分，出水水质得分 95 分，水量波动得分 81 分，电耗得分 90 分。',
+      takeawayClaimIds: ['claim-health', 'claim-quality', 'claim-flow', 'claim-energy'],
+      visualKind: 'kpi-grid',
+      evidenceKeys: [...keys],
+      claims: [
+        { id: 'claim-health', text: '综合健康评分为 93 分。', kind: 'onsite-fact', evidenceKeys: ['healthScore'] },
+        { id: 'claim-quality', text: '出水水质得分为 95 分。', kind: 'onsite-fact', evidenceKeys: ['qualityScore'] },
+        { id: 'claim-flow', text: '水量波动得分为 81 分。', kind: 'onsite-fact', evidenceKeys: ['flowScore'] },
+        { id: 'claim-energy', text: '电耗得分为 90 分。', kind: 'onsite-fact', evidenceKeys: ['energyScore'] },
+      ],
+      narration: [
+        { text: '四项核心健康得分均来自本页现场证据。', claimIds: ['claim-health', 'claim-quality', 'claim-flow', 'claim-energy'] },
+        { text: '最新值分别为 93 分、95 分、81 分和 90 分。', claimIds: ['claim-health', 'claim-quality', 'claim-flow', 'claim-energy'] },
+      ],
+    })));
+
+    expect(slide.metrics.map(({ key }) => key)).toEqual(keys);
+    expect(slide.visual).toMatchObject({
+      kind: 'data-dashboard',
+      summaryMetrics: keys.map((key) => ({ key })),
+      primary: { series: keys.map((key) => ({ key })) },
+    });
+    expect(
+      slide.visual.kind === 'data-dashboard'
+        ? slide.visual.supporting.find(({ kind }) => kind === 'comparison-bars')
+        : undefined,
+    ).toMatchObject({ items: keys.map((key) => ({ key })) });
   });
 
   it('falls back to the requested atomic visual when a metric has only one point', async () => {

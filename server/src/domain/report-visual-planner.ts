@@ -79,7 +79,7 @@ export function planDataDashboardVisual(
     plan.kind !== primary.kind && signature(plan) !== signature(primary)
   )).slice(0, 2);
   return {
-    summaryKeys: metrics.slice(0, 3).map(({ key }) => key),
+    summaryKeys: metrics.map(({ key }) => key),
     primary,
     supporting,
   };

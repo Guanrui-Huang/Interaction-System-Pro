@@ -156,6 +156,23 @@ describe('intent-first server contract', () => {
     expect(reportSlideSchema.safeParse(dataSlide(visual)).success).toBe(true);
   });
 
+  it('accepts an evidence-linked dashboard with a dynamic metric count', () => {
+    const metrics = Array.from({ length: 6 }, (_, index) => (
+      testMetric(`score-${index + 1}`, `维度 ${index + 1}`, '分', 90 + index)
+    ));
+    const visual = {
+      kind: 'data-dashboard',
+      summaryMetrics: metrics,
+      primary: {
+        kind: 'comparison-bars',
+        items: metrics,
+      },
+      supporting: [],
+    } as const;
+
+    expect(reportSlideSchema.safeParse(dataSlide(visual, metrics)).success).toBe(true);
+  });
+
   it('rejects more than two supporting dashboard visuals', () => {
     const visual = {
       kind: 'data-dashboard',

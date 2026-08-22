@@ -24,6 +24,14 @@ describe('planDataDashboardVisual', () => {
     expect(result?.supporting).toHaveLength(2);
   });
 
+  it('keeps every valid metric in the dashboard summary plan', () => {
+    const metrics = Array.from({ length: 6 }, (_, index) => metric(`score-${index + 1}`, '分', 30, true));
+    const result = planDataDashboardVisual('trend-line', metrics);
+
+    expect(result?.summaryKeys).toEqual(metrics.map(({ key }) => key));
+    expect(result?.primary.evidenceKeys).toEqual(metrics.map(({ key }) => key));
+  });
+
   it('returns null when no evidence can form a chart', () => {
     expect(planDataDashboardVisual('kpi-grid', [metric('single', 'mg/L', 1)])).toBeNull();
   });

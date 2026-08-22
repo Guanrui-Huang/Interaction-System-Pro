@@ -288,7 +288,7 @@ const atomicDataVisualSpecSchema: z.ZodType<AtomicDataVisualSpec> = atomicVisual
 
 export const dataDashboardVisualSpecSchema: z.ZodType<DataDashboardVisualSpec> = z.object({
   kind: z.literal('data-dashboard'),
-  summaryMetrics: z.array(boundMetricSchema).max(3),
+  summaryMetrics: z.array(boundMetricSchema),
   primary: atomicDataVisualSpecSchema.refine(() => true, { message: 'Dashboard primary must be a data chart.' }),
   supporting: z.array(
     atomicDataVisualSpecSchema.refine(() => true, { message: 'Dashboard supporting visuals must be data charts.' }),
@@ -374,7 +374,7 @@ export const reportSlideSchema = z.object({
   takeawayClaimIds: z.array(opaqueIdSchema).min(1),
   claims: z.array(boundClaimSchema).min(1),
   visual: visualSpecSchema,
-  metrics: z.array(boundMetricSchema).max(3),
+  metrics: z.array(boundMetricSchema),
   evidenceRefs: z.array(reportEvidenceRefSchema),
   narration: z.array(narrationSegmentSchema).min(2).max(4),
 }).strict().superRefine((slide, context) => {
