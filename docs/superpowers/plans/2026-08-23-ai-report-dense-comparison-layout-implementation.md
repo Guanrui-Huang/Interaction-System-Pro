@@ -4,7 +4,7 @@
 
 **Goal:** 在 1920 × 1080 AI 汇报大屏中让最多 7 个指标卡单行展示，放大双辅助条形图并阻止越界，增加稳定的智慧水务多色配色，并把字幕移到证据线下方。
 
-**Architecture:** 保留现有 React 数据契约和 D3 SVG 渲染。`DataDashboardVisual` 计算摘要列数；`chart-theme.ts` 提供纯函数指标语义配色；`ComparisonBarsVisual` 使用更紧凑的 SVG 绘图区；CSS 管理大屏空间预算和证据线下字幕；Playwright 使用 7 指标、双条形图页面验证真实几何。
+**Architecture:** 保留现有 React 数据契约和 D3 SVG 渲染。`DataDashboardVisual` 计算摘要列数；`chart-theme.ts` 提供趋势图与条形图共享的纯函数指标语义配色；`ComparisonBarsVisual` 使用更紧凑的 SVG 绘图区；`TrendVisual` 按指标语义着色并只为主序列保留面积填充；CSS 管理大屏空间预算和证据线下字幕；Playwright 使用 7 指标、双条形图页面验证真实几何。
 
 **Tech Stack:** React 19, TypeScript 5.9, D3 7, CSS Grid, Vitest, Testing Library, Playwright。
 
@@ -117,11 +117,12 @@ git commit -m "fix: fit seven report metrics on one row"
 
 ---
 
-### Task 2: Add seven stable water-operations bar themes and enlarge bars
+### Task 2: Add seven stable water-operations chart themes and enlarge bars
 
 **Files:**
 - Modify: `src/charts/chart-theme.ts`
 - Modify: `src/features/ai/report/visuals/ComparisonBarsVisual.tsx`
+- Modify: `src/features/ai/report/visuals/TrendVisual.tsx`
 - Modify: `src/styles/ai.css`
 - Create: `src/tests/chart-theme.test.ts`
 - Test: `src/tests/report-visuals.test.tsx`
@@ -131,6 +132,7 @@ git commit -m "fix: fit seven report metrics on one row"
 - Export `BarThemeFamily` and `barThemeForMetric(metricKey: string, metricLabel: string)`.
 - `CHART_THEME.bars` contains seven `{ family, start, end }` entries.
 - Each bar exposes `data-bar-theme`.
+- Each trend series consumes the same semantic theme and exposes `data-series-theme`; only the first series keeps an area fill.
 
 - [ ] **Step 1: Write failing palette tests**
 
@@ -181,6 +183,33 @@ it('renders wide adaptive bars with stable theme diagnostics', () => {
 });
 ```
 
+Add a trend contract using the same seven metrics:
+
+```tsx
+it('uses the same seven semantic themes for trend series and fills only the primary series', () => {
+  const items = [
+    metric('qualityScore', '出水水质得分', 96, '分'),
+    metric('energyScore', '电耗得分', 90, '分'),
+    metric('tn', '总氮（TN）', 1.96),
+    metric('ammonia', '氨氮', .38),
+    metric('tp', '总磷', .29),
+    metric('cod', 'COD', 22.26),
+    metric('ss', '悬浮物', 6.44),
+  ];
+  const series = items.map((item) => ({
+    key: item.key, label: item.label, unit: item.unit ?? '',
+    snapshotId: item.snapshotId, claimIds: item.claimIds,
+    points: [{ label: '2025-08', value: item.value * .96 }, { label: '2026-08', value: item.value }],
+  }));
+  const { container } = render(<VisualRenderer visual={{ kind: 'trend-area', series }} mode="canvas" />);
+  const lines = [...container.querySelectorAll<SVGPathElement>('.report-chart__line[data-series-theme]')];
+
+  expect(lines).toHaveLength(7);
+  expect(new Set(lines.map((line) => line.dataset.seriesTheme)).size).toBe(7);
+  expect(container.querySelectorAll('.report-chart__area')).toHaveLength(1);
+});
+```
+
 Add this style test to `src/tests/report-layout-styles.test.ts`:
 
 ```ts
@@ -194,7 +223,7 @@ it('raises comparison bar values and labels to the large-screen scale', () => {
 
 Run: `CI=1 node node_modules/vitest/vitest.mjs run src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts`
 
-Expected: FAIL because only two gradients exist and no semantic helper, diagnostics, or larger bar text exists.
+Expected: FAIL because only two gradients exist; bars and trend series do not share a semantic helper or diagnostics; every trend-area series still receives a fill; larger bar text does not exist.
 
 - [ ] **Step 3: Implement the palette helper**
 
@@ -206,10 +235,10 @@ const BAR_THEMES = [
   { family: 'water', start: '#1689DC', end: '#2CE4F5' },
   { family: 'treatment', start: '#19BFA0', end: '#42F0C7' },
   { family: 'flow', start: '#0A9FA8', end: '#47D9D1' },
-  { family: 'energy', start: '#315FDF', end: '#37B8FF' },
-  { family: 'analytics', start: '#725BDA', end: '#B38BFF' },
-  { family: 'resource', start: '#D7952F', end: '#FFD166' },
-  { family: 'risk', start: '#D95752', end: '#FF8B6A' },
+  { family: 'energy', start: '#1454A6', end: '#2B8CF0' },
+  { family: 'analytics', start: '#6B2FB2', end: '#AA56F0' },
+  { family: 'resource', start: '#A9AB45', end: '#EEEF97' },
+  { family: 'risk', start: '#DB2777', end: '#F472B6' },
 ] as const satisfies readonly { family: BarThemeFamily; start: string; end: string }[];
 ```
 
@@ -243,7 +272,19 @@ export function barThemeForMetric(metricKey: string, metricLabel: string) {
 
 Assign `bars: BAR_THEMES` inside `CHART_THEME`.
 
-- [ ] **Step 4: Enlarge and color `ComparisonBarsVisual`**
+- [ ] **Step 4: Apply the shared palette to `TrendVisual`**
+
+Replace the index-only palette helper with:
+
+```tsx
+function paletteForSeries(series: Pick<BoundSeries, 'key' | 'label'>) {
+  return barThemeForMetric(series.key, series.label);
+}
+```
+
+Pass each series item to this helper in the legend, gradient definitions and rendered-series loop. Add `data-series-theme={palette.family}` to `.report-chart__line`. Keep all line gradients and terminal markers, but render the area path only when `visual.kind === 'trend-area' && index === 0`.
+
+- [ ] **Step 5: Enlarge and color `ComparisonBarsVisual`**
 
 Import `barThemeForMetric`, then use this calculation:
 
@@ -289,15 +330,15 @@ Place values at `top - 10`, axis labels at `HEIGHT - 20`, then add:
 .report-chart--bars .report-chart__axis-label { font-size: 14px; }
 ```
 
-- [ ] **Step 5: Run tests and commit**
+- [ ] **Step 6: Run tests and commit**
 
 Run: `CI=1 node node_modules/vitest/vitest.mjs run src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts`
 
 Expected: PASS.
 
 ```bash
-git add src/charts/chart-theme.ts src/features/ai/report/visuals/ComparisonBarsVisual.tsx src/styles/ai.css src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts
-git commit -m "feat: diversify and enlarge report comparison bars"
+git add src/charts/chart-theme.ts src/features/ai/report/visuals/ComparisonBarsVisual.tsx src/features/ai/report/visuals/TrendVisual.tsx src/styles/ai.css src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts
+git commit -m "feat: diversify report chart colors"
 ```
 
 ---
