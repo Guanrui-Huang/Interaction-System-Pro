@@ -811,7 +811,6 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
     const subtitleBar = document.querySelector<HTMLElement>('.report-subtitle-bar')!;
     const slideBox = slide.getBoundingClientRect();
     const barBox = bars.getBoundingClientRect();
-    const heading = slide.querySelector<HTMLElement>('h2')!;
     return {
       canvasClientHeight: canvasRoot.clientHeight,
       canvasScrollHeight: canvasRoot.scrollHeight,
@@ -824,7 +823,6 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       subtitlePosition: getComputedStyle(subtitleBar).position,
       subtitlePointerEvents: getComputedStyle(subtitleBar).pointerEvents,
       subtitleText: subtitleBar.querySelector<HTMLElement>('.report-subtitle-bar__text')?.textContent ?? '',
-      titleLines: heading.getClientRects().length,
     };
   });
   expect(reportGeometry.canvasScrollHeight).toBeLessThanOrEqual(reportGeometry.canvasClientHeight + 1);
