@@ -136,8 +136,21 @@ it('exposes the desktop chart bounds through computed styles', () => {
   }
 });
 
-it('sizes desktop health rings from the panel short edge with an enlarged label', () => {
-  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*320px\);[^}]*height:\s*min\(100%,\s*320px\);/su);
+it('keeps health rings square and sized from their own panel bounds', () => {
+  const healthRingRule = css.match(/\.report-health-ring\s*\{[^}]*\}/su)?.[0] ?? '';
+  const ringSvgRule = css.match(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*\}/su)?.[0] ?? '';
+
+  expect(healthRingRule).toMatch(/width:\s*min\(100%,\s*320px\);/u);
+  expect(healthRingRule).toMatch(/height:\s*auto;/u);
+  expect(healthRingRule).toMatch(/max-height:\s*100%;/u);
+  expect(healthRingRule).toMatch(/aspect-ratio:\s*1\s*\/\s*1;/u);
+  expect(healthRingRule).toMatch(/container-type:\s*inline-size;/u);
+  expect(healthRingRule).toMatch(/margin:\s*auto;/u);
+  expect(ringSvgRule).toMatch(/width:\s*100%;/u);
+  expect(ringSvgRule).toMatch(/height:\s*auto;/u);
+  expect(ringSvgRule).toMatch(/aspect-ratio:\s*1\s*\/\s*1;/u);
+  expect(ringSvgRule).toMatch(/min-inline-size:\s*200px;/u);
+  expect(ringSvgRule).toMatch(/min-block-size:\s*200px;/u);
   expect(css).toMatch(/\.report-health-ring__label\s+strong\s*\{[^}]*font:\s*[^;}]*clamp\(2\.5rem,\s*18cqi,\s*4\.5rem\)/isu);
 });
 
@@ -158,9 +171,4 @@ it('keeps the desktop subtitle as one centered non-interactive line above eviden
   const subtitleRule = css.match(/\.report-subtitle-bar__text\s*\{[^}]*\}/su)?.[0] ?? '';
   expect(subtitleRule).not.toMatch(/(?:^|;)\s*overflow:\s*hidden;/u);
   expect(subtitleRule).not.toMatch(/text-overflow:\s*ellipsis;/u);
-});
-
-it('keeps health rings bounded by the available panel short edge', () => {
-  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*320px\);[^}]*height:\s*min\(100%,\s*320px\);[^}]*margin:\s*auto;/su);
-  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
 });

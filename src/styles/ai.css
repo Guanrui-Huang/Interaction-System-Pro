@@ -325,7 +325,7 @@
 .report-data-dashboard .report-chart { width: 100%; height: 100%; max-height: none; }
 .report-data-dashboard .report-chart--bars { min-inline-size: 300px; min-block-size: 180px; }
 .report-data-dashboard .report-chart--radar { min-inline-size: 220px; min-block-size: 220px; }
-.report-data-dashboard .report-chart--ring { min-inline-size: 200px; min-block-size: 200px; }
+.report-data-dashboard .report-chart--ring { width: 100%; height: auto; aspect-ratio: 1 / 1; min-inline-size: 200px; min-block-size: 200px; }
 .report-data-dashboard__support > section[data-panel-kind='comparison-bars'] { min-height: 13.5rem; }
 .report-visual-renderer--thumbnail .report-data-dashboard__primary { padding: 0; border: 0; background: transparent; }
 .report-visual__error { display: grid; min-height: 7rem; place-content: center; margin: 0; color: var(--report-warn); font-size: .75rem; text-align: center; }
@@ -335,7 +335,7 @@
 .report-kpi strong { margin-top: 7px; color: #e8ffff; font: 650 clamp(24px, 3cqw, 42px) "JetBrains Mono", monospace; }
 .report-kpi small { align-self: end; padding-bottom: 6px; color: #7fa0aa; font: 11px "JetBrains Mono", monospace; }
 .report-kpi em { grid-column: 1 / -1; margin-top: 5px; color: var(--report-mint); font-size: 11px; font-style: normal; }
-.report-health-ring { position: relative; width: min(100%, 320px); height: min(100%, 320px); margin: auto; }
+.report-health-ring { position: relative; width: min(100%, 320px); height: auto; max-height: 100%; aspect-ratio: 1 / 1; container-type: inline-size; margin: auto; }
 .report-ring__track { fill: rgb(93 139 153 / 16%); }
 .report-ring__value { filter: drop-shadow(0 0 5px rgb(35 239 177 / 38%)); }
 .report-health-ring__label { position: absolute; inset: 28% 18%; display: grid; place-content: center; text-align: center; }

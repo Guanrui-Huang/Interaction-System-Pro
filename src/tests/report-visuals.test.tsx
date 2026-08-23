@@ -255,6 +255,15 @@ it('uses large-screen chart viewboxes for bars, radar, and ring visuals', () => 
   expect(ring.querySelector('.report-chart--ring')).toHaveAttribute('viewBox', '0 0 240 240');
 });
 
+it('keeps the health ring SVG and centered label in one sizing container', () => {
+  const { container } = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
+  const healthRing = container.querySelector('.report-health-ring');
+
+  expect(healthRing).toBeInTheDocument();
+  expect(healthRing?.querySelector('.report-chart--ring')).toBeInTheDocument();
+  expect(healthRing?.querySelector('.report-health-ring__label')).toBeInTheDocument();
+});
+
 it('uses distinct semantic icon families for metric cards', () => {
   const visual = dataDashboardFixture({ summaryMetrics: [
     metric('tn', '总氮', 2.4),
