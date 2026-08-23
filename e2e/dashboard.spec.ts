@@ -839,6 +839,8 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
       .map((bar) => bar.dataset.barTheme ?? '');
     const barValue = slide.querySelector<SVGTextElement>('.report-chart--bars .report-chart__value')!;
     const barAxisLabel = slide.querySelector<SVGTextElement>('.report-chart--bars .report-chart__axis-label')!;
+    const barAxisLabelBounds = [...slide.querySelectorAll<SVGTextElement>('.report-chart--bars .report-chart__axis-label')]
+      .map((label) => box(label, 'bar axis label'));
     const evidenceButton = slide.querySelector<HTMLElement>('.report-evidence-drawer > button')!;
     const metricLabel = slide.querySelector<HTMLElement>('.report-data-dashboard__metric dt')!;
     const metricValue = slide.querySelector<HTMLElement>('.report-data-dashboard__metric strong')!;
@@ -869,6 +871,7 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
       metricCardBounds,
       barCharts,
       barThemes,
+      barAxisLabelBounds,
       barValueFontSize: Number.parseFloat(getComputedStyle(barValue).fontSize),
       barAxisLabelFontSize: Number.parseFloat(getComputedStyle(barAxisLabel).fontSize),
       evidenceButtonBounds: box(evidenceButton, 'evidence button'),
@@ -900,10 +903,20 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   expect(reportGeometry.documentScrollHeight).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.metricCardBounds).toHaveLength(8);
   expect(new Set(reportGeometry.metricCardBounds.map(({ top }) => Math.round(top))).size).toBe(1);
+  for (const card of reportGeometry.metricCardBounds) {
+    expect(card.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
+    expect(card.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
+    expect(card.top).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.top - 1);
+    expect(card.bottom).toBeLessThanOrEqual(reportGeometry.canvasBounds.bottom + 1);
+  }
   expect(reportGeometry.barCharts).toHaveLength(2);
   for (const chart of reportGeometry.barCharts) {
     expect(chart.width).toBeGreaterThanOrEqual(300);
     expect(chart.height).toBeGreaterThanOrEqual(180);
+  }
+  expect(reportGeometry.barAxisLabelBounds.length).toBeGreaterThan(0);
+  for (const label of reportGeometry.barAxisLabelBounds) {
+    expect(label.bottom).toBeLessThanOrEqual(reportGeometry.evidenceButtonBounds.top + 1);
   }
   expect(new Set(reportGeometry.barThemes).size).toBe(reportGeometry.barThemes.length);
   expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(15);
