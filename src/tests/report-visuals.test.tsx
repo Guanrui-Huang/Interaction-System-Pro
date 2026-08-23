@@ -7,7 +7,9 @@ import type { BoundMetric, ReportEvidenceRef, ReportSlide, VisualSpec } from '..
 import { VISUAL_KINDS } from '../../shared/report';
 import { ReportEvidenceDrawer } from '../features/ai/report/ReportEvidenceDrawer';
 import { ReportSlideView } from '../features/ai/report/ReportSlideView';
+import { summaryGridForMetricCount } from '../features/ai/report/visuals/DataDashboardVisual';
 import { ReportVisualErrorBoundary } from '../features/ai/report/visuals/ReportVisualErrorBoundary';
+import { emphasizeRadarRatios } from '../features/ai/report/visuals/RadarVisual';
 import { VisualRenderer } from '../features/ai/report/visuals/VisualRenderer';
 
 const reportStyles = readFileSync(resolve(process.cwd(), 'src/styles/ai.css'), 'utf8');
@@ -159,7 +161,7 @@ it('uses the approved shared gradients and globally unique SVG IDs across report
   </>);
 
   expect(Array.from(container.querySelectorAll('linearGradient stop')).map((stop) => stop.getAttribute('stop-color')))
-    .toEqual(expect.arrayContaining(['#19BFA0', '#42F0C7', '#A9AB45', '#EEEF97', '#24E4C1', '#35A9FF']));
+    .toEqual(expect.arrayContaining(['#1689DC', '#2CE4F5', '#19BFA0', '#42F0C7', '#24E4C1', '#35A9FF']));
   expect(new Set(Array.from(container.querySelectorAll('[id]')).map(({ id }) => id)).size)
     .toBe(container.querySelectorAll('[id]').length);
 });
@@ -188,9 +190,9 @@ it('distinguishes multi-series trends with controlled gradients and an accessibl
     Array.from(gradient.querySelectorAll('stop'), (stop) => stop.getAttribute('stop-color'))
   );
   expect(lineGradients.map(stopColors)).toEqual([
+    ['#1689DC', '#2CE4F5'],
     ['#19BFA0', '#42F0C7'],
-    ['#6B2FB2', '#AA56F0'],
-    ['#A9AB45', '#EEEF97'],
+    ['#0A9FA8', '#47D9D1'],
   ]);
   expect(new Set(lineGradients.map(({ id }) => id)).size).toBe(lineGradients.length);
 
@@ -216,6 +218,20 @@ it('renders wide adaptive bars with stable theme diagnostics', () => {
   expect(bars).toHaveLength(7);
   expect(new Set(bars.map((bar) => bar.dataset.barTheme)).size).toBe(7);
   expect(Number(bars[0]?.getAttribute('width'))).toBeGreaterThan(40);
+});
+
+it('assigns different bar themes to separate carbon metrics in the same chart', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'comparison-bars',
+    items: [
+      metric('carbonEmission', '碳排放量', 18.2, 't'),
+      metric('carbonReduction', '碳减排量', 4.6, 't'),
+    ],
+  }} mode="canvas" />);
+  const carbonBars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar[data-metric-key]'));
+
+  expect(carbonBars).toHaveLength(2);
+  expect(carbonBars[0]?.dataset.barTheme).not.toBe(carbonBars[1]?.dataset.barTheme);
 });
 
 it('uses the same seven semantic themes for trend series and fills only the primary series', () => {
@@ -265,10 +281,74 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
 });
 
+it('shares one ordered palette across dashboard trend and comparison visuals without duplicate bar colors', () => {
+  const visual = dataDashboardFixture({
+    summaryMetrics: [
+      metric('quality', '出水水质得分', 96, '分'),
+      metric('energy', '电耗得分', 90, '分'),
+    ],
+    primary: {
+      kind: 'trend-area',
+      series: [
+        {
+          key: 'quality',
+          label: '出水水质得分',
+          unit: '分',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 94 }, { label: '07-31', value: 96 }],
+        },
+        {
+          key: 'energy',
+          label: '电耗得分',
+          unit: '分',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 88 }, { label: '07-31', value: 90 }],
+        },
+      ],
+    },
+    supporting: [{
+      kind: 'comparison-bars',
+      items: [
+        metric('quality', '出水水质得分', 96, '分'),
+        metric('energy', '电耗得分', 90, '分'),
+        metric('carbonEmission', '碳排放量', 18.2, 't'),
+        metric('carbonReduction', '碳减排量', 4.6, 't'),
+      ],
+    }],
+  });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const qualityLine = container.querySelector<SVGPathElement>('.report-chart__line[data-metric-key="quality"]');
+  const energyLine = container.querySelector<SVGPathElement>('.report-chart__line[data-metric-key="energy"]');
+  const bars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar[data-metric-key]'));
+  const qualityBar = container.querySelector<SVGRectElement>('.report-chart__bar[data-metric-key="quality"]');
+  const energyBar = container.querySelector<SVGRectElement>('.report-chart__bar[data-metric-key="energy"]');
+
+  expect(qualityLine?.dataset.seriesTheme).toBe(qualityBar?.dataset.barTheme);
+  expect(energyLine?.dataset.seriesTheme).toBe(energyBar?.dataset.barTheme);
+  expect(qualityLine?.dataset.seriesTheme).toBe('water');
+  expect(energyLine?.dataset.seriesTheme).toBe('treatment');
+  expect(new Set(bars.map((bar) => bar.dataset.barTheme)).size).toBe(bars.length);
+});
+
+it.each([
+  { count: 7, columns: 7, rows: 1 },
+  { count: 8, columns: 8, rows: 1 },
+  { count: 9, columns: 5, rows: 2 },
+  { count: 10, columns: 6, rows: 2 },
+  { count: 11, columns: 7, rows: 2 },
+  { count: 12, columns: 7, rows: 2 },
+  { count: 13, columns: 8, rows: 2 },
+  { count: 16, columns: 8, rows: 2 },
+])('balances $count metrics as $columns columns', ({ count, columns, rows }) => {
+  expect(summaryGridForMetricCount(count)).toEqual({ columns, rows });
+});
+
 it.each([
   { count: 7, columns: '7', rows: '1' },
-  { count: 8, columns: '7', rows: '2' },
-])('renders $count summary metrics with the seven-column cap', ({ count, columns, rows }) => {
+  { count: 8, columns: '8', rows: '1' },
+])('renders $count summary metrics with the balanced row layout', ({ count, columns, rows }) => {
   const metrics = Array.from({ length: count }, (_, index) => metric(`metric-${index}`, `指标 ${index + 1}`, 90 + index, '分'));
   const { container } = render(<VisualRenderer visual={dataDashboardFixture({ summaryMetrics: metrics })} mode="canvas" />);
   const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard')!;
@@ -303,6 +383,54 @@ it('uses large-screen chart viewboxes for bars, radar, and ring visuals', () => 
   expect(ring.querySelector('.report-chart--ring')).toHaveAttribute('viewBox', '0 0 240 240');
 });
 
+it('keeps long radar axis labels inside the viewBox by anchoring edge labels inward', () => {
+  const radarWithEdgeLabels: Extract<VisualSpec, { kind: 'radar' }> = {
+    kind: 'radar',
+    axes: [
+      { key: 'north', label: '运行稳定性综合评分', value: 92, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
+      { key: 'east', label: '曝气效率与能耗平衡能力', value: 81, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
+      { key: 'south', label: '出水达标裕度', value: 95, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
+      { key: 'west', label: '来水负荷波动适应能力', value: 88, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
+    ],
+  };
+  const { container } = render(<VisualRenderer visual={radarWithEdgeLabels} mode="canvas" />);
+  const labels = Array.from(container.querySelectorAll<SVGTextElement>('.report-chart--radar .report-chart__axis-label'));
+  const eastLabel = labels.find((label) => label.textContent === '曝气效率与能耗平衡能力');
+  const westLabel = labels.find((label) => label.textContent === '来水负荷波动适应能力');
+  const northLabel = labels.find((label) => label.textContent === '运行稳定性综合评分');
+
+  expect(eastLabel).toHaveAttribute('text-anchor', 'end');
+  expect(Number(eastLabel?.getAttribute('x'))).toBeLessThanOrEqual(360);
+  expect(westLabel).toHaveAttribute('text-anchor', 'start');
+  expect(Number(westLabel?.getAttribute('x'))).toBeGreaterThanOrEqual(0);
+  expect(northLabel).toHaveAttribute('text-anchor', 'middle');
+});
+
+it.each([3, 4, 5, 6])('anchors lateral radar labels inward for %i axes', (axisCount) => {
+  const visual: Extract<VisualSpec, { kind: 'radar' }> = {
+    kind: 'radar',
+    axes: Array.from({ length: axisCount }, (_, index) => ({
+      key: `axis-${index}`,
+      label: `很长的雷达维度标签-${index}`,
+      value: 80 + index,
+      maximum: 100,
+      unit: '分',
+      snapshotId: 'snapshot-1',
+      claimIds: ['claim-1'],
+    })),
+  };
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const labels = Array.from(container.querySelectorAll<SVGTextElement>('.report-chart--radar .report-chart__axis-label'));
+
+  for (const [index, label] of labels.entries()) {
+    const horizontal = Math.sin(index * Math.PI * 2 / axisCount);
+    if (horizontal > .22) expect(label).toHaveAttribute('text-anchor', 'end');
+    if (horizontal < -.22) expect(label).toHaveAttribute('text-anchor', 'start');
+    expect(Number(label.getAttribute('x'))).toBeGreaterThanOrEqual(18);
+    expect(Number(label.getAttribute('x'))).toBeLessThanOrEqual(342);
+  }
+});
+
 it('keeps the health ring SVG and centered label in one sizing container', () => {
   const { container } = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
   const healthRing = container.querySelector('.report-health-ring');
@@ -310,6 +438,45 @@ it('keeps the health ring SVG and centered label in one sizing container', () =>
   expect(healthRing).toBeInTheDocument();
   expect(healthRing?.querySelector('.report-chart--ring')).toBeInTheDocument();
   expect(healthRing?.querySelector('.report-health-ring__label')).toBeInTheDocument();
+});
+
+it('renders radar endpoint values with original units and no center total score', () => {
+  const { container } = render(<VisualRenderer visual={visualFixture('radar')} mode="canvas" />);
+  const endpointValues = Array.from(container.querySelectorAll('.report-radar__axis-value'));
+
+  expect(endpointValues).toHaveLength(3);
+  expect(endpointValues.map((node) => node.textContent?.trim())).toEqual(['92 分', '81 分', '95 分']);
+  expect(container.querySelector('.report-radar__score')).toBeNull();
+});
+
+it('lightly amplifies radar geometry while preserving order, equality, and valid ratios', () => {
+  const emphasized = emphasizeRadarRatios([
+    { value: 96, maximum: 100 },
+    { value: 90, maximum: 100 },
+    { value: 72, maximum: 100 },
+  ]);
+
+  expect(emphasized[0]).toBeGreaterThan(emphasized[1]!);
+  expect(emphasized[1]).toBeGreaterThan(emphasized[2]!);
+  expect(emphasized[0]! - emphasized[2]!).toBeGreaterThan(.24);
+  expect(emphasizeRadarRatios([
+    { value: 90, maximum: 100 },
+    { value: 90, maximum: 100 },
+    { value: 90, maximum: 100 },
+  ])).toEqual([.9, .9, .9]);
+  expect(emphasized.every((ratio) => ratio >= 0 && ratio <= 1)).toBe(true);
+});
+
+it('hides score units on health rings but keeps non-score units visible', () => {
+  const scoreRing = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
+  const percentRing = render(<VisualRenderer visual={{
+    kind: 'health-ring',
+    metric: metric('load', '负荷完成率', 87, '%'),
+    target: 100,
+  }} mode="canvas" />);
+
+  expect(scoreRing.container.querySelector('.report-health-ring__unit')).toBeNull();
+  expect(percentRing.container.querySelector('.report-health-ring__unit')?.textContent).toBe('%');
 });
 
 it('uses distinct semantic icon families for metric cards', () => {

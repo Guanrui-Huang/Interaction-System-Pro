@@ -1,7 +1,7 @@
 import { area, curveMonotoneX, extent, line, scaleLinear, scalePoint } from 'd3';
 import { useId } from 'react';
 import type { BoundSeries, VisualSpec } from '../../../../../shared/report';
-import { barThemeForMetric } from '../../../../charts/chart-theme';
+import { useReportChartThemes } from './ReportChartThemeContext';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
 type TrendSpec = Extract<VisualSpec, { kind: 'trend-line' | 'trend-area' }>;
@@ -12,10 +12,6 @@ const POINT_RADIUS = 4;
 const POINT_STROKE_WIDTH = 2;
 const POINT_INSET = POINT_RADIUS + POINT_STROKE_WIDTH / 2;
 
-function paletteForSeries(series: Pick<BoundSeries, 'key' | 'label'>) {
-  return barThemeForMetric(series.key, series.label);
-}
-
 function allValues(series: BoundSeries[]): number[] {
   return series.flatMap((item) => item.points.map((point) => point.value));
 }
@@ -23,6 +19,7 @@ function allValues(series: BoundSeries[]): number[] {
 export function TrendVisual({ visual }: { visual: TrendSpec }) {
   const reactId = useId().replace(/:/g, '');
   const clipId = `report-trend-clip-${reactId}`;
+  const palettes = useReportChartThemes(visual.series);
   const labels = [...new Set(visual.series.flatMap((item) => item.points.map((point) => point.label)))];
   const xStart = PAD.left + POINT_INSET;
   const xEnd = WIDTH - PAD.right - POINT_INSET;
@@ -46,61 +43,63 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
 
   return (
     <VisualFrame ariaLabel={ariaLabel} table={<VisualDataTable label={`${visual.series.map((item) => item.label).join('、')}数据表`} rows={tableRows} />}>
-      {visual.series.length > 1 && (
-        <ul className="report-trend__legend" aria-label="趋势序列图例">
-          {visual.series.map((item) => {
-            const palette = paletteForSeries(item);
-            return (
-              <li key={`${item.key}-legend`}>
-                <span
-                  className="report-trend__legend-swatch"
-                  style={{ backgroundImage: `linear-gradient(90deg, ${palette.start}, ${palette.end})` }}
-                  aria-hidden="true"
-                />
-                <span>{item.label}</span>
-                <small>{item.unit}</small>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <svg className="report-chart report-chart--trend" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true">
-        <defs>
-          <clipPath id={clipId}><rect data-motion-reveal x={PAD.left} y="0" width={WIDTH - PAD.left - PAD.right} height={HEIGHT} /></clipPath>
-          {visual.series.map((item, index) => {
-            const lineId = `report-trend-line-${reactId}-${index}`;
-            const fillId = `report-trend-fill-${reactId}-${index}`;
-            const palette = paletteForSeries(item);
-            return (
-              <g key={`${item.key}-defs`}>
-                <linearGradient id={lineId} x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor={palette.start} />
-                  <stop offset="100%" stopColor={palette.end} />
-                </linearGradient>
-                <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stopColor={palette.start} stopOpacity=".35" />
-                  <stop offset="1" stopColor={palette.end} stopOpacity="0" />
-                </linearGradient>
-              </g>
-            );
-          })}
-        </defs>
-        {y.ticks(4).map((tick) => <g key={tick}><line className="report-chart__grid" x1={PAD.left} x2={WIDTH - PAD.right} y1={y(tick)} y2={y(tick)} /><text className="report-chart__axis-label" x={PAD.left - 9} y={y(tick) + 4} textAnchor="end">{formatReportNumber(tick)}</text></g>)}
-        {labels.map((label, index) => (index === 0 || index === labels.length - 1 || index === Math.floor(labels.length / 2)) && <text key={label} className="report-chart__axis-label" x={x(label)} y={HEIGHT - 10} textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}>{label}</text>)}
-        <g clipPath={`url(#${clipId})`}>
-          {visual.series.map((item, index) => {
-            const lineId = `report-trend-line-${reactId}-${index}`;
-            const fillId = `report-trend-fill-${reactId}-${index}`;
-            const palette = paletteForSeries(item);
-            const terminal = item.points.at(-1);
-            return <g key={item.key}>
-            {visual.kind === 'trend-area' && index === 0 && <path className="report-chart__area" d={areaPath(item.points) ?? undefined} fill={`url(#${fillId})`} />}
-            <path className="report-chart__line" data-motion-line data-series-theme={palette.family} d={linePath(item.points) ?? undefined} stroke={`url(#${lineId})`} />
-            {terminal ? <circle className="report-chart__point" data-terminal-point="true" key={terminal.label} cx={x(terminal.label) ?? xStart} cy={y(terminal.value)} r={POINT_RADIUS} strokeWidth={POINT_STROKE_WIDTH} fill={palette.end} stroke={palette.start} /> : null}
-          </g>;
-          })}
-        </g>
-      </svg>
+      <div className="report-trend">
+        {visual.series.length > 1 && (
+          <ul className="report-trend__legend" aria-label="趋势序列图例">
+            {visual.series.map((item, index) => {
+              const palette = palettes[index]!;
+              return (
+                <li key={`${item.key}-legend`}>
+                  <span
+                    className="report-trend__legend-swatch"
+                    style={{ backgroundImage: `linear-gradient(90deg, ${palette.start}, ${palette.end})` }}
+                    aria-hidden="true"
+                  />
+                  <span>{item.label}</span>
+                  <small>{item.unit}</small>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <svg className="report-chart report-chart--trend" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true">
+          <defs>
+            <clipPath id={clipId}><rect data-motion-reveal x={PAD.left} y="0" width={WIDTH - PAD.left - PAD.right} height={HEIGHT} /></clipPath>
+            {visual.series.map((item, index) => {
+              const lineId = `report-trend-line-${reactId}-${index}`;
+              const fillId = `report-trend-fill-${reactId}-${index}`;
+              const palette = palettes[index]!;
+              return (
+                <g key={`${item.key}-defs`}>
+                  <linearGradient id={lineId} x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor={palette.start} />
+                    <stop offset="100%" stopColor={palette.end} />
+                  </linearGradient>
+                  <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor={palette.start} stopOpacity=".35" />
+                    <stop offset="1" stopColor={palette.end} stopOpacity="0" />
+                  </linearGradient>
+                </g>
+              );
+            })}
+          </defs>
+          {y.ticks(4).map((tick) => <g key={tick}><line className="report-chart__grid" x1={PAD.left} x2={WIDTH - PAD.right} y1={y(tick)} y2={y(tick)} /><text className="report-chart__axis-label" x={PAD.left - 9} y={y(tick) + 4} textAnchor="end">{formatReportNumber(tick)}</text></g>)}
+          {labels.map((label, index) => (index === 0 || index === labels.length - 1 || index === Math.floor(labels.length / 2)) && <text key={label} className="report-chart__axis-label" x={x(label)} y={HEIGHT - 10} textAnchor={index === 0 ? 'start' : index === labels.length - 1 ? 'end' : 'middle'}>{label}</text>)}
+          <g clipPath={`url(#${clipId})`}>
+            {visual.series.map((item, index) => {
+              const lineId = `report-trend-line-${reactId}-${index}`;
+              const fillId = `report-trend-fill-${reactId}-${index}`;
+              const palette = palettes[index]!;
+              const terminal = item.points.at(-1);
+              return <g key={item.key}>
+              {visual.kind === 'trend-area' && index === 0 && <path className="report-chart__area" d={areaPath(item.points) ?? undefined} fill={`url(#${fillId})`} />}
+              <path className="report-chart__line" data-motion-line data-metric-key={item.key} data-series-theme={palette.family} d={linePath(item.points) ?? undefined} stroke={`url(#${lineId})`} />
+              {terminal ? <circle className="report-chart__point" data-terminal-point="true" key={terminal.label} cx={x(terminal.label) ?? xStart} cy={y(terminal.value)} r={POINT_RADIUS} strokeWidth={POINT_STROKE_WIDTH} fill={palette.end} stroke={palette.start} /> : null}
+            </g>;
+            })}
+          </g>
+        </svg>
+      </div>
     </VisualFrame>
   );
 }

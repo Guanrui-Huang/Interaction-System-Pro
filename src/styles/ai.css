@@ -240,7 +240,9 @@
 .report-slide__visual { grid-area: visual; align-self: center; min-width: 0; }
 .report-visual { min-width: 0; margin: 0; }
 .report-visual__graphic { min-width: 0; }
+.report-trend { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; }
 .report-chart { display: block; width: 100%; max-height: min(42vh, 390px); overflow: visible; }
+.report-trend .report-chart--trend { min-height: 0; height: 100%; }
 .report-chart__grid { stroke: rgb(115 180 197 / 15%); stroke-width: 1; }
 .report-chart__baseline { stroke: rgb(168 215 225 / 28%); }
 .report-chart__axis-label { fill: var(--chart-axis); font: 12px "JetBrains Mono", monospace; }
@@ -248,8 +250,6 @@
 .report-chart__point { fill: #dfffff; stroke: var(--chart-trend-start); stroke-width: 2; }
 .report-chart__bar { opacity: .76; filter: drop-shadow(0 0 5px rgb(35 239 177 / 28%)); }
 .report-chart__value { fill: #d9f8f5; font: 13px "JetBrains Mono", monospace; }
-.report-chart--bars .report-chart__value { font-size: 15px; }
-.report-chart--bars .report-chart__axis-label { font-size: 14px; }
 .report-trend__legend { display: flex; flex-wrap: wrap; gap: .35rem .85rem; margin: 0 0 .25rem; padding: 0; color: #c9e8ed; font-size: .7rem; list-style: none; }
 .report-trend__legend li { display: inline-flex; align-items: center; gap: .32rem; min-width: 0; }
 .report-trend__legend-swatch { width: 1.35rem; height: .18rem; border-radius: 999px; box-shadow: 0 0 5px rgb(44 228 245 / 28%); }
@@ -307,12 +307,17 @@
 .report-data-dashboard__metric strong { color: #efffff; font: 650 1.8rem "JetBrains Mono", monospace; }
 .report-data-dashboard__metric span,
 .report-data-dashboard__metric small { color: #72949e; font-size: .82rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metrics { gap: .24rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric { padding-inline: .55rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric dt span { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric dd { gap: .3rem; }
 .report-data-dashboard__primary,
 .report-data-dashboard__support > section { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); container-type: size; }
 .report-data-dashboard__primary { grid-area: primary; }
 .report-data-dashboard__support { grid-area: support; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr); gap: .75rem; min-height: 0; }
 .report-data-dashboard[data-support-count="2"] .report-data-dashboard__support { grid-template-rows: repeat(2, minmax(0, 1fr)); }
 .report-data-dashboard__panel-label { margin: 0 0 .55rem; color: #7fa0aa; font-size: .94rem; letter-spacing: .04em; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-data-dashboard__panel-label { font-size: 16px; }
 .report-data-dashboard[data-support-count="0"] {
   grid-template-areas: "metrics metrics" "primary primary";
   grid-template-rows: auto minmax(0, 1fr);
@@ -331,6 +336,11 @@
 .report-data-dashboard .report-chart--radar { min-inline-size: 220px; min-block-size: 220px; }
 .report-data-dashboard .report-chart--ring { width: 100%; height: auto; aspect-ratio: 1 / 1; min-inline-size: 200px; min-block-size: 200px; }
 .report-data-dashboard__support > section[data-panel-kind='comparison-bars'] { min-height: 0; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--bars .report-chart__value { font-size: 18px; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--bars .report-chart__axis-label { font-size: 18px; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--trend .report-chart__axis-label,
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--scatter .report-chart__axis-label { font-size: 16px; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--radar .report-chart__axis-label { font-size: 16px; }
 .report-visual-renderer--thumbnail .report-data-dashboard__primary { padding: 0; border: 0; background: transparent; }
 .report-visual__error { display: grid; min-height: 7rem; place-content: center; margin: 0; color: var(--report-warn); font-size: .75rem; text-align: center; }
 .report-kpi-grid { display: grid; grid-template-columns: repeat(var(--report-kpi-columns), minmax(0, 1fr)); gap: 10px; }
@@ -347,9 +357,15 @@
 .report-health-ring__label strong { color: #efffff; font: 650 clamp(2.5rem, 18cqi, 4.5rem) "JetBrains Mono", monospace; }
 .report-health-ring__label span,
 .report-health-ring__label small { color: #71949e; font: 11px "JetBrains Mono", "Microsoft YaHei", monospace; }
+.report-health-ring__unit,
+.report-health-ring__name { color: #71949e; font-family: "JetBrains Mono", "Microsoft YaHei", monospace; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-health-ring__unit { font-size: 13px; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-health-ring__name { font-size: 14px; }
 .report-radar__grid { fill: none; stroke: rgb(110 177 194 / 18%); }
 .report-radar__spoke { stroke: rgb(110 177 194 / 14%); }
 .report-radar__shape { fill: rgb(44 228 245 / 15%); stroke: var(--report-cyan); stroke-width: 2; }
+.report-radar__axis-value { fill: #d9f8f5; font-family: "JetBrains Mono", monospace; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-radar__axis-value { font-size: 15px; fill: #d9f8f5; }
 .report-scatter__point { fill: var(--report-mint); stroke: #d9fff4; stroke-width: 1.5; opacity: .82; }
 .report-scatter__caveat { margin: -8px 0 0; color: var(--report-warn); font: 10px "JetBrains Mono", "Microsoft YaHei", monospace; text-align: right; }
 .report-alert-timeline,
@@ -642,6 +658,7 @@
 .report-visual-renderer--thumbnail .report-chart__value,
 .report-visual-renderer--thumbnail .report-scatter__caveat,
 .report-visual-renderer--thumbnail .report-path__provenance { display: none; }
+.report-visual-renderer--thumbnail .report-radar__axis-value { display: none; }
 .report-visual-renderer--thumbnail .report-kpi-grid { gap: 2px; }
 .report-visual-renderer--thumbnail .report-kpi { min-height: 34px; padding: 4px; }
 .report-visual-renderer--thumbnail .report-kpi span { font-size: 5px; }

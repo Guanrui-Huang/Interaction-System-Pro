@@ -98,20 +98,50 @@ it('raises the desktop report readability scale without changing thumbnail sizin
   expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.72rem\s+\.75rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
-  expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-chart__axis-label\s*\{[^}]*font:\s*12px\s+"JetBrains Mono",\s*monospace;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).toMatch(/\.report-visual-icon\s*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
 
+it('adds an eight-column dashboard density hook without shrinking metric typography', () => {
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metrics\s*\{[^}]*gap:\s*\.24rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s*\{[^}]*padding-inline:\s*\.55rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dd\s*\{[^}]*gap:\s*\.3rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dt\s+span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*line-height:\s*1\.25;/su);
+});
+
 it('raises comparison bar values and labels to the large-screen scale', () => {
-  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*15px;/su);
-  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*14px;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--radar\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;[^}]*fill:\s*#d9f8f5;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
+});
+
+it('raises trend and scatter auxiliary labels on the desktop canvas without affecting thumbnails', () => {
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--trend\s+\.report-chart__axis-label,\s*\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--trend\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+});
+
+it('keeps score-ring units hidden while preserving non-score unit styling and thumbnail rules', () => {
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/su);
+  expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
+  expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-radar__axis-value\s*\{[^}]*display:\s*none;/su);
+  expect(css).not.toMatch(/(?:^|\n)\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;/u);
+  expect(css).not.toMatch(/(?:^|\n)\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/u);
+  expect(css).not.toMatch(/(?:^|\n)\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/u);
 });
 
 it('enforces desktop chart drawing bounds after panel labels and chrome consume the grid row', () => {
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--bars\s*\{[^}]*min-inline-size:\s*300px;[^}]*min-block-size:\s*180px;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--radar\s*\{[^}]*min-inline-size:\s*220px;[^}]*min-block-size:\s*220px;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
+  expect(css).toMatch(/\.report-trend\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
+  expect(css).toMatch(/\.report-trend\s+\.report-chart--trend\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
 });

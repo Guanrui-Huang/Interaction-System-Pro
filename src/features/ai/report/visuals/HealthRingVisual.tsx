@@ -28,7 +28,13 @@ export function HealthRingVisual({ visual }: { visual: HealthSpec }) {
           </defs>
           <g transform="translate(120 120) rotate(-90)"><path className="report-ring__track" d={background ?? undefined} /><path className="report-ring__value" data-motion-ring d={foreground ?? undefined} fill={`url(#${gradientId})`} /></g>
         </svg>
-        <div className="report-health-ring__label"><strong data-motion-number data-final-value={visual.metric.value}>{formatReportNumber(visual.metric.value)}</strong><span>{visual.metric.unit ?? '—'}</span><small>{visual.metric.label}</small></div>
+        <div className="report-health-ring__label">
+          <strong data-motion-number data-final-value={visual.metric.value}>{formatReportNumber(visual.metric.value)}</strong>
+          {visual.metric.unit?.trim() !== '分' && (
+            <span className="report-health-ring__unit">{visual.metric.unit ?? '—'}</span>
+          )}
+          <small className="report-health-ring__name">{visual.metric.label}</small>
+        </div>
       </div>
     </VisualFrame>
   );

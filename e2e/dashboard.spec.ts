@@ -74,10 +74,15 @@ const largeScreenMetrics = [
   metric('tp', '总磷', 'mg/L', .29),
   metric('cod', 'COD', 'mg/L', 22.26),
   metric('ss', '悬浮物', 'mg/L', 6.44),
+  metric('carbonEmissionKg', '碳排放', 'kg/d', 184.6),
 ];
-const largeScreenMetricKeys = largeScreenMetrics.map(({ key }) => key);
 const largeScreenScoreMetrics = largeScreenMetrics.slice(0, 2);
-const largeScreenWaterMetrics = largeScreenMetrics.slice(2);
+const largeScreenCarbonMetrics = [
+  largeScreenMetrics.at(-1)!,
+  metric('carbonReductionKg', '碳减排', 'kg/d', 39.2),
+];
+const largeScreenEvidenceMetrics = [...largeScreenMetrics, largeScreenCarbonMetrics[1]!];
+const largeScreenMetricKeys = largeScreenEvidenceMetrics.map(({ key }) => key);
 
 function evidenceRef(value: typeof tn) {
   const { value: _metricValue, claimIds: _claimIds, ...evidence } = value;
@@ -141,13 +146,13 @@ const energySlide: ReportSlide = {
   layout: 'visual-focus',
   evidencePolicy: 'data',
   title: '季度水质与能效综合概览',
-  takeaway: '七项水质与能效指标已在同一张复合数据看板中完成展示。',
+  takeaway: '八项水质、能效与碳指标已在同一张复合数据看板中完成展示。',
   takeawayClaimIds: ['claim-e2e'],
   claims: [{
     id: 'claim-e2e',
-    text: '七项水质与能效指标已在同一证据范围内完成汇总展示。',
+    text: '八项水质、能效与碳指标已在同一证据范围内完成汇总展示。',
     kind: 'onsite-fact',
-    evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+    evidenceRefs: largeScreenEvidenceMetrics.map((item) => evidenceRef(item)),
   }],
   visual: {
     kind: 'data-dashboard',
@@ -169,14 +174,14 @@ const energySlide: ReportSlide = {
     },
     supporting: [
       { kind: 'comparison-bars', items: largeScreenScoreMetrics },
-      { kind: 'comparison-bars', items: largeScreenWaterMetrics },
+      { kind: 'comparison-bars', items: largeScreenCarbonMetrics },
     ],
   },
-  metrics: [...largeScreenMetrics],
-  evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+  metrics: [...largeScreenEvidenceMetrics],
+  evidenceRefs: largeScreenEvidenceMetrics.map((item) => evidenceRef(item)),
   narration: [
-    { id: 'energy-trend-segment-1', text: '先看七项摘要指标的最新得分与水质读数。', speechId: 'energy-trend-speech-1', claimIds: ['claim-e2e'] },
-    { id: 'energy-trend-segment-2', text: '再对比两项主趋势与两组辅助条形图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
+    { id: 'energy-trend-segment-1', text: '先看八项摘要指标的最新得分、水质读数与碳指标。', speechId: 'energy-trend-speech-1', claimIds: ['claim-e2e'] },
+    { id: 'energy-trend-segment-2', text: '再对比两项主趋势与得分、碳指标辅助条形图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
   ],
 };
 
@@ -696,7 +701,7 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string): P
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
 }
 
-test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }, testInfo) => {
+test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await installBrowserAudioFake(page);
   const api = await installMockReportApi(page);
@@ -731,20 +736,23 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(sequenceBox).not.toBeNull();
   await page.mouse.click(sequenceBox!.x + sequenceBox!.width / 2, sequenceBox!.y + sequenceBox!.height / 2);
   const canvas = page.locator(`[data-slide-mode="canvas"][data-slide-id="${energySlide.id}"]`);
+  const dashboard = canvas.locator('.report-data-dashboard');
   await expect(canvas).toContainText(energySlide.title);
   await expect(energyThumbnail).toContainText(energySlide.title);
   await expect(page.getByRole('status').filter({ hasText: '正在讲解第 2 页' })).toBeVisible();
 
   const summaryMetrics = canvas.locator('.report-data-dashboard__metric');
-  await expect(summaryMetrics).toHaveCount(7);
+  await expect(summaryMetrics).toHaveCount(8);
   for (const item of largeScreenMetrics) {
     const metricCard = summaryMetrics.filter({ hasText: item.label });
     await expect(metricCard).toHaveCount(1);
     await expect(metricCard).toContainText(String(item.value));
     await expect(metricCard).toContainText(item.unit);
   }
+  await expect(dashboard).toHaveAttribute('data-summary-columns', '8');
+  await expect(dashboard).toHaveAttribute('data-summary-rows', '1');
   await expect(canvas.locator('[data-panel-kind="trend-area"] .report-chart__point[data-terminal-point="true"]')).toHaveCount(2);
-  await expect(canvas.locator('[data-icon-kind="metric"]')).toHaveCount(7);
+  await expect(canvas.locator('[data-icon-kind="metric"]')).toHaveCount(8);
   await expect(canvas.locator('[data-panel-kind="trend-area"] .report-visual-icon')).toHaveCount(1);
   await expect(canvas.locator('[data-panel-kind="comparison-bars"] .report-visual-icon')).toHaveCount(2);
   await expect(page.locator('.report-conversation__role')).toHaveCount(0);
@@ -831,6 +839,8 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       .map((bar) => bar.dataset.barTheme ?? '');
     const barValue = slide.querySelector<SVGTextElement>('.report-chart--bars .report-chart__value')!;
     const barAxisLabel = slide.querySelector<SVGTextElement>('.report-chart--bars .report-chart__axis-label')!;
+    const barAxisLabelBounds = [...slide.querySelectorAll<SVGTextElement>('.report-chart--bars .report-chart__axis-label')]
+      .map((label) => box(label, 'bar axis label'));
     const evidenceButton = slide.querySelector<HTMLElement>('.report-evidence-drawer > button')!;
     const metricLabel = slide.querySelector<HTMLElement>('.report-data-dashboard__metric dt')!;
     const metricValue = slide.querySelector<HTMLElement>('.report-data-dashboard__metric strong')!;
@@ -840,14 +850,28 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
     const titleLines = [...titleRange.getClientRects()];
     const titleLineTops = new Set(titleLines.map((rect) => Math.round(rect.top)));
     const panelBounds = [...slide.querySelectorAll<HTMLElement>('[data-panel-kind]')].map((panel) => {
-      const visual = panel.querySelector<HTMLElement>('.report-chart, .report-health-ring, .report-visual');
-      if (!visual) throw new Error(`Missing visual bounds for ${panel.dataset.panelKind}`);
+      const visuals = [...panel.querySelectorAll<HTMLElement>('.report-chart, .report-health-ring')];
+      if (visuals.length === 0) throw new Error(`Missing visual bounds for ${panel.dataset.panelKind}`);
       const panelBox = panel.getBoundingClientRect();
-      const visualBox = visual.getBoundingClientRect();
+      const primaryVisualBox = visuals[0]!.getBoundingClientRect();
       return {
         kind: panel.dataset.panelKind ?? '',
         panel: { top: panelBox.top, right: panelBox.right, bottom: panelBox.bottom, left: panelBox.left },
-        visual: { top: visualBox.top, right: visualBox.right, bottom: visualBox.bottom, left: visualBox.left },
+        visual: {
+          top: primaryVisualBox.top,
+          right: primaryVisualBox.right,
+          bottom: primaryVisualBox.bottom,
+          left: primaryVisualBox.left,
+        },
+        actualVisuals: visuals.map((visual) => {
+          const visualBox = visual.getBoundingClientRect();
+          return {
+            top: visualBox.top,
+            right: visualBox.right,
+            bottom: visualBox.bottom,
+            left: visualBox.left,
+          };
+        }),
       };
     });
     return {
@@ -861,6 +885,7 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       metricCardBounds,
       barCharts,
       barThemes,
+      barAxisLabelBounds,
       barValueFontSize: Number.parseFloat(getComputedStyle(barValue).fontSize),
       barAxisLabelFontSize: Number.parseFloat(getComputedStyle(barAxisLabel).fontSize),
       evidenceButtonBounds: box(evidenceButton, 'evidence button'),
@@ -890,17 +915,26 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(reportGeometry.slideScrollHeight).toBeLessThanOrEqual(reportGeometry.slideClientHeight + 1);
   expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.documentScrollHeight).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
-  expect(reportGeometry.metricCardBounds).toHaveLength(7);
+  expect(reportGeometry.metricCardBounds).toHaveLength(8);
   expect(new Set(reportGeometry.metricCardBounds.map(({ top }) => Math.round(top))).size).toBe(1);
-  for (const card of reportGeometry.metricCardBounds) expect(card.width).toBeGreaterThanOrEqual(179);
+  for (const card of reportGeometry.metricCardBounds) {
+    expect(card.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
+    expect(card.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
+    expect(card.top).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.top - 1);
+    expect(card.bottom).toBeLessThanOrEqual(reportGeometry.canvasBounds.bottom + 1);
+  }
   expect(reportGeometry.barCharts).toHaveLength(2);
   for (const chart of reportGeometry.barCharts) {
     expect(chart.width).toBeGreaterThanOrEqual(300);
     expect(chart.height).toBeGreaterThanOrEqual(180);
   }
-  expect(new Set(reportGeometry.barThemes).size).toBe(7);
-  expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(15);
-  expect(reportGeometry.barAxisLabelFontSize).toBeGreaterThanOrEqual(14);
+  expect(reportGeometry.barAxisLabelBounds.length).toBeGreaterThan(0);
+  for (const label of reportGeometry.barAxisLabelBounds) {
+    expect(label.bottom).toBeLessThanOrEqual(reportGeometry.evidenceButtonBounds.top + 1);
+  }
+  expect(new Set(reportGeometry.barThemes).size).toBe(reportGeometry.barThemes.length);
+  expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(18);
+  expect(reportGeometry.barAxisLabelFontSize).toBeGreaterThanOrEqual(18);
   expect(reportGeometry.subtitlePosition).toBe('fixed');
   expect(reportGeometry.subtitlePointerEvents).toBe('none');
   expect(reportGeometry.subtitleText).not.toBe('等待讲解字幕');
@@ -919,10 +953,16 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(reportGeometry.metricValueFontSize).toBeGreaterThanOrEqual(28);
   expect(new Set(reportGeometry.metricIconFamilies).size).toBeGreaterThanOrEqual(2);
   for (const panel of reportGeometry.panelBounds) {
-    expect(panel.visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
-    expect(panel.visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
-    expect(panel.visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
-    expect(panel.visual.bottom, `${panel.kind} visual exceeds panel bottom`).toBeLessThanOrEqual(panel.panel.bottom + 1);
+    for (const visual of panel.actualVisuals) {
+      expect(visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
+      expect(visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
+      expect(visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
+      expect(visual.bottom, `${panel.kind} visual exceeds panel bottom`).toBeLessThanOrEqual(panel.panel.bottom + 1);
+      expect(visual.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
+      expect(visual.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
+      expect(visual.top).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.top - 1);
+      expect(visual.bottom).toBeLessThanOrEqual(reportGeometry.canvasBounds.bottom + 1);
+    }
   }
   for (let index = 0; index < reportGeometry.panelBounds.length; index += 1) {
     for (let otherIndex = index + 1; otherIndex < reportGeometry.panelBounds.length; otherIndex += 1) {
