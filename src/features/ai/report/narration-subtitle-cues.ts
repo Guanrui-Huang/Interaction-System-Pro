@@ -12,11 +12,10 @@ function displayUnits(text: string): number {
 function boundaryIndex(text: string, boundaries: Set<string>, maxUnits: number, first = false): number {
   let units = 0;
   let lastBoundary = -1;
-  const maxCharacters = Math.max(1, Math.floor(maxUnits));
 
   for (const [index, character] of [...text].entries()) {
     units += displayUnits(character);
-    if (boundaries.has(character) && units <= maxUnits && index + 1 <= maxCharacters) {
+    if (boundaries.has(character) && units <= maxUnits) {
       if (first) return index + 1;
       lastBoundary = index + 1;
     }
@@ -29,11 +28,10 @@ function boundaryIndex(text: string, boundaries: Set<string>, maxUnits: number, 
 function hardCutIndex(text: string, maxUnits: number): number {
   let units = 0;
   let index = 0;
-  const maxCharacters = Math.max(1, Math.floor(maxUnits));
 
   for (const character of [...text]) {
     const nextUnits = units + displayUnits(character);
-    if (index > 0 && (nextUnits > maxUnits || index >= maxCharacters)) break;
+    if (index > 0 && nextUnits > maxUnits) break;
     units = nextUnits;
     index += 1;
   }
@@ -69,8 +67,8 @@ function splitAtPreferredBoundaries(text: string, maxUnits: number): string[] {
 }
 
 export function splitSubtitleCues(text: string, maxUnits = DEFAULT_SUBTITLE_UNITS): SubtitleCue[] {
-  const source = text.trim();
-  if (!source) return [];
+  if (!text.trim()) return [];
+  const source = text;
   const chunks = splitAtPreferredBoundaries(source, maxUnits);
   const totalUnits = Math.max(1, chunks.reduce((sum, chunk) => sum + displayUnits(chunk), 0));
   let consumed = 0;

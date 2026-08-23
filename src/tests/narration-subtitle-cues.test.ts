@@ -1,6 +1,11 @@
 import { expect, it } from 'vitest';
 import { cueTextAtProgress, splitSubtitleCues } from '../features/ai/report/narration-subtitle-cues';
 
+const displayUnits = (text: string) => [...text].reduce(
+  (units, character) => units + (character.charCodeAt(0) <= 0x7f ? 0.5 : 1),
+  0,
+);
+
 it('splits narration at Chinese sentence punctuation before applying the one-line budget', () => {
   const text = '出水水质得分最新值为96分，期间峰值为96分，出现在2025-08。电耗得分最新值为90分。';
   const cues = splitSubtitleCues(text, 36);
@@ -18,7 +23,30 @@ it('splits an overlong phrase without dropping text or punctuation', () => {
   const cues = splitSubtitleCues(text, 18);
 
   expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
-  expect(cues.every(({ text: cue }) => cue.length <= 18)).toBe(true);
+  expect(cues.every(({ text: cue }) => displayUnits(cue) <= 18)).toBe(true);
+});
+
+it('uses display units rather than character count for ASCII hard cuts', () => {
+  const text = 'abcdefgh';
+  const cues = splitSubtitleCues(text, 2.5);
+
+  expect(cues.map(({ text: cue }) => cue)).toEqual(['abcde', 'fgh']);
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
+});
+
+it('keeps a punctuation boundary when it fits the display-unit budget', () => {
+  const text = 'abcd。下一句';
+  const cues = splitSubtitleCues(text, 3);
+
+  expect(cues[0]?.text).toBe('abcd。');
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
+});
+
+it('preserves leading and trailing whitespace in non-empty source text', () => {
+  const text = '  第一句。第二句。  ';
+  const cues = splitSubtitleCues(text, 36);
+
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
 });
 
 it('maps normalized playback progress to exactly one visible cue', () => {
