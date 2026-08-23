@@ -1,86 +1,123 @@
-# Task 1 Report: Pure Single-Line Subtitle Cue Segmentation
+# Task 1 Report: Shared Report Chart Palette And No Duplicate Colors
 
 ## Result
 
-Implemented pure subtitle cue segmentation and progress lookup. Existing `server/.env.example` changes were preserved and not modified.
+Implemented a shared ordered report-chart palette so dashboard trend and bar visuals coordinate colors, multi-metric charts no longer duplicate carbon colors, and the report palette now exposes eight distinct gradients.
 
 ## RED verification
 
 Command:
 
 ```bash
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/narration-subtitle-cues.test.ts
+../../node_modules/.bin/vitest run src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx
 ```
 
 Output:
 
 ```text
- RUN  v3.2.7 /Users/xiaoshen001/Documents/ChatGPT/ai部署/Interaction-System-Pro
+RUN  v3.2.7 /Users/xiaoshen001/Documents/ChatGPT/ai部署/Interaction-System-Pro/.worktrees/report-chart-legibility
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
- FAIL  src/tests/narration-subtitle-cues.test.ts [ src/tests/narration-subtitle-cues.test.ts ]
-Error: Failed to resolve import "../features/ai/report/narration-subtitle-cues" from "src/tests/narration-subtitle-cues.test.ts". Does the file exist?
-  Plugin: vite:import-analysis
-  File: /Users/xiaoshen001/Documents/ChatGPT/ai部署/Interaction-System-Pro/src/tests/narration-subtitle-cues.test.ts:2:53
-  1  |  import { expect, it } from "vitest";
-  2  |  import { cueTextAtProgress, splitSubtitleCues } from "../features/ai/report/narration-subtitle-cues";
-     |                                                        ^
-  3  |  it("splits narration at Chinese sentence punctuation before applying the one-line budget", () => {
-  4  |    const text = "出水水质得分最新值为96分，期间峰值为96分，出现在2025-08。电耗得分最新值为90分。";
-     |
-  ❯ TransformPluginContext._formatLog ../../ai%E9%83%A8%E9%BD%.../vite/dist/node/chunks/config.js:29079:43
-  ❯ TransformPluginContext.error ../../ai%E9%83%A8%E9%BD%.../vite/dist/node/chunks/config.js:29076:14
-  ❯ normalizeUrl ../../ai%E9%83%A8%E9%BD%.../vite/dist/node/chunks/config.js:27199:43
-  ❯ ... additional Vite import-analysis stack frames omitted by the terminal capture
+❯ src/tests/chart-theme.test.ts (3 tests | 2 failed)
+  × report bar themes > provides eight distinct report gradients
+    → expected ... to have a length of 8 but got 7
+  × report bar themes > allocates stable unique themes in first-seen order
+    → chartThemesForMetrics is not a function
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
- Test Files  1 failed (1)
- Tests  no tests
- Start at 12:30:15
- Duration 510ms (transform 15ms, setup 78ms, collect 0ms, tests 0ms, environment 239ms, prepare 36ms)
+❯ src/tests/report-visuals.test.tsx (48 tests | 2 failed)
+  × assigns different bar themes to separate carbon metrics in the same chart
+    → expected [] to have a length of 2 but got 0
+  × shares one ordered palette across dashboard trend and comparison visuals without duplicate bar colors
+    → expected undefined to be 'water'
+
+Test Files  2 failed (2)
+Tests  4 failed | 47 passed (51)
+Exit code: 1
 ```
 
-Exit code: 1. This was the expected missing-module RED failure.
+This was the expected RED state: missing eighth theme, missing ordered allocator, and missing shared theme wiring/data attributes.
 
 ## GREEN verification
 
 Command:
 
 ```bash
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/narration-subtitle-cues.test.ts
+../../node_modules/.bin/vitest run src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx
 ```
 
 Output:
 
 ```text
- RUN  v3.2.7 /Users/xiaoshen001/Documents/ChatGPT/ai部署/Interaction-System-Pro
+RUN  v3.2.7 /Users/xiaoshen001/Documents/ChatGPT/ai部署/Interaction-System-Pro/.worktrees/report-chart-legibility
 
- ✓ src/tests/narration-subtitle-cues.test.ts (3 tests) 1ms
+✓ src/tests/chart-theme.test.ts (3 tests) 2ms
+✓ src/tests/report-visuals.test.tsx (48 tests) 231ms
 
- Test Files  1 passed (1)
- Tests  3 passed (3)
- Start at 12:31:45
- Duration 468ms (transform 19ms, setup 68ms, collect 10ms, tests 1ms, environment 214ms, prepare 37ms)
+Test Files  2 passed (2)
+Tests  51 passed (51)
+Duration  965ms
+Exit code: 0
 ```
 
-Exit code: 0. `git diff --check` also passed.
+`git diff --check -- src/charts/chart-theme.ts src/features/ai/report/visuals/ReportChartThemeContext.tsx src/features/ai/report/visuals/DataDashboardVisual.tsx src/features/ai/report/visuals/TrendVisual.tsx src/features/ai/report/visuals/ComparisonBarsVisual.tsx src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx` also passed with exit code 0.
 
 ## Files changed
 
-- `src/features/ai/report/narration-subtitle-cues.ts`: adds `SubtitleCue`, display-unit accounting, preferred-boundary splitting, normalized intervals, and progress lookup.
-- `src/tests/narration-subtitle-cues.test.ts`: adds the three required behavior tests.
+- `src/charts/chart-theme.ts`: added the eighth `signal` palette, exported shared theme types, and added the ordered `chartThemesForMetrics()` allocator while keeping `barThemeForMetric()` for legacy/single-metric use.
+- `src/features/ai/report/visuals/ReportChartThemeContext.tsx`: added report-level palette context, atomic-visual metric extraction, and the local/shared `useReportChartThemes()` hook.
+- `src/features/ai/report/visuals/DataDashboardVisual.tsx`: collects first-seen dashboard metrics and wraps the full canvas dashboard in the shared theme provider.
+- `src/features/ai/report/visuals/TrendVisual.tsx`: resolves series themes once per chart and adds `data-metric-key` diagnostics on lines.
+- `src/features/ai/report/visuals/ComparisonBarsVisual.tsx`: resolves item themes once per chart and adds `data-metric-key` diagnostics on bars.
+- `src/tests/chart-theme.test.ts`: updated palette cardinality and added ordered-allocation coverage.
+- `src/tests/report-visuals.test.tsx`: added dashboard palette coordination and carbon-theme regression tests, and updated existing multi-metric expectations to the new ordered palette contract.
 - `.superpowers/sdd/task-1-report.md`: this report.
 
 ## Self-review
 
-- Empty or whitespace-only input returns no cues.
-- Source characters and punctuation are preserved in order for non-empty input.
-- Sentence boundaries are preferred, followed by phrase boundaries, then hard cuts.
-- Full-width/CJK characters count as 1 display unit and ASCII characters as 0.5.
-- Cue intervals are normalized and progress is clamped to `[0, 1]`.
-- No server, UI, or unrelated files were changed.
+- Shared dashboards now keep the same metric key on the same theme across summary ordering, primary trend, and supporting bars.
+- Multi-metric charts outside the dashboard use a local first-seen allocator instead of semantic matching, while single-metric fallback behavior still uses `barThemeForMetric()`.
+- Repeated metric keys reuse their original theme, and different carbon metrics in one bar chart no longer collapse to the same family.
+- Thumbnail dashboard layout is unchanged because the provider is only needed for full-canvas composition; standalone thumbnail charts still use the local ordered hook path.
+- Only the Task 1 brief files plus the required task report were modified.
 
 ## Concerns
 
-- The required direct Vitest command passed. `CI=1 pnpm exec vitest run src/tests/narration-subtitle-cues.test.ts` did not return within the tool’s 30-second window, so the package-manager wrapper was not used as completion evidence.
-- The pre-existing `server/.env.example` modification remains untouched.
+- Verification covered the exact Task 1 target suite and file diff checks; I did not run the broader project test suite because the brief scoped verification to these two tests.
+
+## Fix: keep 9+ chart themes unique
+
+### Files
+
+- `src/tests/chart-theme.test.ts`: added a focused regression that allocates nine distinct metric keys, verifies the first eight families stay aligned with the approved palette order, and proves the ninth metric no longer collides with the first.
+- `src/charts/chart-theme.ts`: kept the approved eight base palette entries unchanged, widened runtime theme families to allow derived identifiers, and added deterministic overflow-theme generation for metrics beyond the eighth entry.
+
+### Test evidence
+
+RED after adding the regression:
+
+```text
+../../node_modules/.bin/vitest run src/tests/chart-theme.test.ts
+FAIL  src/tests/chart-theme.test.ts > report bar themes > keeps every distinct metric unique after the eighth palette entry
+AssertionError: expected 8 to be 9
+```
+
+GREEN after the fix:
+
+```text
+../../node_modules/.bin/vitest run src/tests/chart-theme.test.ts
+Test Files  1 passed (1)
+Tests  4 passed (4)
+```
+
+Task 1 scoped suite:
+
+```text
+../../node_modules/.bin/vitest run src/tests/chart-theme.test.ts src/tests/report-visuals.test.tsx
+Test Files  2 passed (2)
+Tests  52 passed (52)
+```
+
+### Self-review
+
+- The first eight palette entries are unchanged and still returned verbatim for the first eight distinct metric keys.
+- The ninth and later distinct keys now receive deterministic derived themes instead of wrapping back to an existing family.
+- Repeated metric keys still reuse their original theme within the same chart.

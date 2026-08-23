@@ -24,6 +24,30 @@ describe('report bar themes', () => {
     expect(themes.get('quality')).toEqual(CHART_THEME.bars[0]);
   });
 
+  it('keeps every distinct metric unique after the eighth palette entry', () => {
+    const metrics = [
+      { key: 'metric-1', label: '指标 1' },
+      { key: 'metric-2', label: '指标 2' },
+      { key: 'metric-3', label: '指标 3' },
+      { key: 'metric-4', label: '指标 4' },
+      { key: 'metric-5', label: '指标 5' },
+      { key: 'metric-6', label: '指标 6' },
+      { key: 'metric-7', label: '指标 7' },
+      { key: 'metric-8', label: '指标 8' },
+      { key: 'metric-9', label: '指标 9' },
+    ] as const;
+
+    const themes = chartThemesForMetrics(metrics);
+    const families = metrics.map(({ key }) => themes.get(key)?.family);
+
+    expect(families.slice(0, CHART_THEME.bars.length)).toEqual(
+      CHART_THEME.bars.map(({ family }) => family),
+    );
+    expect(new Set(families).size).toBe(metrics.length);
+    expect(families[8]).not.toBe(families[0]);
+    expect(themes.get('metric-9')).toEqual(chartThemesForMetrics(metrics).get('metric-9'));
+  });
+
   it('maps the common seven metrics to stable distinct families', () => {
     const metrics = [
       ['qualityScore', '出水水质得分'], ['energyScore', '电耗得分'], ['tn', '总氮（TN）'],

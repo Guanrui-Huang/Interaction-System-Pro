@@ -9,7 +9,7 @@ export type BarThemeFamily =
   | 'signal';
 
 export type BarTheme = {
-  family: BarThemeFamily;
+  family: string;
   start: string;
   end: string;
 };
@@ -41,6 +41,31 @@ const BAR_THEME_MATCHERS: readonly [BarThemeFamily, RegExp][] = [
   ['water', /quality|water|effluent|水质|出水/iu],
 ];
 
+function clampChannel(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function shiftHexColor(hex: string, offset: number): string {
+  const normalized = hex.replace('#', '');
+  const channels = [0, 2, 4].map((index) => clampChannel(parseInt(normalized.slice(index, index + 2), 16) + offset));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function overflowThemeAt(index: number): BarTheme {
+  const baseTheme = BAR_THEMES[index % BAR_THEMES.length]!;
+  const cycle = Math.floor(index / BAR_THEMES.length);
+  const offset = cycle * 18;
+  return {
+    family: `${baseTheme.family}-${cycle + 1}`,
+    start: shiftHexColor(baseTheme.start, offset),
+    end: shiftHexColor(baseTheme.end, offset),
+  };
+}
+
+function orderedThemeAt(index: number): BarTheme {
+  return BAR_THEMES[index] ?? overflowThemeAt(index);
+}
+
 function stableThemeIndex(value: string): number {
   let hash = 0;
   for (const character of value) hash = ((hash * 31) + character.codePointAt(0)!) >>> 0;
@@ -59,7 +84,7 @@ export function chartThemesForMetrics(metrics: readonly ChartMetricIdentity[]) {
   const themes = new Map<string, BarTheme>();
   for (const metric of metrics) {
     if (themes.has(metric.key)) continue;
-    themes.set(metric.key, BAR_THEMES[themes.size % BAR_THEMES.length]!);
+    themes.set(metric.key, orderedThemeAt(themes.size));
   }
   return themes;
 }
