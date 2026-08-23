@@ -103,6 +103,11 @@ it('raises the desktop report readability scale without changing thumbnail sizin
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
 
+it('raises comparison bar values and labels to the large-screen scale', () => {
+  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*15px;/su);
+  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*14px;/su);
+});
+
 it('enforces desktop chart drawing bounds after panel labels and chrome consume the grid row', () => {
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--bars\s*\{[^}]*min-inline-size:\s*300px;[^}]*min-block-size:\s*180px;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--radar\s*\{[^}]*min-inline-size:\s*220px;[^}]*min-block-size:\s*220px;/su);

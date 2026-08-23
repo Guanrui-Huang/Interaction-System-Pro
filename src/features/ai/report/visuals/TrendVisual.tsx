@@ -1,7 +1,7 @@
 import { area, curveMonotoneX, extent, line, scaleLinear, scalePoint } from 'd3';
 import { useId } from 'react';
 import type { BoundSeries, VisualSpec } from '../../../../../shared/report';
-import { CHART_THEME } from '../../../../charts/chart-theme';
+import { barThemeForMetric } from '../../../../charts/chart-theme';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
 type TrendSpec = Extract<VisualSpec, { kind: 'trend-line' | 'trend-area' }>;
@@ -12,10 +12,8 @@ const POINT_RADIUS = 4;
 const POINT_STROKE_WIDTH = 2;
 const POINT_INSET = POINT_RADIUS + POINT_STROKE_WIDTH / 2;
 
-function paletteForSeries(index: number) {
-  return index === 0
-    ? CHART_THEME.trend
-    : CHART_THEME.bars[(index - 1) % CHART_THEME.bars.length]!;
+function paletteForSeries(series: Pick<BoundSeries, 'key' | 'label'>) {
+  return barThemeForMetric(series.key, series.label);
 }
 
 function allValues(series: BoundSeries[]): number[] {
@@ -50,8 +48,8 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
     <VisualFrame ariaLabel={ariaLabel} table={<VisualDataTable label={`${visual.series.map((item) => item.label).join('、')}数据表`} rows={tableRows} />}>
       {visual.series.length > 1 && (
         <ul className="report-trend__legend" aria-label="趋势序列图例">
-          {visual.series.map((item, index) => {
-            const palette = paletteForSeries(index);
+          {visual.series.map((item) => {
+            const palette = paletteForSeries(item);
             return (
               <li key={`${item.key}-legend`}>
                 <span
@@ -72,7 +70,7 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
           {visual.series.map((item, index) => {
             const lineId = `report-trend-line-${reactId}-${index}`;
             const fillId = `report-trend-fill-${reactId}-${index}`;
-            const palette = paletteForSeries(index);
+            const palette = paletteForSeries(item);
             return (
               <g key={`${item.key}-defs`}>
                 <linearGradient id={lineId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -93,11 +91,11 @@ export function TrendVisual({ visual }: { visual: TrendSpec }) {
           {visual.series.map((item, index) => {
             const lineId = `report-trend-line-${reactId}-${index}`;
             const fillId = `report-trend-fill-${reactId}-${index}`;
-            const palette = paletteForSeries(index);
+            const palette = paletteForSeries(item);
             const terminal = item.points.at(-1);
             return <g key={item.key}>
-            {visual.kind === 'trend-area' && <path className="report-chart__area" d={areaPath(item.points) ?? undefined} fill={`url(#${fillId})`} opacity={1 - index * .18} />}
-            <path className="report-chart__line" data-motion-line d={linePath(item.points) ?? undefined} stroke={`url(#${lineId})`} />
+            {visual.kind === 'trend-area' && index === 0 && <path className="report-chart__area" d={areaPath(item.points) ?? undefined} fill={`url(#${fillId})`} />}
+            <path className="report-chart__line" data-motion-line data-series-theme={palette.family} d={linePath(item.points) ?? undefined} stroke={`url(#${lineId})`} />
             {terminal ? <circle className="report-chart__point" data-terminal-point="true" key={terminal.label} cx={x(terminal.label) ?? xStart} cy={y(terminal.value)} r={POINT_RADIUS} strokeWidth={POINT_STROKE_WIDTH} fill={palette.end} stroke={palette.start} /> : null}
           </g>;
           })}

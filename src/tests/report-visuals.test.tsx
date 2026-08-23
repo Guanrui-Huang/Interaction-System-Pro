@@ -159,7 +159,7 @@ it('uses the approved shared gradients and globally unique SVG IDs across report
   </>);
 
   expect(Array.from(container.querySelectorAll('linearGradient stop')).map((stop) => stop.getAttribute('stop-color')))
-    .toEqual(expect.arrayContaining(['#21F4B7', '#27C8FF', '#24E4C1', '#35A9FF', '#1689DC', '#2CE4F5']));
+    .toEqual(expect.arrayContaining(['#19BFA0', '#42F0C7', '#A9AB45', '#EEEF97', '#24E4C1', '#35A9FF']));
   expect(new Set(Array.from(container.querySelectorAll('[id]')).map(({ id }) => id)).size)
     .toBe(container.querySelectorAll('[id]').length);
 });
@@ -188,9 +188,9 @@ it('distinguishes multi-series trends with controlled gradients and an accessibl
     Array.from(gradient.querySelectorAll('stop'), (stop) => stop.getAttribute('stop-color'))
   );
   expect(lineGradients.map(stopColors)).toEqual([
-    ['#21F4B7', '#27C8FF'],
-    ['#1689DC', '#2CE4F5'],
     ['#19BFA0', '#42F0C7'],
+    ['#6B2FB2', '#AA56F0'],
+    ['#A9AB45', '#EEEF97'],
   ]);
   expect(new Set(lineGradients.map(({ id }) => id)).size).toBe(lineGradients.length);
 
@@ -198,6 +198,50 @@ it('distinguishes multi-series trends with controlled gradients and an accessibl
   expect(within(legend).getByText('总氮')).toBeVisible();
   expect(within(legend).getByText('氨氮')).toBeVisible();
   expect(within(legend).getByText('总磷')).toBeVisible();
+});
+
+it('renders wide adaptive bars with stable theme diagnostics', () => {
+  const items = [
+    metric('qualityScore', '出水水质得分', 96, '分'),
+    metric('energyScore', '电耗得分', 90, '分'),
+    metric('tn', '总氮（TN）', 1.96),
+    metric('ammonia', '氨氮', .38),
+    metric('tp', '总磷', .29),
+    metric('cod', 'COD', 22.26),
+    metric('ss', '悬浮物', 6.44),
+  ];
+  const { container } = render(<VisualRenderer visual={{ kind: 'comparison-bars', items }} mode="canvas" />);
+  const bars = [...container.querySelectorAll<SVGRectElement>('.report-chart__bar')];
+
+  expect(bars).toHaveLength(7);
+  expect(new Set(bars.map((bar) => bar.dataset.barTheme)).size).toBe(7);
+  expect(Number(bars[0]?.getAttribute('width'))).toBeGreaterThan(40);
+});
+
+it('uses the same seven semantic themes for trend series and fills only the primary series', () => {
+  const items = [
+    metric('qualityScore', '出水水质得分', 96, '分'),
+    metric('energyScore', '电耗得分', 90, '分'),
+    metric('tn', '总氮（TN）', 1.96),
+    metric('ammonia', '氨氮', .38),
+    metric('tp', '总磷', .29),
+    metric('cod', 'COD', 22.26),
+    metric('ss', '悬浮物', 6.44),
+  ];
+  const series = items.map((item) => ({
+    key: item.key,
+    label: item.label,
+    unit: item.unit ?? '',
+    snapshotId: item.snapshotId,
+    claimIds: item.claimIds,
+    points: [{ label: '2025-08', value: item.value * .96 }, { label: '2026-08', value: item.value }],
+  }));
+  const { container } = render(<VisualRenderer visual={{ kind: 'trend-area', series }} mode="canvas" />);
+  const lines = [...container.querySelectorAll<SVGPathElement>('.report-chart__line[data-series-theme]')];
+
+  expect(lines).toHaveLength(7);
+  expect(new Set(lines.map((line) => line.dataset.seriesTheme)).size).toBe(7);
+  expect(container.querySelectorAll('.report-chart__area')).toHaveLength(1);
 });
 
 it.each(VISUAL_KINDS)('renders registered visual %s without raw markup injection', (kind) => {
