@@ -180,8 +180,8 @@ it('keeps the narration status visually hidden on mobile while retaining the sub
   expect(mobileCss).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*clip:\s*rect\(0,\s*0,\s*0,\s*0\);/su);
 });
 
-it('keeps the subtitle below collapsed evidence and hides it while evidence is open', () => {
-  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*bottom:\s*clamp\(1rem,\s*1\.85vh,\s*1\.25rem\);[^}]*pointer-events:\s*none;/su);
+it('places the desktop subtitle within the evidence footer and hides it while evidence is open', () => {
+  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*bottom:\s*clamp\(2\.75rem,\s*4\.25vh,\s*3rem\);[^}]*pointer-events:\s*none;/su);
   expect(css).toMatch(/\.report-workspace:has\(\.report-evidence-drawer\s*>\s*button\[aria-expanded=['"]true['"]\]\)[^{]*\.report-subtitle-bar__text,[^{]*\.report-subtitle-bar__error\s*\{[^}]*opacity:\s*0;/su);
   expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*pointer-events:\s*none;/su);
   expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*white-space:\s*nowrap;/su);
