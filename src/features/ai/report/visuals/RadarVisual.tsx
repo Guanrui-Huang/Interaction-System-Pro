@@ -6,6 +6,17 @@ type RadarSpec = Extract<VisualSpec, { kind: 'radar' }>;
 const SIZE = 360;
 const CENTER = SIZE / 2;
 const RADIUS = 138;
+const LABEL_RADIUS = 1.18;
+const LABEL_EDGE_INSET = 18;
+
+function radarLabelPlacement(index: number, axesLength: number) {
+  const angle = index * Math.PI * 2 / axesLength;
+  const x = CENTER + Math.sin(angle) * RADIUS * LABEL_RADIUS;
+  const y = CENTER - Math.cos(angle) * RADIUS * LABEL_RADIUS;
+  if (x >= SIZE - LABEL_EDGE_INSET) return { x: SIZE - LABEL_EDGE_INSET, y, textAnchor: 'end' as const };
+  if (x <= LABEL_EDGE_INSET) return { x: LABEL_EDGE_INSET, y, textAnchor: 'start' as const };
+  return { x, y, textAnchor: 'middle' as const };
+}
 
 export function emphasizeRadarRatios(
   axes: readonly Pick<RadarSpec['axes'][number], 'value' | 'maximum'>[],
@@ -37,15 +48,13 @@ export function RadarVisual({ visual }: { visual: RadarSpec }) {
         {[.25, .5, .75, 1].map((level) => <polygon key={level} className="report-radar__grid" points={visual.axes.map((_axis, index) => { const p = point(index, level); return `${p.x},${p.y}`; }).join(' ')} />)}
         {visual.axes.map((axis, index) => {
           const outer = point(index, 1);
-          const label = point(index, 1.18);
+          const label = radarLabelPlacement(index, visual.axes.length);
           const value = point(index, emphasizedRatios[index] ?? 0);
-          const horizontal = Math.sin(angle(index));
-          const textAnchor = horizontal > .22 ? 'start' : horizontal < -.22 ? 'end' : 'middle';
           return (
             <g key={axis.key}>
               <line className="report-radar__spoke" x1={CENTER} y1={CENTER} x2={outer.x} y2={outer.y} />
-              <text className="report-chart__axis-label" x={label.x} y={label.y} textAnchor={textAnchor}>{axis.label}</text>
-              <text className="report-radar__axis-value" x={value.x} y={value.y - 8} textAnchor={textAnchor}>
+              <text className="report-chart__axis-label" x={label.x} y={label.y} textAnchor={label.textAnchor}>{axis.label}</text>
+              <text className="report-radar__axis-value" x={value.x} y={value.y - 8} textAnchor={label.textAnchor}>
                 {formatReportNumber(axis.value)} {axis.unit}
               </text>
             </g>
