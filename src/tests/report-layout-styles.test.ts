@@ -98,7 +98,7 @@ it('raises the desktop report readability scale without changing thumbnail sizin
   expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.72rem\s+\.75rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
-  expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).toMatch(/\.report-visual-icon\s*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
@@ -113,8 +113,16 @@ it('adds an eight-column dashboard density hook without shrinking metric typogra
 });
 
 it('raises comparison bar values and labels to the large-screen scale', () => {
-  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*15px;/su);
-  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*14px;/su);
+  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).toMatch(/\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;[^}]*fill:\s*#d9f8f5;/su);
+  expect(css).toMatch(/\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
+});
+
+it('keeps score-ring units hidden while preserving non-score unit styling and thumbnail rules', () => {
+  expect(css).toMatch(/\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/su);
+  expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
 
 it('enforces desktop chart drawing bounds after panel labels and chrome consume the grid row', () => {

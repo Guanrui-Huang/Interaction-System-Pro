@@ -9,6 +9,7 @@ import { ReportEvidenceDrawer } from '../features/ai/report/ReportEvidenceDrawer
 import { ReportSlideView } from '../features/ai/report/ReportSlideView';
 import { summaryGridForMetricCount } from '../features/ai/report/visuals/DataDashboardVisual';
 import { ReportVisualErrorBoundary } from '../features/ai/report/visuals/ReportVisualErrorBoundary';
+import { emphasizeRadarRatios } from '../features/ai/report/visuals/RadarVisual';
 import { VisualRenderer } from '../features/ai/report/visuals/VisualRenderer';
 
 const reportStyles = readFileSync(resolve(process.cwd(), 'src/styles/ai.css'), 'utf8');
@@ -389,6 +390,45 @@ it('keeps the health ring SVG and centered label in one sizing container', () =>
   expect(healthRing).toBeInTheDocument();
   expect(healthRing?.querySelector('.report-chart--ring')).toBeInTheDocument();
   expect(healthRing?.querySelector('.report-health-ring__label')).toBeInTheDocument();
+});
+
+it('renders radar endpoint values with original units and no center total score', () => {
+  const { container } = render(<VisualRenderer visual={visualFixture('radar')} mode="canvas" />);
+  const endpointValues = Array.from(container.querySelectorAll('.report-radar__axis-value'));
+
+  expect(endpointValues).toHaveLength(3);
+  expect(endpointValues.map((node) => node.textContent?.trim())).toEqual(['92 分', '81 分', '95 分']);
+  expect(container.querySelector('.report-radar__score')).toBeNull();
+});
+
+it('lightly amplifies radar geometry while preserving order, equality, and valid ratios', () => {
+  const emphasized = emphasizeRadarRatios([
+    { value: 96, maximum: 100 },
+    { value: 90, maximum: 100 },
+    { value: 72, maximum: 100 },
+  ]);
+
+  expect(emphasized[0]).toBeGreaterThan(emphasized[1]!);
+  expect(emphasized[1]).toBeGreaterThan(emphasized[2]!);
+  expect(emphasized[0]! - emphasized[2]!).toBeGreaterThan(.24);
+  expect(emphasizeRadarRatios([
+    { value: 90, maximum: 100 },
+    { value: 90, maximum: 100 },
+    { value: 90, maximum: 100 },
+  ])).toEqual([.9, .9, .9]);
+  expect(emphasized.every((ratio) => ratio >= 0 && ratio <= 1)).toBe(true);
+});
+
+it('hides score units on health rings but keeps non-score units visible', () => {
+  const scoreRing = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
+  const percentRing = render(<VisualRenderer visual={{
+    kind: 'health-ring',
+    metric: metric('load', '负荷完成率', 87, '%'),
+    target: 100,
+  }} mode="canvas" />);
+
+  expect(scoreRing.container.querySelector('.report-health-ring__unit')).toBeNull();
+  expect(percentRing.container.querySelector('.report-health-ring__unit')?.textContent).toBe('%');
 });
 
 it('uses distinct semantic icon families for metric cards', () => {

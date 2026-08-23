@@ -248,8 +248,8 @@
 .report-chart__point { fill: #dfffff; stroke: var(--chart-trend-start); stroke-width: 2; }
 .report-chart__bar { opacity: .76; filter: drop-shadow(0 0 5px rgb(35 239 177 / 28%)); }
 .report-chart__value { fill: #d9f8f5; font: 13px "JetBrains Mono", monospace; }
-.report-chart--bars .report-chart__value { font-size: 15px; }
-.report-chart--bars .report-chart__axis-label { font-size: 14px; }
+.report-chart--bars .report-chart__value { font-size: 18px; }
+.report-chart--bars .report-chart__axis-label { font-size: 18px; }
 .report-trend__legend { display: flex; flex-wrap: wrap; gap: .35rem .85rem; margin: 0 0 .25rem; padding: 0; color: #c9e8ed; font-size: .7rem; list-style: none; }
 .report-trend__legend li { display: inline-flex; align-items: center; gap: .32rem; min-width: 0; }
 .report-trend__legend-swatch { width: 1.35rem; height: .18rem; border-radius: 999px; box-shadow: 0 0 5px rgb(44 228 245 / 28%); }
@@ -316,7 +316,7 @@
 .report-data-dashboard__primary { grid-area: primary; }
 .report-data-dashboard__support { grid-area: support; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr); gap: .75rem; min-height: 0; }
 .report-data-dashboard[data-support-count="2"] .report-data-dashboard__support { grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.report-data-dashboard__panel-label { margin: 0 0 .55rem; color: #7fa0aa; font-size: .94rem; letter-spacing: .04em; }
+.report-data-dashboard__panel-label { margin: 0 0 .55rem; color: #7fa0aa; font-size: 16px; letter-spacing: .04em; }
 .report-data-dashboard[data-support-count="0"] {
   grid-template-areas: "metrics metrics" "primary primary";
   grid-template-rows: auto minmax(0, 1fr);
@@ -349,11 +349,12 @@
 .report-ring__value { filter: drop-shadow(0 0 5px rgb(35 239 177 / 38%)); }
 .report-health-ring__label { position: absolute; inset: 28% 18%; display: grid; place-content: center; text-align: center; }
 .report-health-ring__label strong { color: #efffff; font: 650 clamp(2.5rem, 18cqi, 4.5rem) "JetBrains Mono", monospace; }
-.report-health-ring__label span,
-.report-health-ring__label small { color: #71949e; font: 11px "JetBrains Mono", "Microsoft YaHei", monospace; }
+.report-health-ring__unit { color: #71949e; font-size: 13px; font-family: "JetBrains Mono", "Microsoft YaHei", monospace; }
+.report-health-ring__name { color: #71949e; font-size: 14px; font-family: "JetBrains Mono", "Microsoft YaHei", monospace; }
 .report-radar__grid { fill: none; stroke: rgb(110 177 194 / 18%); }
 .report-radar__spoke { stroke: rgb(110 177 194 / 14%); }
 .report-radar__shape { fill: rgb(44 228 245 / 15%); stroke: var(--report-cyan); stroke-width: 2; }
+.report-radar__axis-value { font-size: 15px; fill: #d9f8f5; font-family: "JetBrains Mono", monospace; }
 .report-scatter__point { fill: var(--report-mint); stroke: #d9fff4; stroke-width: 1.5; opacity: .82; }
 .report-scatter__caveat { margin: -8px 0 0; color: var(--report-warn); font: 10px "JetBrains Mono", "Microsoft YaHei", monospace; text-align: right; }
 .report-alert-timeline,
