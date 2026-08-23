@@ -93,7 +93,9 @@ it('keeps dashboard panels and charts on the full-height propagation chain', () 
 });
 
 it('raises the desktop report readability scale without changing thumbnail sizing', () => {
-  expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.85rem\s+1rem;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s*\{[^}]*padding-inline:\s*14px;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*gap:\s*\.3rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.72rem\s+\.75rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
   expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*\.94rem;/su);

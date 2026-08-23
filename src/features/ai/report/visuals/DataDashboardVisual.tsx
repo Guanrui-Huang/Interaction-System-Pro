@@ -6,6 +6,8 @@ import { ReportVisualIcon, reportVisualLabel } from './ReportVisualIcon';
 import { formatReportNumber } from './visual-utils';
 import type { VisualMode } from './VisualRenderer';
 
+const MAX_SUMMARY_COLUMNS = 7;
+
 export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVisualSpec; mode: VisualMode }) {
   if (mode === 'thumbnail') {
     return (
@@ -17,8 +19,8 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
     );
   }
 
-  const summaryColumns = Math.min(Math.max(visual.summaryMetrics.length, 1), 4);
-  const summaryRows = Math.ceil(visual.summaryMetrics.length / 4);
+  const summaryColumns = Math.min(Math.max(visual.summaryMetrics.length, 1), MAX_SUMMARY_COLUMNS);
+  const summaryRows = Math.ceil(visual.summaryMetrics.length / MAX_SUMMARY_COLUMNS);
   const supporting = [...visual.supporting].sort((left, right) => (
     Number(right.kind === 'comparison-bars') - Number(left.kind === 'comparison-bars')
   ));
@@ -27,7 +29,7 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
   } as CSSProperties & { '--report-summary-columns': string };
 
   return (
-    <div className="report-data-dashboard" data-support-count={visual.supporting.length} data-summary-rows={summaryRows}>
+    <div className="report-data-dashboard" data-support-count={visual.supporting.length} data-summary-columns={summaryColumns} data-summary-rows={summaryRows}>
       {visual.summaryMetrics.length > 0 && (
         <dl className="report-data-dashboard__metrics" style={summaryStyle} aria-label="关键指标摘要">
           {visual.summaryMetrics.map((metric) => (

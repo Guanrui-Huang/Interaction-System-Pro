@@ -221,15 +221,19 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
 });
 
-it('renders six summary metrics without truncation and uses four columns per row', () => {
-  const metrics = Array.from({ length: 6 }, (_, index) => metric(`metric-${index}`, `指标 ${index + 1}`, 90 + index, '分'));
+it.each([
+  { count: 7, columns: '7', rows: '1' },
+  { count: 8, columns: '7', rows: '2' },
+])('renders $count summary metrics with the seven-column cap', ({ count, columns, rows }) => {
+  const metrics = Array.from({ length: count }, (_, index) => metric(`metric-${index}`, `指标 ${index + 1}`, 90 + index, '分'));
   const { container } = render(<VisualRenderer visual={dataDashboardFixture({ summaryMetrics: metrics })} mode="canvas" />);
   const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard')!;
   const summary = container.querySelector<HTMLElement>('.report-data-dashboard__metrics')!;
 
-  expect(container.querySelectorAll('.report-data-dashboard__metric')).toHaveLength(6);
-  expect(summary.style.getPropertyValue('--report-summary-columns')).toBe('4');
-  expect(dashboard).toHaveAttribute('data-summary-rows', '2');
+  expect(container.querySelectorAll('.report-data-dashboard__metric')).toHaveLength(count);
+  expect(summary.style.getPropertyValue('--report-summary-columns')).toBe(columns);
+  expect(dashboard).toHaveAttribute('data-summary-columns', columns);
+  expect(dashboard).toHaveAttribute('data-summary-rows', rows);
 });
 
 it('promotes comparison bars to the larger supporting slot', () => {
