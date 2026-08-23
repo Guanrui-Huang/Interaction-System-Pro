@@ -33,7 +33,7 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
           {visual.summaryMetrics.map((metric) => (
             <div className="report-data-dashboard__metric" key={`${metric.snapshotId}:${metric.key}`}>
               <dt>
-                <ReportVisualIcon kind="metric" />
+                <ReportVisualIcon kind="metric" metricKey={metric.key} metricLabel={metric.label} />
                 <span>{metric.label}</span>
               </dt>
               <dd>

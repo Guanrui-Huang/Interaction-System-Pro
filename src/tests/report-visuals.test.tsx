@@ -245,6 +245,30 @@ it('promotes comparison bars to the larger supporting slot', () => {
   expect(panels.map((panel) => panel.dataset.panelKind)).toEqual(['comparison-bars', 'health-ring']);
 });
 
+it('uses large-screen chart viewboxes for bars, radar, and ring visuals', () => {
+  const { container: bars } = render(<VisualRenderer visual={visualFixture('comparison-bars')} mode="canvas" />);
+  const { container: radar } = render(<VisualRenderer visual={visualFixture('radar')} mode="canvas" />);
+  const { container: ring } = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
+
+  expect(bars.querySelector('.report-chart--bars')).toHaveAttribute('viewBox', '0 0 720 320');
+  expect(radar.querySelector('.report-chart--radar')).toHaveAttribute('viewBox', '0 0 360 360');
+  expect(ring.querySelector('.report-chart--ring')).toHaveAttribute('viewBox', '0 0 240 240');
+});
+
+it('uses distinct semantic icon families for metric cards', () => {
+  const visual = dataDashboardFixture({ summaryMetrics: [
+    metric('tn', '总氮', 2.4),
+    metric('blowerKwh', '鼓风能耗', 128.4, 'kWh/d'),
+    metric('carbon', '碳源消耗', 537.2, 'kg/d'),
+    metric('savedCost', '节省费用', 18579, '元/d'),
+  ] });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+
+  expect([...container.querySelectorAll('.report-data-dashboard__metric .report-visual-icon')]
+    .map((icon) => icon.getAttribute('data-icon-family')))
+    .toEqual(['water', 'energy', 'carbon', 'cost']);
+});
+
 it('renders one decorative metric icon inside each KPI grid card', () => {
   const visual: Extract<VisualSpec, { kind: 'kpi-grid' }> = {
     kind: 'kpi-grid',

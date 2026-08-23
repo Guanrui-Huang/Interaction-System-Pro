@@ -3,9 +3,9 @@ import type { VisualSpec } from '../../../../../shared/report';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
 type RadarSpec = Extract<VisualSpec, { kind: 'radar' }>;
-const SIZE = 300;
+const SIZE = 360;
 const CENTER = SIZE / 2;
-const RADIUS = 108;
+const RADIUS = 138;
 
 export function RadarVisual({ visual }: { visual: RadarSpec }) {
   const angle = (index: number) => index * Math.PI * 2 / visual.axes.length;

@@ -1,6 +1,48 @@
 import type { VisualSpec } from '../../../../../shared/report';
 
 export type ReportVisualIconKind = VisualSpec['kind'] | 'metric';
+type ReportVisualIconFamily = 'water' | 'energy' | 'carbon' | 'cost' | 'health' | 'flow' | 'metric' | 'trend' | 'bars' | 'radar' | 'alert' | 'path' | 'map' | 'dashboard';
+
+const METRIC_FAMILIES_BY_KEY: Record<string, ReportVisualIconFamily> = {
+  tn: 'water',
+  ammonia: 'water',
+  tp: 'water',
+  cod: 'water',
+  ss: 'water',
+  compliancerate: 'water',
+  qualityscore: 'water',
+  totalkwh: 'energy',
+  kwhperm3: 'energy',
+  blowerkwh: 'energy',
+  energyscore: 'energy',
+  carbonsourcekg: 'carbon',
+  carbonemissionkg: 'carbon',
+  carbonreductionkg: 'carbon',
+  carbonsourcescore: 'carbon',
+  savedyuan: 'cost',
+  savedcost: 'cost',
+  healthscore: 'health',
+  processedm3: 'flow',
+  flowscore: 'flow',
+};
+
+function normalizeMetricText(value?: string): string {
+  return value?.toLocaleLowerCase().replace(/[\s\-_[\]{}()（）,，./]/g, '') ?? '';
+}
+
+function semanticMetricFamily(metricKey?: string, metricLabel?: string): ReportVisualIconFamily {
+  const keyFamily = METRIC_FAMILIES_BY_KEY[normalizeMetricText(metricKey)];
+  if (keyFamily) return keyFamily;
+
+  const label = normalizeMetricText(metricLabel);
+  if (['总氮', '氨氮', '总磷', '水质', '达标', 'cod', 'ss'].some((token) => label.includes(token))) return 'water';
+  if (['碳源', '碳排放', '碳减排', '碳'].some((token) => label.includes(token))) return 'carbon';
+  if (['能耗', '电耗', '耗电', '能源', 'kwh'].some((token) => label.includes(token))) return 'energy';
+  if (['费用', '成本', '金额', '节省', '收益'].some((token) => label.includes(token))) return 'cost';
+  if (['健康', '运行状态'].some((token) => label.includes(token))) return 'health';
+  if (['流量', '水量', '处理量'].some((token) => label.includes(token))) return 'flow';
+  return 'metric';
+}
 
 export function reportVisualLabel(kind: ReportVisualIconKind): string {
   switch (kind) {
@@ -38,15 +80,19 @@ export function reportVisualLabel(kind: ReportVisualIconKind): string {
   }
 }
 
-export function ReportVisualIcon({ kind, className = '' }: { kind: ReportVisualIconKind; className?: string }) {
-  const family = kind === 'metric' || kind === 'kpi-grid'
-    ? 'metric'
+export function ReportVisualIcon({ kind, metricKey, metricLabel, className = '' }: { kind: ReportVisualIconKind; metricKey?: string; metricLabel?: string; className?: string }) {
+  const family: ReportVisualIconFamily = kind === 'metric'
+    ? semanticMetricFamily(metricKey, metricLabel)
+    : kind === 'kpi-grid'
+      ? 'metric'
     : kind === 'trend-line' || kind === 'trend-area'
       ? 'trend'
       : kind === 'comparison-bars'
         ? 'bars'
-        : kind === 'health-ring' || kind === 'radar'
-          ? 'score'
+        : kind === 'health-ring'
+          ? 'health'
+          : kind === 'radar'
+            ? 'radar'
           : kind === 'alert-timeline'
             ? 'alert'
             : kind === 'process-flow' || kind === 'recommendation-path'
@@ -59,6 +105,7 @@ export function ReportVisualIcon({ kind, className = '' }: { kind: ReportVisualI
     <svg
       className={`report-visual-icon ${className}`.trim()}
       data-icon-kind={kind}
+      data-icon-family={family}
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
@@ -67,6 +114,38 @@ export function ReportVisualIcon({ kind, className = '' }: { kind: ReportVisualI
         <>
           <path d="M5 19V9M12 19V5M19 19v-7" />
           <path d="M3 19h18" />
+        </>
+      )}
+      {family === 'water' && (
+        <>
+          <path d="M12 3.5c-2.8 3.6-5 6.3-5 9a5 5 0 0 0 10 0c0-2.7-2.2-5.4-5-9Z" />
+          <path d="M9.5 14a2.7 2.7 0 0 0 2.5 1.8" />
+        </>
+      )}
+      {family === 'energy' && <path d="m13.5 2.8-7 10.1h4.8l-.8 8.3 7-10.2h-4.8l.8-8.2Z" />}
+      {family === 'carbon' && (
+        <>
+          <path d="M12 20V10" />
+          <path d="M12 13c-4.8 0-6.5-3.1-6.5-6.2C9.8 6.8 12 9.3 12 13Z" />
+          <path d="M12 16c4.2 0 6.5-2.6 6.5-6.2-4.1.1-6.5 2.3-6.5 6.2Z" />
+        </>
+      )}
+      {family === 'cost' && (
+        <>
+          <circle cx="12" cy="12" r="8" />
+          <path d="m9 8 6 8M15 8l-6 8M8.2 10.5h7.6M8.2 13.5h7.6" />
+        </>
+      )}
+      {family === 'health' && (
+        <>
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 12 17 8M8 17h8" />
+        </>
+      )}
+      {family === 'flow' && (
+        <>
+          <path d="M4 8c2.2 0 2.2 2 4.4 2S10.6 8 12.8 8s2.2 2 4.4 2S19.4 8 21 8" />
+          <path d="M4 14c2.2 0 2.2 2 4.4 2s2.2-2 4.4-2 2.2 2 4.4 2 2.2-2 3.8-2" />
         </>
       )}
       {family === 'trend' && (
@@ -82,7 +161,7 @@ export function ReportVisualIcon({ kind, className = '' }: { kind: ReportVisualI
           <rect x="17" y="4" width="3" height="15" rx="1" />
         </>
       )}
-      {family === 'score' && (
+      {family === 'radar' && (
         <>
           <circle cx="12" cy="12" r="8" />
           <path d="M12 12 17 8M8 17h8" />
