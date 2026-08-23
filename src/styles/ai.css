@@ -338,6 +338,8 @@
 .report-data-dashboard__support > section[data-panel-kind='comparison-bars'] { min-height: 0; }
 .report-slide--visual-data-dashboard.report-slide--canvas .report-chart--bars .report-chart__value { font-size: 18px; }
 .report-slide--visual-data-dashboard.report-slide--canvas .report-chart--bars .report-chart__axis-label { font-size: 18px; }
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--trend .report-chart__axis-label,
+.report-slide--visual-data-dashboard.report-slide--canvas .report-chart--scatter .report-chart__axis-label { font-size: 16px; }
 .report-slide--visual-data-dashboard.report-slide--canvas .report-chart--radar .report-chart__axis-label { font-size: 16px; }
 .report-visual-renderer--thumbnail .report-data-dashboard__primary { padding: 0; border: 0; background: transparent; }
 .report-visual__error { display: grid; min-height: 7rem; place-content: center; margin: 0; color: var(--report-warn); font-size: .75rem; text-align: center; }

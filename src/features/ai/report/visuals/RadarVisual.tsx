@@ -13,9 +13,11 @@ function radarLabelPlacement(index: number, axesLength: number) {
   const angle = index * Math.PI * 2 / axesLength;
   const x = CENTER + Math.sin(angle) * RADIUS * LABEL_RADIUS;
   const y = CENTER - Math.cos(angle) * RADIUS * LABEL_RADIUS;
-  if (x >= SIZE - LABEL_EDGE_INSET) return { x: SIZE - LABEL_EDGE_INSET, y, textAnchor: 'end' as const };
-  if (x <= LABEL_EDGE_INSET) return { x: LABEL_EDGE_INSET, y, textAnchor: 'start' as const };
-  return { x, y, textAnchor: 'middle' as const };
+  const safeX = Math.max(LABEL_EDGE_INSET, Math.min(SIZE - LABEL_EDGE_INSET, x));
+  const horizontal = Math.sin(angle);
+  if (horizontal > .22) return { x: safeX, y, textAnchor: 'end' as const };
+  if (horizontal < -.22) return { x: safeX, y, textAnchor: 'start' as const };
+  return { x: safeX, y, textAnchor: 'middle' as const };
 }
 
 export function emphasizeRadarRatios(

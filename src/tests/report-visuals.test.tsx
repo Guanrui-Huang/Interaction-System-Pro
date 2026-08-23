@@ -406,6 +406,31 @@ it('keeps long radar axis labels inside the viewBox by anchoring edge labels inw
   expect(northLabel).toHaveAttribute('text-anchor', 'middle');
 });
 
+it.each([3, 4, 5, 6])('anchors lateral radar labels inward for %i axes', (axisCount) => {
+  const visual: Extract<VisualSpec, { kind: 'radar' }> = {
+    kind: 'radar',
+    axes: Array.from({ length: axisCount }, (_, index) => ({
+      key: `axis-${index}`,
+      label: `很长的雷达维度标签-${index}`,
+      value: 80 + index,
+      maximum: 100,
+      unit: '分',
+      snapshotId: 'snapshot-1',
+      claimIds: ['claim-1'],
+    })),
+  };
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const labels = Array.from(container.querySelectorAll<SVGTextElement>('.report-chart--radar .report-chart__axis-label'));
+
+  for (const [index, label] of labels.entries()) {
+    const horizontal = Math.sin(index * Math.PI * 2 / axisCount);
+    if (horizontal > .22) expect(label).toHaveAttribute('text-anchor', 'end');
+    if (horizontal < -.22) expect(label).toHaveAttribute('text-anchor', 'start');
+    expect(Number(label.getAttribute('x'))).toBeGreaterThanOrEqual(18);
+    expect(Number(label.getAttribute('x'))).toBeLessThanOrEqual(342);
+  }
+});
+
 it('keeps the health ring SVG and centered label in one sizing container', () => {
   const { container } = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
   const healthRing = container.querySelector('.report-health-ring');

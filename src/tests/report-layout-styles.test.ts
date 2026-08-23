@@ -121,6 +121,12 @@ it('raises comparison bar values and labels to the large-screen scale', () => {
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
 });
 
+it('raises trend and scatter auxiliary labels on the desktop canvas without affecting thumbnails', () => {
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--trend\s+\.report-chart__axis-label,\s*\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--trend\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+});
+
 it('keeps score-ring units hidden while preserving non-score unit styling and thumbnail rules', () => {
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);

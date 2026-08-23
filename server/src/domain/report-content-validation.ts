@@ -632,7 +632,9 @@ export function bindAtomicReportVisual(
           key: metric.key,
           label: metric.label,
           value: metric.value,
-          maximum: Math.max(metric.value, metric.limit ?? metric.value, 1),
+          maximum: isScoreLike(metric.key, bundle)
+            ? 100
+            : Math.max(metric.value, metric.limit ?? metric.value, 1),
           unit: metric.unit ?? '',
           snapshotId: metric.snapshotId,
           claimIds: [...metric.claimIds],
