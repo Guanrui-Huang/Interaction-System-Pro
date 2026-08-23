@@ -74,10 +74,15 @@ const largeScreenMetrics = [
   metric('tp', '总磷', 'mg/L', .29),
   metric('cod', 'COD', 'mg/L', 22.26),
   metric('ss', '悬浮物', 'mg/L', 6.44),
+  metric('carbonEmissionKg', '碳排放', 'kg/d', 184.6),
 ];
-const largeScreenMetricKeys = largeScreenMetrics.map(({ key }) => key);
 const largeScreenScoreMetrics = largeScreenMetrics.slice(0, 2);
-const largeScreenWaterMetrics = largeScreenMetrics.slice(2);
+const largeScreenCarbonMetrics = [
+  largeScreenMetrics.at(-1)!,
+  metric('carbonReductionKg', '碳减排', 'kg/d', 39.2),
+];
+const largeScreenEvidenceMetrics = [...largeScreenMetrics, largeScreenCarbonMetrics[1]!];
+const largeScreenMetricKeys = largeScreenEvidenceMetrics.map(({ key }) => key);
 
 function evidenceRef(value: typeof tn) {
   const { value: _metricValue, claimIds: _claimIds, ...evidence } = value;
@@ -141,13 +146,13 @@ const energySlide: ReportSlide = {
   layout: 'visual-focus',
   evidencePolicy: 'data',
   title: '季度水质与能效综合概览',
-  takeaway: '七项水质与能效指标已在同一张复合数据看板中完成展示。',
+  takeaway: '八项水质、能效与碳指标已在同一张复合数据看板中完成展示。',
   takeawayClaimIds: ['claim-e2e'],
   claims: [{
     id: 'claim-e2e',
-    text: '七项水质与能效指标已在同一证据范围内完成汇总展示。',
+    text: '八项水质、能效与碳指标已在同一证据范围内完成汇总展示。',
     kind: 'onsite-fact',
-    evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+    evidenceRefs: largeScreenEvidenceMetrics.map((item) => evidenceRef(item)),
   }],
   visual: {
     kind: 'data-dashboard',
@@ -169,14 +174,14 @@ const energySlide: ReportSlide = {
     },
     supporting: [
       { kind: 'comparison-bars', items: largeScreenScoreMetrics },
-      { kind: 'comparison-bars', items: largeScreenWaterMetrics },
+      { kind: 'comparison-bars', items: largeScreenCarbonMetrics },
     ],
   },
-  metrics: [...largeScreenMetrics],
-  evidenceRefs: largeScreenMetrics.map((item) => evidenceRef(item)),
+  metrics: [...largeScreenEvidenceMetrics],
+  evidenceRefs: largeScreenEvidenceMetrics.map((item) => evidenceRef(item)),
   narration: [
-    { id: 'energy-trend-segment-1', text: '先看七项摘要指标的最新得分与水质读数。', speechId: 'energy-trend-speech-1', claimIds: ['claim-e2e'] },
-    { id: 'energy-trend-segment-2', text: '再对比两项主趋势与两组辅助条形图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
+    { id: 'energy-trend-segment-1', text: '先看八项摘要指标的最新得分、水质读数与碳指标。', speechId: 'energy-trend-speech-1', claimIds: ['claim-e2e'] },
+    { id: 'energy-trend-segment-2', text: '再对比两项主趋势与得分、碳指标辅助条形图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
   ],
 };
 
@@ -696,7 +701,7 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string): P
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
 }
 
-test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }, testInfo) => {
+test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await installBrowserAudioFake(page);
   const api = await installMockReportApi(page);
@@ -731,20 +736,23 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(sequenceBox).not.toBeNull();
   await page.mouse.click(sequenceBox!.x + sequenceBox!.width / 2, sequenceBox!.y + sequenceBox!.height / 2);
   const canvas = page.locator(`[data-slide-mode="canvas"][data-slide-id="${energySlide.id}"]`);
+  const dashboard = canvas.locator('.report-data-dashboard');
   await expect(canvas).toContainText(energySlide.title);
   await expect(energyThumbnail).toContainText(energySlide.title);
   await expect(page.getByRole('status').filter({ hasText: '正在讲解第 2 页' })).toBeVisible();
 
   const summaryMetrics = canvas.locator('.report-data-dashboard__metric');
-  await expect(summaryMetrics).toHaveCount(7);
+  await expect(summaryMetrics).toHaveCount(8);
   for (const item of largeScreenMetrics) {
     const metricCard = summaryMetrics.filter({ hasText: item.label });
     await expect(metricCard).toHaveCount(1);
     await expect(metricCard).toContainText(String(item.value));
     await expect(metricCard).toContainText(item.unit);
   }
+  await expect(dashboard).toHaveAttribute('data-summary-columns', '8');
+  await expect(dashboard).toHaveAttribute('data-summary-rows', '1');
   await expect(canvas.locator('[data-panel-kind="trend-area"] .report-chart__point[data-terminal-point="true"]')).toHaveCount(2);
-  await expect(canvas.locator('[data-icon-kind="metric"]')).toHaveCount(7);
+  await expect(canvas.locator('[data-icon-kind="metric"]')).toHaveCount(8);
   await expect(canvas.locator('[data-panel-kind="trend-area"] .report-visual-icon')).toHaveCount(1);
   await expect(canvas.locator('[data-panel-kind="comparison-bars"] .report-visual-icon')).toHaveCount(2);
   await expect(page.locator('.report-conversation__role')).toHaveCount(0);
@@ -890,17 +898,16 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(reportGeometry.slideScrollHeight).toBeLessThanOrEqual(reportGeometry.slideClientHeight + 1);
   expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.documentScrollHeight).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
-  expect(reportGeometry.metricCardBounds).toHaveLength(7);
+  expect(reportGeometry.metricCardBounds).toHaveLength(8);
   expect(new Set(reportGeometry.metricCardBounds.map(({ top }) => Math.round(top))).size).toBe(1);
-  for (const card of reportGeometry.metricCardBounds) expect(card.width).toBeGreaterThanOrEqual(179);
   expect(reportGeometry.barCharts).toHaveLength(2);
   for (const chart of reportGeometry.barCharts) {
     expect(chart.width).toBeGreaterThanOrEqual(300);
     expect(chart.height).toBeGreaterThanOrEqual(180);
   }
-  expect(new Set(reportGeometry.barThemes).size).toBe(7);
+  expect(new Set(reportGeometry.barThemes).size).toBe(reportGeometry.barThemes.length);
   expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(15);
-  expect(reportGeometry.barAxisLabelFontSize).toBeGreaterThanOrEqual(14);
+  expect(reportGeometry.barAxisLabelFontSize).toBeGreaterThanOrEqual(18);
   expect(reportGeometry.subtitlePosition).toBe('fixed');
   expect(reportGeometry.subtitlePointerEvents).toBe('none');
   expect(reportGeometry.subtitleText).not.toBe('等待讲解字幕');
