@@ -138,7 +138,7 @@ const energySlide: ReportSlide = {
   role: 'answer',
   layout: 'visual-focus',
   evidencePolicy: 'data',
-  title: '能耗联动趋势',
+  title: '季度水质与能效综合概览',
   takeaway: '六项能耗协同指标已在同一张复合数据看板中完成展示。',
   takeawayClaimIds: ['claim-e2e'],
   claims: [{
@@ -811,6 +811,24 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
     const subtitleBar = document.querySelector<HTMLElement>('.report-subtitle-bar')!;
     const slideBox = slide.getBoundingClientRect();
     const barBox = bars.getBoundingClientRect();
+    const canvasBox = canvasRoot.getBoundingClientRect();
+    const subtitleBox = subtitleBar.getBoundingClientRect();
+    const title = slide.querySelector<HTMLElement>('h2')!;
+    const titleRange = document.createRange();
+    titleRange.selectNodeContents(title);
+    const titleLines = [...titleRange.getClientRects()];
+    const titleLineTops = new Set(titleLines.map((rect) => Math.round(rect.top)));
+    const panelBounds = [...slide.querySelectorAll<HTMLElement>('[data-panel-kind]')].map((panel) => {
+      const visual = panel.querySelector<HTMLElement>('.report-chart, .report-health-ring, .report-visual');
+      if (!visual) throw new Error(`Missing visual bounds for ${panel.dataset.panelKind}`);
+      const panelBox = panel.getBoundingClientRect();
+      const visualBox = visual.getBoundingClientRect();
+      return {
+        kind: panel.dataset.panelKind ?? '',
+        panel: { top: panelBox.top, right: panelBox.right, bottom: panelBox.bottom, left: panelBox.left },
+        visual: { top: visualBox.top, right: visualBox.right, bottom: visualBox.bottom, left: visualBox.left },
+      };
+    });
     return {
       canvasClientHeight: canvasRoot.clientHeight,
       canvasScrollHeight: canvasRoot.scrollHeight,
@@ -823,6 +841,12 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       subtitlePosition: getComputedStyle(subtitleBar).position,
       subtitlePointerEvents: getComputedStyle(subtitleBar).pointerEvents,
       subtitleText: subtitleBar.querySelector<HTMLElement>('.report-subtitle-bar__text')?.textContent ?? '',
+      canvasBounds: { left: canvasBox.left, right: canvasBox.right, top: canvasBox.top, bottom: canvasBox.bottom },
+      subtitleBounds: { left: subtitleBox.left, right: subtitleBox.right, top: subtitleBox.top, bottom: subtitleBox.bottom },
+      subtitleCenter: (subtitleBox.left + subtitleBox.right) / 2,
+      canvasCenter: (canvasBox.left + canvasBox.right) / 2,
+      titleLineCount: titleLineTops.size,
+      panelBounds,
     };
   });
   expect(reportGeometry.canvasScrollHeight).toBeLessThanOrEqual(reportGeometry.canvasClientHeight + 1);
@@ -833,6 +857,16 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(reportGeometry.subtitlePosition).toBe('fixed');
   expect(reportGeometry.subtitlePointerEvents).toBe('none');
   expect(reportGeometry.subtitleText).not.toBe('等待讲解字幕');
+  expect(reportGeometry.titleLineCount).toBe(1);
+  expect(reportGeometry.subtitleBounds.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
+  expect(reportGeometry.subtitleBounds.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
+  expect(Math.abs(reportGeometry.subtitleCenter - reportGeometry.canvasCenter)).toBeLessThanOrEqual(1);
+  for (const panel of reportGeometry.panelBounds) {
+    expect(panel.visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
+    expect(panel.visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
+    expect(panel.visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
+    expect(panel.visual.bottom).toBeLessThanOrEqual(panel.panel.bottom + 1);
+  }
 
   await page.getByRole('button', { name: '退出汇报' }).focus();
   const keyboardRegions = new Set(['header']);
