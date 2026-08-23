@@ -64,6 +64,19 @@ it('uses the approved no-scroll 1920 dashboard geometry', () => {
   expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(0,\s*1fr\);/su);
 });
 
+it('uses a compact two-row canvas with a floating subtitle and balanced dashboard heading', () => {
+  expect(css).toMatch(/\.report-workspace\s*\{[^}]*grid-template-areas:\s*"header header header"\s+"rail canvas chat";[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-workspace__canvas\s*\{[^}]*padding:\s*clamp\(10px,\s*1\.25vw,\s*20px\);/su);
+  expect(css).toMatch(/\.report-slide--canvas\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.35vw,\s*22px\);[^}]*padding:\s*clamp\(14px,\s*1\.65vw,\s*28px\);/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
+  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
+  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*position:\s*fixed;[^}]*pointer-events:\s*none;[^}]*background:\s*transparent;/su);
+  expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*color:\s*#fff;[^}]*text-align:\s*center;[^}]*text-shadow:/su);
+  expect(css).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;/su);
+});
+
 it('pins the one-support dashboard at the 63/37 split with a single full-height support row', () => {
   expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
   expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/su);

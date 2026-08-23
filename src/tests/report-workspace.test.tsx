@@ -355,6 +355,15 @@ it('renders the larger subtitle region without the old bottom control console', 
   narration.status = previousStatus;
 });
 
+it('does not render placeholder copy when the narration subtitle is empty', () => {
+  const previousSubtitle = narration.subtitle;
+  narration.subtitle = '';
+  render(<ReportWorkspace session={session(snapshot())} />);
+
+  expect(screen.getByRole('region', { name: '讲解字幕' })).not.toHaveTextContent('等待讲解字幕');
+  narration.subtitle = previousSubtitle;
+});
+
 it('places the conversation beside the canvas and keeps the subtitle separate', () => {
   const { container, rerender } = render(<ReportWorkspace session={session(snapshot())} />);
 

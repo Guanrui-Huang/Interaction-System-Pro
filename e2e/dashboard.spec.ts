@@ -808,8 +808,10 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   const reportGeometry = await canvas.evaluate((slide) => {
     const canvasRoot = slide.closest<HTMLElement>('.report-workspace__canvas')!;
     const bars = slide.querySelector<HTMLElement>('[data-panel-kind="comparison-bars"]')!;
+    const subtitleBar = document.querySelector<HTMLElement>('.report-subtitle-bar')!;
     const slideBox = slide.getBoundingClientRect();
     const barBox = bars.getBoundingClientRect();
+    const heading = slide.querySelector<HTMLElement>('h2')!;
     return {
       canvasClientHeight: canvasRoot.clientHeight,
       canvasScrollHeight: canvasRoot.scrollHeight,
@@ -819,6 +821,10 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       viewportHeight: document.documentElement.clientHeight,
       barWidth: barBox.width,
       barHeight: barBox.height,
+      subtitlePosition: getComputedStyle(subtitleBar).position,
+      subtitlePointerEvents: getComputedStyle(subtitleBar).pointerEvents,
+      subtitleText: subtitleBar.querySelector<HTMLElement>('.report-subtitle-bar__text')?.textContent ?? '',
+      titleLines: heading.getClientRects().length,
     };
   });
   expect(reportGeometry.canvasScrollHeight).toBeLessThanOrEqual(reportGeometry.canvasClientHeight + 1);
@@ -826,6 +832,9 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
   expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.barWidth).toBeGreaterThanOrEqual(300);
   expect(reportGeometry.barHeight).toBeGreaterThanOrEqual(216);
+  expect(reportGeometry.subtitlePosition).toBe('fixed');
+  expect(reportGeometry.subtitlePointerEvents).toBe('none');
+  expect(reportGeometry.subtitleText).not.toBe('等待讲解字幕');
 
   await page.getByRole('button', { name: '退出汇报' }).focus();
   const keyboardRegions = new Set(['header']);
