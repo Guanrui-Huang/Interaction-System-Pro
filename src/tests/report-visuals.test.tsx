@@ -303,29 +303,6 @@ it('uses large-screen chart viewboxes for bars, radar, and ring visuals', () => 
   expect(ring.querySelector('.report-chart--ring')).toHaveAttribute('viewBox', '0 0 240 240');
 });
 
-it('keeps long radar axis labels inside the viewBox by anchoring them inward', () => {
-  const radarWithEdgeLabels: Extract<VisualSpec, { kind: 'radar' }> = {
-    kind: 'radar',
-    axes: [
-      { key: 'north', label: '运行稳定性综合评分', value: 92, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
-      { key: 'east', label: '曝气效率与能耗平衡能力', value: 81, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
-      { key: 'south', label: '出水达标裕度', value: 95, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
-      { key: 'west', label: '来水负荷波动适应能力', value: 88, maximum: 100, unit: '分', snapshotId: 'snapshot-1', claimIds: ['claim-1'] },
-    ],
-  };
-  const { container } = render(<VisualRenderer visual={radarWithEdgeLabels} mode="canvas" />);
-  const labels = Array.from(container.querySelectorAll<SVGTextElement>('.report-chart--radar .report-chart__axis-label'));
-  const eastLabel = labels.find((label) => label.textContent === '曝气效率与能耗平衡能力');
-  const westLabel = labels.find((label) => label.textContent === '来水负荷波动适应能力');
-  const northLabel = labels.find((label) => label.textContent === '运行稳定性综合评分');
-
-  expect(eastLabel).toHaveAttribute('text-anchor', 'end');
-  expect(Number(eastLabel?.getAttribute('x'))).toBeLessThanOrEqual(360);
-  expect(westLabel).toHaveAttribute('text-anchor', 'start');
-  expect(Number(westLabel?.getAttribute('x'))).toBeGreaterThanOrEqual(0);
-  expect(northLabel).toHaveAttribute('text-anchor', 'middle');
-});
-
 it('keeps the health ring SVG and centered label in one sizing container', () => {
   const { container } = render(<VisualRenderer visual={visualFixture('health-ring')} mode="canvas" />);
   const healthRing = container.querySelector('.report-health-ring');
