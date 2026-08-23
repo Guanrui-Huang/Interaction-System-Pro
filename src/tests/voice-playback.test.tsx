@@ -223,6 +223,36 @@ it('plays from an exact clamped offset, reports position, and emits one speech-e
   expect(context.close).toHaveBeenCalledOnce();
 });
 
+it('resets speech duration while a reused player decodes new speech', async () => {
+  const context = new FakePlaybackAudioContext();
+  const firstDecode = deferred<AudioBuffer>();
+  const secondDecode = deferred<AudioBuffer>();
+  context.decodeAudioData
+    .mockReturnValueOnce(firstDecode.promise)
+    .mockReturnValueOnce(secondDecode.promise);
+  const player = createAudioSegmentPlayer({
+    createAudioContext: () => context as unknown as AudioContext,
+  });
+
+  expect(player.durationMs()).toBe(0);
+  const firstPlay = player.play({ segments: [new ArrayBuffer(1)] });
+  await Promise.resolve();
+  expect(player.durationMs()).toBe(0);
+
+  firstDecode.resolve({ duration: 1.25 } as AudioBuffer);
+  await firstPlay;
+  expect(player.durationMs()).toBe(1_250);
+
+  const secondPlay = player.play({ segments: [new ArrayBuffer(1)] });
+  await Promise.resolve();
+  expect(player.durationMs()).toBe(0);
+
+  secondDecode.resolve({ duration: 2.5 } as AudioBuffer);
+  await secondPlay;
+  expect(player.durationMs()).toBe(2_500);
+  await player.stop();
+});
+
 it('pauses, resumes, stops the active source, and removes listeners exactly once', async () => {
   const context = new FakePlaybackAudioContext();
   const player = createAudioSegmentPlayer({

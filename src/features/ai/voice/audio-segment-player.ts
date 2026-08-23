@@ -60,6 +60,7 @@ class WebAudioSegmentPlayer implements AudioSegmentPlayer {
     const generation = ++this.generation;
     this.clearCurrentSource();
     this.queuedBuffers.length = 0;
+    this.speechDurationMs = 0;
     this.speechEnded = false;
     const encoded = speech.segments.map((segment) => segment.slice(0));
     const buffers = await Promise.all(encoded.map((segment) => this.context.decodeAudioData(segment)));
