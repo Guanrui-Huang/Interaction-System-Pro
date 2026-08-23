@@ -240,7 +240,9 @@
 .report-slide__visual { grid-area: visual; align-self: center; min-width: 0; }
 .report-visual { min-width: 0; margin: 0; }
 .report-visual__graphic { min-width: 0; }
+.report-trend { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; height: 100%; }
 .report-chart { display: block; width: 100%; max-height: min(42vh, 390px); overflow: visible; }
+.report-trend .report-chart--trend { min-height: 0; height: 100%; }
 .report-chart__grid { stroke: rgb(115 180 197 / 15%); stroke-width: 1; }
 .report-chart__baseline { stroke: rgb(168 215 225 / 28%); }
 .report-chart__axis-label { fill: var(--chart-axis); font: 12px "JetBrains Mono", monospace; }

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { barThemeForMetric, chartThemesForMetrics, CHART_THEME } from '../charts/chart-theme';
+import {
+  barThemeForMetric,
+  chartThemesForMetrics,
+  CHART_THEME,
+  type BarTheme,
+  type BarThemeFamily,
+} from '../charts/chart-theme';
 
 describe('report bar themes', () => {
   it('provides eight distinct report gradients', () => {
@@ -24,27 +30,36 @@ describe('report bar themes', () => {
     expect(themes.get('quality')).toEqual(CHART_THEME.bars[0]);
   });
 
-  it('keeps every distinct metric unique after the eighth palette entry', () => {
-    const metrics = [
-      { key: 'metric-1', label: '指标 1' },
-      { key: 'metric-2', label: '指标 2' },
-      { key: 'metric-3', label: '指标 3' },
-      { key: 'metric-4', label: '指标 4' },
-      { key: 'metric-5', label: '指标 5' },
-      { key: 'metric-6', label: '指标 6' },
-      { key: 'metric-7', label: '指标 7' },
-      { key: 'metric-8', label: '指标 8' },
-      { key: 'metric-9', label: '指标 9' },
-    ] as const;
+  it('keeps bar theme family narrowed to palette families plus typed overflow suffixes', () => {
+    const baseFamily: BarTheme['family'] = 'water';
+    const overflowFamily: BarTheme['family'] = 'water-2';
+
+    expect(baseFamily).toBe('water');
+    expect(overflowFamily).toBe('water-2');
+
+    // @ts-expect-error invalid family names must not widen back to string
+    const invalidFamily: BarTheme['family'] = 'made-up';
+    void invalidFamily;
+  });
+
+  it.each([9, 16])('keeps every distinct metric gradient unique across %i identities', (count) => {
+    const metrics = Array.from({ length: count }, (_, index) => ({
+      key: `metric-${index + 1}`,
+      label: `指标 ${index + 1}`,
+    }));
 
     const themes = chartThemesForMetrics(metrics);
     const families = metrics.map(({ key }) => themes.get(key)?.family);
+    const gradientPairs = metrics.map(({ key }) => {
+      const theme = themes.get(key);
+      return `${theme?.start}->${theme?.end}`;
+    });
 
     expect(families.slice(0, CHART_THEME.bars.length)).toEqual(
       CHART_THEME.bars.map(({ family }) => family),
     );
     expect(new Set(families).size).toBe(metrics.length);
-    expect(families[8]).not.toBe(families[0]);
+    expect(new Set(gradientPairs).size).toBe(metrics.length);
     expect(themes.get('metric-9')).toEqual(chartThemesForMetrics(metrics).get('metric-9'));
   });
 

@@ -24,7 +24,7 @@ sed -n '1,260p' /Users/xiaoshen001/.codex/skills/impeccable/reference/craft-floo
 - 每个任务只暂存该任务列出的文件；不要使用 `git add .`。
 - 下列文档目录被 gitignore 忽略，添加计划文档时使用 `git add -f`。
 
-## Task 1：建立不撞色的共享指标调色板
+## 任务 1：建立不撞色的共享指标调色板
 
 **文件：**
 
@@ -132,7 +132,7 @@ git add src/charts/chart-theme.ts src/features/ai/report/visuals/ReportChartThem
 git commit -m "feat: coordinate report chart colors"
 ```
 
-## Task 2：让 8 个指标单行并均衡防御性换行
+## 任务 2：让 8 个指标单行并均衡防御性换行
 
 **文件：**
 
@@ -209,7 +209,7 @@ git add src/features/ai/report/visuals/DataDashboardVisual.tsx src/styles/ai.css
 git commit -m "fix: balance dense report metric rows"
 ```
 
-## Task 3：放大辅助图标签并增强雷达差异
+## 任务 3：放大辅助图标签并增强雷达差异
 
 **文件：**
 
@@ -301,7 +301,7 @@ git add src/features/ai/report/visuals/RadarVisual.tsx src/features/ai/report/vi
 git commit -m "fix: clarify auxiliary chart labels"
 ```
 
-## Task 4：增加 1920×1080 浏览器回归
+## 任务 4：增加 1920×1080 浏览器回归
 
 **文件：**
 
@@ -346,7 +346,7 @@ git commit -m "test: cover eight-card report chart polish"
 
 如果步骤 3 未改 `src/styles/ai.css` 或 `RadarVisual.tsx`，不要把它们加入该提交。
 
-## Task 5：完整验证与视觉审计
+## 任务 5：完整验证与视觉审计
 
 ### 步骤 1：运行聚焦测试
 

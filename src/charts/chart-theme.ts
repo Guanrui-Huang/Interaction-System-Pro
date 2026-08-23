@@ -8,8 +8,10 @@ export type BarThemeFamily =
   | 'risk'
   | 'signal';
 
+export type OverflowBarThemeFamily = `${BarThemeFamily}-${number}`;
+
 export type BarTheme = {
-  family: string;
+  family: BarThemeFamily | OverflowBarThemeFamily;
   start: string;
   end: string;
 };
@@ -56,7 +58,7 @@ function overflowThemeAt(index: number): BarTheme {
   const cycle = Math.floor(index / BAR_THEMES.length);
   const offset = cycle * 18;
   return {
-    family: `${baseTheme.family}-${cycle + 1}`,
+    family: `${baseTheme.family}-${cycle + 1}` as OverflowBarThemeFamily,
     start: shiftHexColor(baseTheme.start, offset),
     end: shiftHexColor(baseTheme.end, offset),
   };

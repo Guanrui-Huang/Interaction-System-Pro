@@ -134,6 +134,8 @@ it('enforces desktop chart drawing bounds after panel labels and chrome consume 
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--bars\s*\{[^}]*min-inline-size:\s*300px;[^}]*min-block-size:\s*180px;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--radar\s*\{[^}]*min-inline-size:\s*220px;[^}]*min-block-size:\s*220px;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
+  expect(css).toMatch(/\.report-trend\s*\{[^}]*display:\s*grid;[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
+  expect(css).toMatch(/\.report-trend\s+\.report-chart--trend\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
 });

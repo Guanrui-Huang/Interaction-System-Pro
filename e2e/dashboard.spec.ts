@@ -850,14 +850,28 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
     const titleLines = [...titleRange.getClientRects()];
     const titleLineTops = new Set(titleLines.map((rect) => Math.round(rect.top)));
     const panelBounds = [...slide.querySelectorAll<HTMLElement>('[data-panel-kind]')].map((panel) => {
-      const visual = panel.querySelector<HTMLElement>('.report-chart, .report-health-ring, .report-visual');
-      if (!visual) throw new Error(`Missing visual bounds for ${panel.dataset.panelKind}`);
+      const visuals = [...panel.querySelectorAll<HTMLElement>('.report-chart, .report-health-ring')];
+      if (visuals.length === 0) throw new Error(`Missing visual bounds for ${panel.dataset.panelKind}`);
       const panelBox = panel.getBoundingClientRect();
-      const visualBox = visual.getBoundingClientRect();
+      const primaryVisualBox = visuals[0]!.getBoundingClientRect();
       return {
         kind: panel.dataset.panelKind ?? '',
         panel: { top: panelBox.top, right: panelBox.right, bottom: panelBox.bottom, left: panelBox.left },
-        visual: { top: visualBox.top, right: visualBox.right, bottom: visualBox.bottom, left: visualBox.left },
+        visual: {
+          top: primaryVisualBox.top,
+          right: primaryVisualBox.right,
+          bottom: primaryVisualBox.bottom,
+          left: primaryVisualBox.left,
+        },
+        actualVisuals: visuals.map((visual) => {
+          const visualBox = visual.getBoundingClientRect();
+          return {
+            top: visualBox.top,
+            right: visualBox.right,
+            bottom: visualBox.bottom,
+            left: visualBox.left,
+          };
+        }),
       };
     });
     return {
@@ -919,7 +933,7 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
     expect(label.bottom).toBeLessThanOrEqual(reportGeometry.evidenceButtonBounds.top + 1);
   }
   expect(new Set(reportGeometry.barThemes).size).toBe(reportGeometry.barThemes.length);
-  expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(15);
+  expect(reportGeometry.barValueFontSize).toBeGreaterThanOrEqual(18);
   expect(reportGeometry.barAxisLabelFontSize).toBeGreaterThanOrEqual(18);
   expect(reportGeometry.subtitlePosition).toBe('fixed');
   expect(reportGeometry.subtitlePointerEvents).toBe('none');
@@ -939,10 +953,16 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   expect(reportGeometry.metricValueFontSize).toBeGreaterThanOrEqual(28);
   expect(new Set(reportGeometry.metricIconFamilies).size).toBeGreaterThanOrEqual(2);
   for (const panel of reportGeometry.panelBounds) {
-    expect(panel.visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
-    expect(panel.visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
-    expect(panel.visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
-    expect(panel.visual.bottom, `${panel.kind} visual exceeds panel bottom`).toBeLessThanOrEqual(panel.panel.bottom + 1);
+    for (const visual of panel.actualVisuals) {
+      expect(visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
+      expect(visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
+      expect(visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
+      expect(visual.bottom, `${panel.kind} visual exceeds panel bottom`).toBeLessThanOrEqual(panel.panel.bottom + 1);
+      expect(visual.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
+      expect(visual.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
+      expect(visual.top).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.top - 1);
+      expect(visual.bottom).toBeLessThanOrEqual(reportGeometry.canvasBounds.bottom + 1);
+    }
   }
   for (let index = 0; index < reportGeometry.panelBounds.length; index += 1) {
     for (let otherIndex = index + 1; otherIndex < reportGeometry.panelBounds.length; otherIndex += 1) {
