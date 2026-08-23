@@ -392,7 +392,7 @@
   z-index: 48;
   left: calc(var(--report-rail-width) + clamp(10px, 1.25vw, 20px));
   right: calc(var(--report-chat-width) + clamp(10px, 1.25vw, 20px));
-  bottom: clamp(2.75rem, 4.25vh, 3rem);
+  bottom: clamp(2.75rem, 4.4vh, 3rem);
   display: grid;
   justify-items: center;
   min-width: 0;
