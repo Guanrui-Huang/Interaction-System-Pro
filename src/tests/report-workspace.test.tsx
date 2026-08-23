@@ -355,6 +355,20 @@ it('renders the larger subtitle region without the old bottom control console', 
   narration.status = previousStatus;
 });
 
+it('renders the active short cue directly in the subtitle region without fallback copy', () => {
+  const previousSubtitle = narration.subtitle;
+  try {
+    narration.subtitle = '氨氮较昨日下降 8%。';
+    render(<ReportWorkspace session={session(snapshot())} />);
+
+    const subtitle = screen.getByRole('region', { name: '讲解字幕' });
+    expect(within(subtitle).getByText(narration.subtitle)).toHaveClass('report-subtitle-bar__text');
+    expect(subtitle).not.toHaveTextContent('等待讲解字幕');
+  } finally {
+    narration.subtitle = previousSubtitle;
+  }
+});
+
 it('does not render placeholder copy when the narration subtitle is empty', () => {
   const previousSubtitle = narration.subtitle;
   try {

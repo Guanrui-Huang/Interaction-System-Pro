@@ -1,40 +1,80 @@
-# Task 4 Report
+# Task 4 Report — Desktop readability and panel fill
 
-Date: Saturday, August 22, 2026
+## Scope
 
-Status: Implemented
+Implemented the Task 4 desktop report readability treatment in:
 
-Commit:
-- `feat: paginate dense report pages for large screens`
+- `src/styles/ai.css`
+- `src/features/ai/report/ReportSubtitleBar.tsx`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-workspace.test.tsx`
 
-Files Changed:
-- `server/src/domain/report-layout-budget.ts`
-- `server/src/services/intent-first-report-planner.ts`
-- `server/tests/report-layout-budget.test.ts`
-- `server/tests/intent-first-report-planner.test.ts`
+The unrelated pre-existing changes in `.superpowers/sdd/task-1-report.md` and `server/.env.example` were left untouched.
 
-Exact Test Commands And Results:
-- Red check:
-  - `pnpm exec vitest server/tests/report-layout-budget.test.ts server/tests/intent-first-report-planner.test.ts --run`
-  - Result: did not produce usable output in this bounded harness run, so verification switched to the local Vitest binary per the brief.
-- Red check:
-  - `./node_modules/.bin/vitest server/tests/report-layout-budget.test.ts server/tests/intent-first-report-planner.test.ts --run`
-  - Result: failed. `server/tests/report-layout-budget.test.ts` could not resolve `../src/domain/report-layout-budget`; the planner prompt was missing `目标画布为 1920×1080`; and dense pages still resolved instead of rejecting after pagination expansion.
-- Green verification:
-  - `./node_modules/.bin/vitest server/tests/report-layout-budget.test.ts server/tests/intent-first-report-planner.test.ts --run`
-  - Result: passed. `2` test files passed, `19` tests passed, `0` failed, duration `541ms`.
+## TDD evidence
 
-Self-Review:
-- Added deterministic large-screen pagination in a dedicated domain helper before slide IDs are assigned.
-- Preserved every evidence key across split pages by balancing only metric-like candidates and retaining shared keys on every derived page.
-- Kept chart-specific page limits intact:
-  - metric-like pages: `8`
-  - alert timeline items: `5`
-  - radar axes: `6`
-- Preserved the existing `REPORT_MAX_SLIDES` failure by re-checking the paginated outline count before assigning IDs.
-- Added the exact 1920×1080 no-scroll planner rules from the brief to both initial and repair prompts through the shared rule list.
-- Did not modify or stage `server/.env.example`.
-- Kept scope limited to the Task 4 server/domain pagination files and report artifact.
+### RED
 
-Concerns:
-- `pnpm exec vitest ... --run` was not reliable in this environment during bounded execution, so focused verification used `./node_modules/.bin/vitest` directly against the same test targets.
+After adding the desktop readability, geometry-bound, subtitle, and active-cue tests, ran:
+
+```sh
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx
+```
+
+Result: `4 failed | 53 passed`.
+
+The failures were the intended missing behavior:
+
+1. Desktop metric padding/value/icon/panel-label scale had not been raised.
+2. Bars, radar, and ring had no protected `300×180`, `220×220`, and `200×200` drawing bounds after panel chrome consumed space.
+3. The health ring still used its old `340px` sizing rather than the required `320px` panel-short-edge cap.
+4. The subtitle still used the old low bottom offset and did not enforce a single desktop line.
+
+For the later review correction, first added a test forbidding subtitle `overflow: hidden` and `text-overflow: ellipsis`, then ran:
+
+```sh
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts
+```
+
+Result: `1 failed | 15 passed`, specifically because the subtitle rule contained `overflow: hidden`.
+
+### GREEN
+
+After implementing the styles and direct cue binding, ran the focused command:
+
+```sh
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx
+```
+
+Result: `2 passed`, `58 passed`.
+
+Then ran the relevant wider report regressions:
+
+```sh
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx src/tests/report-visuals.test.tsx src/tests/narration-subtitle-cues.test.ts
+```
+
+Result: `4 passed`, `106 passed`.
+
+Finally ran:
+
+```sh
+pnpm run build
+```
+
+Result: exit code `0`.
+
+## Implementation
+
+- Raised desktop metric padding, text scale, panel labels, chart labels/values, and semantic icons; thumbnail icons remain smaller.
+- Changed dashboard panel content tracks to `minmax(min-content, 1fr)` and added chart-level minimum drawing bounds: bars `300×180`, radar `220×220`, ring `200×200`. The style test injects the report stylesheet and verifies those dimensions through `getComputedStyle`.
+- Kept panel overflow unmasked; the chart child owns the minimum dimensions so panel labels and padding cannot shrink the drawable geometry.
+- Updated health rings to a `min(100%, 320px)` width/height cap, retaining an SVG square drawing area and proportionally enlarged center value.
+- Kept the subtitle directly bound to the current controller cue (including an empty cue), raised its desktop bottom clearance above evidence, and made it a centered non-interactive single line without CSS ellipsis or hidden overflow.
+- Preserved the narrow-screen grid and thumbnail chart overrides.
+
+## Self-review
+
+- `git diff --check` reported no whitespace errors.
+- Confirmed no panel selector introduces `overflow: hidden`.
+- Confirmed `server/.env.example` was not staged or modified by this task.

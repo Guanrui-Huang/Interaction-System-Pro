@@ -83,13 +83,62 @@ it('pins the one-support dashboard at the 63/37 split with a single full-height 
 });
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
-  expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;/su);
+  expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(min-content,\s*1fr\);[^}]*min-height:\s*0;/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*min-height:\s*0;/su);
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+>\s+\.report-slide__visual\s+>\s+\.report-visual-renderer--canvas\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-visual-renderer,\s*\.report-data-dashboard\s+\.report-visual,\s*\.report-data-dashboard\s+\.report-visual__graphic\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*none;/su);
   expect(css).toMatch(/\.report-data-dashboard__support\s*>\s*section\[data-panel-kind=['"]comparison-bars['"]\]\s*\{[^}]*min-height:\s*13\.5rem;/su);
+});
+
+it('raises the desktop report readability scale without changing thumbnail sizing', () => {
+  expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.85rem\s+1rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.7rem/isu);
+  expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-visual-icon\s*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/su);
+  expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
+});
+
+it('enforces desktop chart drawing bounds after panel labels and chrome consume the grid row', () => {
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--bars\s*\{[^}]*min-inline-size:\s*300px;[^}]*min-block-size:\s*180px;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--radar\s*\{[^}]*min-inline-size:\s*220px;[^}]*min-block-size:\s*220px;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
+  expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(min-content,\s*1fr\);/su);
+  expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
+});
+
+it('exposes the desktop chart bounds through computed styles', () => {
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.append(style);
+  const dashboard = document.createElement('div');
+  dashboard.className = 'report-data-dashboard';
+  document.body.append(dashboard);
+
+  try {
+    const minimums = [
+      ['bars', 300, 180],
+      ['radar', 220, 220],
+      ['ring', 200, 200],
+    ] as const;
+    for (const [kind, inline, block] of minimums) {
+      const chart = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      chart.setAttribute('class', `report-chart report-chart--${kind}`);
+      dashboard.append(chart);
+      const bounds = getComputedStyle(chart);
+      expect(Number.parseFloat(bounds.minInlineSize)).toBe(inline);
+      expect(Number.parseFloat(bounds.minBlockSize)).toBe(block);
+    }
+  } finally {
+    dashboard.remove();
+    style.remove();
+  }
+});
+
+it('sizes desktop health rings from the panel short edge with an enlarged label', () => {
+  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*320px\);[^}]*height:\s*min\(100%,\s*320px\);/su);
+  expect(css).toMatch(/\.report-health-ring__label\s+strong\s*\{[^}]*font:\s*[^;}]*clamp\(2\.5rem,\s*18cqi,\s*4\.5rem\)/isu);
 });
 
 it('keeps the narration status visually hidden on mobile while retaining the subtitle grid area', () => {
@@ -102,7 +151,16 @@ it('keeps the narration status visually hidden on mobile while retaining the sub
   expect(mobileCss).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*clip:\s*rect\(0,\s*0,\s*0,\s*0\);/su);
 });
 
-it('scales supporting health rings from available panel height without changing the primary ring cap', () => {
-  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*340px\);[^}]*margin:\s*auto;/su);
-  expect(css).toMatch(/\.report-data-dashboard__support\s*>\s*section\[data-panel-kind=['"]health-ring['"]\]\s+\.report-health-ring\s*\{[^}]*width:\s*auto;[^}]*height:\s*min\(100%,\s*340px\);[^}]*max-width:\s*100%;[^}]*aspect-ratio:\s*1\s*\/\s*1;/su);
+it('keeps the desktop subtitle as one centered non-interactive line above evidence', () => {
+  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*bottom:\s*clamp\(3\.5rem/isu);
+  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*pointer-events:\s*none;/su);
+  expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*max-width:\s*min\(72ch,\s*calc\(100%\s*-\s*2rem\)\);[^}]*white-space:\s*nowrap;/su);
+  const subtitleRule = css.match(/\.report-subtitle-bar__text\s*\{[^}]*\}/su)?.[0] ?? '';
+  expect(subtitleRule).not.toMatch(/(?:^|;)\s*overflow:\s*hidden;/u);
+  expect(subtitleRule).not.toMatch(/text-overflow:\s*ellipsis;/u);
+});
+
+it('keeps health rings bounded by the available panel short edge', () => {
+  expect(css).toMatch(/\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*320px\);[^}]*height:\s*min\(100%,\s*320px\);[^}]*margin:\s*auto;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
 });
