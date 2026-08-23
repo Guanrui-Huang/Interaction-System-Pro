@@ -7,7 +7,19 @@ import { ReportVisualIcon, reportVisualLabel } from './ReportVisualIcon';
 import { formatReportNumber } from './visual-utils';
 import type { VisualMode } from './VisualRenderer';
 
-const MAX_SUMMARY_COLUMNS = 7;
+const MAX_SUMMARY_COLUMNS = 8;
+
+export function summaryGridForMetricCount(metricCount: number) {
+  const count = Math.max(0, Math.floor(metricCount));
+  if (count <= 8) return { columns: Math.max(count, 1), rows: count === 0 ? 0 : 1 };
+
+  for (let columns = MAX_SUMMARY_COLUMNS; columns >= 1; columns -= 1) {
+    const secondRow = count - columns;
+    if (secondRow <= columns && secondRow > columns / 2) return { columns, rows: 2 };
+  }
+
+  return { columns: MAX_SUMMARY_COLUMNS, rows: Math.ceil(count / MAX_SUMMARY_COLUMNS) };
+}
 
 export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVisualSpec; mode: VisualMode }) {
   if (mode === 'thumbnail') {
@@ -20,8 +32,7 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
     );
   }
 
-  const summaryColumns = Math.min(Math.max(visual.summaryMetrics.length, 1), MAX_SUMMARY_COLUMNS);
-  const summaryRows = Math.ceil(visual.summaryMetrics.length / MAX_SUMMARY_COLUMNS);
+  const { columns: summaryColumns, rows: summaryRows } = summaryGridForMetricCount(visual.summaryMetrics.length);
   const supporting = [...visual.supporting].sort((left, right) => (
     Number(right.kind === 'comparison-bars') - Number(left.kind === 'comparison-bars')
   ));

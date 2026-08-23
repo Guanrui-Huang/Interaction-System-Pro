@@ -103,6 +103,15 @@ it('raises the desktop report readability scale without changing thumbnail sizin
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
 
+it('adds an eight-column dashboard density hook without shrinking metric typography', () => {
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metrics\s*\{[^}]*gap:\s*\.24rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s*\{[^}]*padding-inline:\s*\.55rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dd\s*\{[^}]*gap:\s*\.3rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
+  expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dt\s+span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*line-height:\s*1\.25;/su);
+});
+
 it('raises comparison bar values and labels to the large-screen scale', () => {
   expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*15px;/su);
   expect(css).toMatch(/\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*14px;/su);

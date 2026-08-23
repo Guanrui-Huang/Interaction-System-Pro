@@ -7,6 +7,7 @@ import type { BoundMetric, ReportEvidenceRef, ReportSlide, VisualSpec } from '..
 import { VISUAL_KINDS } from '../../shared/report';
 import { ReportEvidenceDrawer } from '../features/ai/report/ReportEvidenceDrawer';
 import { ReportSlideView } from '../features/ai/report/ReportSlideView';
+import { summaryGridForMetricCount } from '../features/ai/report/visuals/DataDashboardVisual';
 import { ReportVisualErrorBoundary } from '../features/ai/report/visuals/ReportVisualErrorBoundary';
 import { VisualRenderer } from '../features/ai/report/visuals/VisualRenderer';
 
@@ -331,9 +332,22 @@ it('shares one ordered palette across dashboard trend and comparison visuals wit
 });
 
 it.each([
+  { count: 7, columns: 7, rows: 1 },
+  { count: 8, columns: 8, rows: 1 },
+  { count: 9, columns: 5, rows: 2 },
+  { count: 10, columns: 6, rows: 2 },
+  { count: 11, columns: 7, rows: 2 },
+  { count: 12, columns: 7, rows: 2 },
+  { count: 13, columns: 8, rows: 2 },
+  { count: 16, columns: 8, rows: 2 },
+])('balances $count metrics as $columns columns', ({ count, columns, rows }) => {
+  expect(summaryGridForMetricCount(count)).toEqual({ columns, rows });
+});
+
+it.each([
   { count: 7, columns: '7', rows: '1' },
-  { count: 8, columns: '7', rows: '2' },
-])('renders $count summary metrics with the seven-column cap', ({ count, columns, rows }) => {
+  { count: 8, columns: '8', rows: '1' },
+])('renders $count summary metrics with the balanced row layout', ({ count, columns, rows }) => {
   const metrics = Array.from({ length: count }, (_, index) => metric(`metric-${index}`, `指标 ${index + 1}`, 90 + index, '分'));
   const { container } = render(<VisualRenderer visual={dataDashboardFixture({ summaryMetrics: metrics })} mode="canvas" />);
   const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard')!;

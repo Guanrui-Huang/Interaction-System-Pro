@@ -307,6 +307,10 @@
 .report-data-dashboard__metric strong { color: #efffff; font: 650 1.8rem "JetBrains Mono", monospace; }
 .report-data-dashboard__metric span,
 .report-data-dashboard__metric small { color: #72949e; font-size: .82rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metrics { gap: .24rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric { padding-inline: .55rem; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric dt span { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric dd { gap: .3rem; }
 .report-data-dashboard__primary,
 .report-data-dashboard__support > section { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); container-type: size; }
 .report-data-dashboard__primary { grid-area: primary; }
