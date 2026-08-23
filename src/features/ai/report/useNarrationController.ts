@@ -9,6 +9,7 @@ import {
   type AudioSegmentPlayer,
 } from '../voice/audio-segment-player';
 import { NarrationAudioCache } from './narration-audio-cache';
+import { cueTextAtProgress, splitSubtitleCues, type SubtitleCue } from './narration-subtitle-cues';
 import { finalReplacementFor, playableReportSlides } from './report-playback';
 
 const AUDIO_FALLBACK_MESSAGE = '语音未播放：讲解音频暂时无法播放，请阅读字幕或点击“播放讲解”重试';
@@ -64,8 +65,16 @@ type ActivePlayback = {
   kind: 'narration' | 'answer';
   operation: number;
   ended: boolean;
+  cues?: SubtitleCue[];
+  cueInterval?: ReturnType<typeof setInterval>;
   settle?: (result: FollowUpPlaybackResult) => void;
 };
+
+function clearCueInterval(playback: ActivePlayback): void {
+  if (playback.cueInterval === undefined) return;
+  clearInterval(playback.cueInterval);
+  playback.cueInterval = undefined;
+}
 
 function sortedSlides(slides: readonly ReportSlide[]): ReportSlide[] {
   return [...slides].sort((left, right) => left.order - right.order);
@@ -136,10 +145,26 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
   const [message, setMessage] = useState('正在准备讲解');
   const [error, setError] = useState<string | null>(null);
 
+  const startCueInterval = useCallback((active: ActivePlayback) => {
+    clearCueInterval(active);
+    if (active.kind !== 'narration' || !active.cues?.length) return;
+    active.cueInterval = setInterval(() => {
+      if (
+        !mountedRef.current
+        || operationRef.current !== active.operation
+        || playbackRef.current !== active
+      ) return;
+      const durationMs = active.player.durationMs();
+      if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+      setSubtitle(cueTextAtProgress(active.cues!, active.player.positionMs() / durationMs));
+    }, 120);
+  }, []);
+
   const releasePlayback = useCallback(async (result: FollowUpPlaybackResult = 'cancelled') => {
     const active = playbackRef.current;
     playbackRef.current = null;
     if (!active) return;
+    clearCueInterval(active);
     active.settle?.(result);
     try { active.unsubscribe(); } catch { /* cleanup continues */ }
     cacheRef.current!.markPlaying(inputRef.current.reportId, active.speechId, false);
@@ -201,7 +226,8 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
 
     cursorRef.current = { ...cursor, offsetMs: Math.max(0, Math.round(cursor.offsetMs)) };
     setActiveSlideId(slide.id);
-    setSubtitle(segment.text);
+    const cues = splitSubtitleCues(segment.text);
+    setSubtitle(cues[0]?.text ?? segment.text);
     setError(null);
     setStatus('preparing');
     setMessage(`正在准备第 ${slide.order + 1} 页讲解`);
@@ -219,10 +245,12 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
         kind: 'narration',
         operation,
         ended: false,
+        cues,
         unsubscribe: () => undefined,
       };
       active.unsubscribe = player.onEnded(() => {
         if (playbackRef.current !== active) return;
+        clearCueInterval(active);
         if (active.operation !== operationRef.current) {
           active.ended = true;
           return;
@@ -239,6 +267,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
       if (!mountedRef.current || operation !== operationRef.current || playbackRef.current !== active) return;
       setStatus('speaking');
       setMessage(`正在讲解第 ${slide.order + 1} 页`);
+      startCueInterval(active);
     } catch (caught) {
       if (!mountedRef.current || operation !== operationRef.current || controller.signal.aborted) return;
       await releasePlayback();
@@ -253,7 +282,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
       setError(AUDIO_FALLBACK_MESSAGE);
       setMessage('讲解音频加载失败');
     }
-  }, [cursorParts, prefetchAround, releasePlayback]);
+  }, [cursorParts, prefetchAround, releasePlayback, startCueInterval]);
   startCursorRef.current = startCursor;
 
   const advance = useCallback(async () => {
@@ -306,6 +335,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
       try {
         await active.player.resume();
         if (mountedRef.current && operation === operationRef.current && playbackRef.current === active) {
+          startCueInterval(active);
           setStatus('speaking');
           setMessage('讲解已继续');
         }
@@ -320,7 +350,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     }
     const cursor = cursorRef.current ?? firstCursor(inputRef.current);
     if (cursor) await startCursorRef.current(cursor, 'pause');
-  }, [releasePlayback, status]);
+  }, [releasePlayback, startCueInterval, status]);
 
   const pause = useCallback(async () => {
     const operation = ++operationRef.current;
@@ -340,6 +370,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
       return;
     }
     try {
+      clearCueInterval(active);
       await active.player.pause();
       if (!mountedRef.current || operation !== operationRef.current || playbackRef.current !== active) return;
       const cursor = cursorRef.current;
@@ -390,7 +421,10 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     cursorRef.current = cursor;
     inputRef.current.setNarrationCursor(cursor, 'follow-up');
     if (active?.kind === 'answer') void releasePlayback('cancelled');
-    else if (active) void active.player.pause().catch(() => undefined);
+    else if (active) {
+      clearCueInterval(active);
+      void active.player.pause().catch(() => undefined);
+    }
     setStatus(mode);
     setMessage(mode === 'listening' ? '正在聆听追问' : '正在输入追问');
     return cursor;

@@ -62,19 +62,35 @@ class FakeCache {
   }
 }
 
+type FakePlayerOptions = {
+  durationMs?: number;
+  positionMs?: number;
+};
+
 class FakePlayer implements AudioSegmentPlayer {
   readonly play = vi.fn(async (_speech: PlayableSpeech, _options?: { offsetMs?: number }) => undefined);
   readonly pause = vi.fn(async (): Promise<void> => undefined);
   readonly resume = vi.fn(async (): Promise<void> => undefined);
   readonly stop = vi.fn(async (): Promise<void> => undefined);
   readonly enqueue = vi.fn(async () => undefined);
-  position = 0;
+  position: number;
+  private readonly duration: number;
   private listeners = new Set<() => void>();
+  constructor({ durationMs = 0, positionMs = 0 }: FakePlayerOptions = {}) {
+    this.duration = durationMs;
+    this.position = positionMs;
+  }
+  durationMs = () => this.duration;
   positionMs = () => this.position;
+  setPosition(positionMs: number) { this.position = positionMs; }
   onEnded(listener: () => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   onSegmentEnded(listener: () => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
   listenerCount() { return this.listeners.size; }
   finish() { for (const listener of [...this.listeners]) listener(); }
+}
+
+function createFakePlayer(options: FakePlayerOptions = {}): FakePlayer {
+  return new FakePlayer(options);
 }
 
 function setup(overrides: Partial<Parameters<typeof useNarrationController>[0]> = {}) {
@@ -102,6 +118,73 @@ function setup(overrides: Partial<Parameters<typeof useNarrationController>[0]> 
   };
   return { input, first, second, cache, players, selectSlide, setNarrationCursor };
 }
+
+function renderNarration({
+  createPlayer,
+  initialCursor,
+  autoplay = true,
+}: {
+  createPlayer: () => AudioSegmentPlayer;
+  initialCursor?: NarrationCursor;
+  autoplay?: boolean;
+}) {
+  const model = setup({ createPlayer, initialCursor, autoplay });
+  model.first.narration[0] = {
+    ...model.first.narration[0]!,
+    text: '第一句。第二句。第三句。',
+  };
+  return { ...renderHook(() => useNarrationController(model.input)), model };
+}
+
+it('shows one subtitle cue at a time and advances it with audio progress', async () => {
+  vi.useFakeTimers();
+  try {
+    const player = createFakePlayer({ durationMs: 10_000, positionMs: 0 });
+    const narration = renderNarration({ createPlayer: () => player, autoplay: true });
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(narration.result.current.subtitle).toBe('第一句。');
+    player.setPosition(6_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+
+    expect(narration.result.current.subtitle).toBe('第二句。');
+    expect(narration.result.current.subtitle).not.toContain('第三句。');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('keeps the displayed cue stable while narration is paused and restarts it on resume', async () => {
+  vi.useFakeTimers();
+  try {
+    const player = createFakePlayer({ durationMs: 10_000, positionMs: 6_000 });
+    const narration = renderNarration({ createPlayer: () => player, autoplay: true });
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    expect(narration.result.current.subtitle).toBe('第二句。');
+    await act(async () => narration.result.current.pause());
+    player.setPosition(9_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    expect(narration.result.current.subtitle).toBe('第二句。');
+
+    await act(async () => narration.result.current.play());
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    expect(narration.result.current.subtitle).toBe('第三句。');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('keeps the cue aligned when narration resumes from a saved offset', async () => {
+  const player = createFakePlayer({ durationMs: 10_000, positionMs: 6_000 });
+  const narration = renderNarration({
+    createPlayer: () => player,
+    initialCursor: { slideId: 'slide-1', segmentId: 'slide-1-segment-1', offsetMs: 6_000 },
+    autoplay: true,
+  });
+
+  await waitFor(() => expect(narration.result.current.subtitle).toBe('第二句。'));
+});
 
 it('autoplays once and prefetches the current, next segment, and next page first segment', async () => {
   const model = setup();

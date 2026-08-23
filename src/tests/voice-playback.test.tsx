@@ -63,6 +63,7 @@ class FakeBrowserWebSocket implements VoicePlaybackSocket {
 }
 
 class FakeAudioSegmentPlayer implements AudioSegmentPlayer {
+  durationMs = vi.fn(() => 0);
   readonly enqueued: number[][] = [];
   readonly listeners = new Set<() => void>();
   readonly endedListeners = new Set<() => void>();

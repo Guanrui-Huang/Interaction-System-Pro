@@ -5,6 +5,7 @@ export type AudioSegmentPlayer = {
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
+  durationMs(): number;
   positionMs(): number;
   onEnded(listener: () => void): () => void;
   /** Compatibility for the existing one-answer VoiceInteraction stream. */
@@ -147,6 +148,10 @@ class WebAudioSegmentPlayer implements AudioSegmentPlayer {
     if (!this.activeItem?.speech) return Math.max(0, this.positionBaseMs);
     const elapsed = Math.max(0, (this.context.currentTime - this.positionStartedAt) * 1_000);
     return Math.min(this.speechDurationMs, this.positionBaseMs + elapsed);
+  }
+
+  durationMs(): number {
+    return this.speechDurationMs;
   }
 
   onEnded(listener: () => void): () => void {
