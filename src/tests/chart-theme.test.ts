@@ -1,11 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { barThemeForMetric, CHART_THEME } from '../charts/chart-theme';
+import { barThemeForMetric, chartThemesForMetrics, CHART_THEME } from '../charts/chart-theme';
 
 describe('report bar themes', () => {
-  it('provides seven distinct gradients', () => {
-    expect(CHART_THEME.bars).toHaveLength(7);
-    expect(new Set(CHART_THEME.bars.map(({ family }) => family)).size).toBe(7);
-    expect(new Set(CHART_THEME.bars.flatMap(({ start, end }) => [start, end])).size).toBe(14);
+  it('provides eight distinct report gradients', () => {
+    expect(CHART_THEME.bars).toHaveLength(8);
+    expect(new Set(CHART_THEME.bars.map(({ family }) => family)).size).toBe(8);
+    expect(new Set(CHART_THEME.bars.flatMap(({ start, end }) => [start, end])).size).toBe(16);
+  });
+
+  it('allocates stable unique themes in first-seen order', () => {
+    const themes = chartThemesForMetrics([
+      { key: 'quality', label: '出水水质得分' },
+      { key: 'energy', label: '电耗得分' },
+      { key: 'carbonEmission', label: '碳排放量' },
+      { key: 'carbonReduction', label: '碳减排量' },
+      { key: 'quality', label: '出水水质得分' },
+    ]);
+
+    expect(themes.get('quality')?.family).toBe('water');
+    expect(themes.get('energy')?.family).toBe('treatment');
+    expect(themes.get('carbonEmission')?.family)
+      .not.toBe(themes.get('carbonReduction')?.family);
+    expect(themes.get('quality')).toEqual(CHART_THEME.bars[0]);
   });
 
   it('maps the common seven metrics to stable distinct families', () => {

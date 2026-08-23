@@ -159,7 +159,7 @@ it('uses the approved shared gradients and globally unique SVG IDs across report
   </>);
 
   expect(Array.from(container.querySelectorAll('linearGradient stop')).map((stop) => stop.getAttribute('stop-color')))
-    .toEqual(expect.arrayContaining(['#19BFA0', '#42F0C7', '#A9AB45', '#EEEF97', '#24E4C1', '#35A9FF']));
+    .toEqual(expect.arrayContaining(['#1689DC', '#2CE4F5', '#19BFA0', '#42F0C7', '#24E4C1', '#35A9FF']));
   expect(new Set(Array.from(container.querySelectorAll('[id]')).map(({ id }) => id)).size)
     .toBe(container.querySelectorAll('[id]').length);
 });
@@ -188,9 +188,9 @@ it('distinguishes multi-series trends with controlled gradients and an accessibl
     Array.from(gradient.querySelectorAll('stop'), (stop) => stop.getAttribute('stop-color'))
   );
   expect(lineGradients.map(stopColors)).toEqual([
+    ['#1689DC', '#2CE4F5'],
     ['#19BFA0', '#42F0C7'],
-    ['#6B2FB2', '#AA56F0'],
-    ['#A9AB45', '#EEEF97'],
+    ['#0A9FA8', '#47D9D1'],
   ]);
   expect(new Set(lineGradients.map(({ id }) => id)).size).toBe(lineGradients.length);
 
@@ -216,6 +216,20 @@ it('renders wide adaptive bars with stable theme diagnostics', () => {
   expect(bars).toHaveLength(7);
   expect(new Set(bars.map((bar) => bar.dataset.barTheme)).size).toBe(7);
   expect(Number(bars[0]?.getAttribute('width'))).toBeGreaterThan(40);
+});
+
+it('assigns different bar themes to separate carbon metrics in the same chart', () => {
+  const { container } = render(<VisualRenderer visual={{
+    kind: 'comparison-bars',
+    items: [
+      metric('carbonEmission', '碳排放量', 18.2, 't'),
+      metric('carbonReduction', '碳减排量', 4.6, 't'),
+    ],
+  }} mode="canvas" />);
+  const carbonBars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar[data-metric-key]'));
+
+  expect(carbonBars).toHaveLength(2);
+  expect(carbonBars[0]?.dataset.barTheme).not.toBe(carbonBars[1]?.dataset.barTheme);
 });
 
 it('uses the same seven semantic themes for trend series and fills only the primary series', () => {
@@ -263,6 +277,57 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__metric')).toHaveLength(2);
   expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
+});
+
+it('shares one ordered palette across dashboard trend and comparison visuals without duplicate bar colors', () => {
+  const visual = dataDashboardFixture({
+    summaryMetrics: [
+      metric('quality', '出水水质得分', 96, '分'),
+      metric('energy', '电耗得分', 90, '分'),
+    ],
+    primary: {
+      kind: 'trend-area',
+      series: [
+        {
+          key: 'quality',
+          label: '出水水质得分',
+          unit: '分',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 94 }, { label: '07-31', value: 96 }],
+        },
+        {
+          key: 'energy',
+          label: '电耗得分',
+          unit: '分',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 88 }, { label: '07-31', value: 90 }],
+        },
+      ],
+    },
+    supporting: [{
+      kind: 'comparison-bars',
+      items: [
+        metric('quality', '出水水质得分', 96, '分'),
+        metric('energy', '电耗得分', 90, '分'),
+        metric('carbonEmission', '碳排放量', 18.2, 't'),
+        metric('carbonReduction', '碳减排量', 4.6, 't'),
+      ],
+    }],
+  });
+  const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
+  const qualityLine = container.querySelector<SVGPathElement>('.report-chart__line[data-metric-key="quality"]');
+  const energyLine = container.querySelector<SVGPathElement>('.report-chart__line[data-metric-key="energy"]');
+  const bars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar[data-metric-key]'));
+  const qualityBar = container.querySelector<SVGRectElement>('.report-chart__bar[data-metric-key="quality"]');
+  const energyBar = container.querySelector<SVGRectElement>('.report-chart__bar[data-metric-key="energy"]');
+
+  expect(qualityLine?.dataset.seriesTheme).toBe(qualityBar?.dataset.barTheme);
+  expect(energyLine?.dataset.seriesTheme).toBe(energyBar?.dataset.barTheme);
+  expect(qualityLine?.dataset.seriesTheme).toBe('water');
+  expect(energyLine?.dataset.seriesTheme).toBe('treatment');
+  expect(new Set(bars.map((bar) => bar.dataset.barTheme)).size).toBe(bars.length);
 });
 
 it.each([

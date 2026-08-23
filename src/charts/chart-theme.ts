@@ -1,4 +1,23 @@
-export type BarThemeFamily = 'water' | 'treatment' | 'flow' | 'energy' | 'analytics' | 'resource' | 'risk';
+export type BarThemeFamily =
+  | 'water'
+  | 'treatment'
+  | 'flow'
+  | 'energy'
+  | 'analytics'
+  | 'resource'
+  | 'risk'
+  | 'signal';
+
+export type BarTheme = {
+  family: BarThemeFamily;
+  start: string;
+  end: string;
+};
+
+export type ChartMetricIdentity = {
+  key: string;
+  label: string;
+};
 
 const BAR_THEMES = [
   { family: 'water', start: '#1689DC', end: '#2CE4F5' },
@@ -8,9 +27,11 @@ const BAR_THEMES = [
   { family: 'analytics', start: '#6B2FB2', end: '#AA56F0' },
   { family: 'resource', start: '#A9AB45', end: '#EEEF97' },
   { family: 'risk', start: '#DB2777', end: '#F472B6' },
-] as const satisfies readonly { family: BarThemeFamily; start: string; end: string }[];
+  { family: 'signal', start: '#C94B31', end: '#FF714D' },
+] as const satisfies readonly BarTheme[];
 
 const BAR_THEME_MATCHERS: readonly [BarThemeFamily, RegExp][] = [
+  ['signal', /alert|warning|signal|异常|告警|预警/iu],
   ['energy', /energy|power|electric|kwh|电耗|能耗|电能|鼓风/iu],
   ['resource', /phosph|\btp\b|cost|saving|fee|总磷|费用|成本|节省/iu],
   ['risk', /\bcod\b|carbon|co2|organic|碳|排放|风险/iu],
@@ -32,6 +53,15 @@ export function barThemeForMetric(metricKey: string, metricLabel: string) {
   return family
     ? BAR_THEMES.find((theme) => theme.family === family)!
     : BAR_THEMES[stableThemeIndex(source)]!;
+}
+
+export function chartThemesForMetrics(metrics: readonly ChartMetricIdentity[]) {
+  const themes = new Map<string, BarTheme>();
+  for (const metric of metrics) {
+    if (themes.has(metric.key)) continue;
+    themes.set(metric.key, BAR_THEMES[themes.size % BAR_THEMES.length]!);
+  }
+  return themes;
 }
 
 export const CHART_THEME = {
