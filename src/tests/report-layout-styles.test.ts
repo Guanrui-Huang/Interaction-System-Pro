@@ -94,7 +94,8 @@ it('keeps dashboard panels and charts on the full-height propagation chain', () 
 
 it('raises the desktop report readability scale without changing thumbnail sizing', () => {
   expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.85rem\s+1rem;/su);
-  expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.7rem/isu);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
   expect(css).toMatch(/\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*\.94rem;/su);
   expect(css).toMatch(/\.report-visual-icon\s*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
@@ -106,6 +107,13 @@ it('enforces desktop chart drawing bounds after panel labels and chrome consume 
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart--ring\s*\{[^}]*min-inline-size:\s*200px;[^}]*min-block-size:\s*200px;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(min-content,\s*1fr\);/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
+});
+
+it('allocates two-support dashboards evenly so the ring keeps a square short-edge fit', () => {
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="2"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(15rem,\s*1fr\)\s+minmax\(15rem,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*container-type:\s*size;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-visual__graphic\s*\{[^}]*height:\s*100%;[^}]*container-type:\s*size;/su);
+  expect(css).toMatch(/\.report-data-dashboard\s+\.report-health-ring\s*\{[^}]*width:\s*min\(100%,\s*320px,\s*100cqb\);[^}]*height:\s*min\(100%,\s*320px,\s*100cqb\);/su);
 });
 
 it('exposes the desktop chart bounds through computed styles', () => {
@@ -142,7 +150,6 @@ it('keeps health rings square and sized from their own panel bounds', () => {
 
   expect(healthRingRule).toMatch(/width:\s*min\(100%,\s*320px\);/u);
   expect(healthRingRule).toMatch(/height:\s*auto;/u);
-  expect(healthRingRule).toMatch(/max-height:\s*100%;/u);
   expect(healthRingRule).toMatch(/aspect-ratio:\s*1\s*\/\s*1;/u);
   expect(healthRingRule).toMatch(/container-type:\s*inline-size;/u);
   expect(healthRingRule).toMatch(/margin:\s*auto;/u);
@@ -165,7 +172,7 @@ it('keeps the narration status visually hidden on mobile while retaining the sub
 });
 
 it('keeps the desktop subtitle as one centered non-interactive line above evidence', () => {
-  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*bottom:\s*clamp\(3\.5rem/isu);
+  expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*bottom:\s*clamp\(4\.5rem/isu);
   expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*pointer-events:\s*none;/su);
   expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*max-width:\s*min\(72ch,\s*calc\(100%\s*-\s*2rem\)\);[^}]*white-space:\s*nowrap;/su);
   const subtitleRule = css.match(/\.report-subtitle-bar__text\s*\{[^}]*\}/su)?.[0] ?? '';

@@ -296,18 +296,19 @@
 .report-data-dashboard__metric dt,
 .report-data-dashboard__panel-label,
 .report-kpi__label { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
-.report-data-dashboard__metric dt { color: #7fa0aa; font-size: .82rem; }
+.report-data-dashboard__metric dt { color: #7fa0aa; font-size: .94rem; }
 .report-data-dashboard__metric dt span,
 .report-data-dashboard__panel-label span,
 .report-kpi__label span { min-width: 0; }
 .report-data-dashboard__metric dd { display: flex; align-items: baseline; gap: .4rem; margin: .36rem 0 0; }
-.report-data-dashboard__metric strong { color: #efffff; font: 650 1.7rem "JetBrains Mono", monospace; }
+.report-data-dashboard__metric strong { color: #efffff; font: 650 1.8rem "JetBrains Mono", monospace; }
 .report-data-dashboard__metric span,
-.report-data-dashboard__metric small { color: #72949e; font-size: .76rem; }
+.report-data-dashboard__metric small { color: #72949e; font-size: .82rem; }
 .report-data-dashboard__primary,
-.report-data-dashboard__support > section { display: grid; grid-template-rows: auto minmax(min-content, 1fr); min-width: 0; min-height: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); }
+.report-data-dashboard__support > section { display: grid; grid-template-rows: auto minmax(min-content, 1fr); min-width: 0; min-height: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); container-type: size; }
 .report-data-dashboard__primary { grid-area: primary; }
 .report-data-dashboard__support { grid-area: support; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr); gap: .75rem; min-height: 0; }
+.report-data-dashboard[data-support-count="2"] .report-data-dashboard__support { grid-template-rows: minmax(15rem, 1fr) minmax(15rem, 1fr); }
 .report-data-dashboard__panel-label { margin: 0 0 .55rem; color: #7fa0aa; font-size: .94rem; letter-spacing: .04em; }
 .report-data-dashboard[data-support-count="0"] {
   grid-template-areas: "metrics metrics" "primary primary";
@@ -321,7 +322,7 @@
 .report-data-dashboard[data-support-count="1"] .report-data-dashboard__support { grid-template-rows: minmax(0, 1fr); }
 .report-data-dashboard .report-visual-renderer,
 .report-data-dashboard .report-visual,
-.report-data-dashboard .report-visual__graphic { min-height: 0; height: 100%; }
+.report-data-dashboard .report-visual__graphic { min-height: 0; height: 100%; container-type: size; }
 .report-data-dashboard .report-chart { width: 100%; height: 100%; max-height: none; }
 .report-data-dashboard .report-chart--bars { min-inline-size: 300px; min-block-size: 180px; }
 .report-data-dashboard .report-chart--radar { min-inline-size: 220px; min-block-size: 220px; }
@@ -335,7 +336,8 @@
 .report-kpi strong { margin-top: 7px; color: #e8ffff; font: 650 clamp(24px, 3cqw, 42px) "JetBrains Mono", monospace; }
 .report-kpi small { align-self: end; padding-bottom: 6px; color: #7fa0aa; font: 11px "JetBrains Mono", monospace; }
 .report-kpi em { grid-column: 1 / -1; margin-top: 5px; color: var(--report-mint); font-size: 11px; font-style: normal; }
-.report-health-ring { position: relative; width: min(100%, 320px); height: auto; max-height: 100%; aspect-ratio: 1 / 1; container-type: inline-size; margin: auto; }
+.report-health-ring { position: relative; width: min(100%, 320px); height: auto; aspect-ratio: 1 / 1; container-type: inline-size; margin: auto; }
+.report-data-dashboard .report-health-ring { width: min(100%, 320px, 100cqb); height: min(100%, 320px, 100cqb); container-type: inline-size; }
 .report-ring__track { fill: rgb(93 139 153 / 16%); }
 .report-ring__value { filter: drop-shadow(0 0 5px rgb(35 239 177 / 38%)); }
 .report-health-ring__label { position: absolute; inset: 28% 18%; display: grid; place-content: center; text-align: center; }
@@ -387,7 +389,7 @@
   z-index: 48;
   left: calc(var(--report-rail-width) + clamp(10px, 1.25vw, 20px));
   right: calc(var(--report-chat-width) + clamp(10px, 1.25vw, 20px));
-  bottom: clamp(3.5rem, 6vh, 5rem);
+  bottom: clamp(4.5rem, 8vh, 6rem);
   display: grid;
   justify-items: center;
   min-width: 0;
