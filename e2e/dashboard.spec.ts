@@ -807,12 +807,27 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
 
   const reportGeometry = await canvas.evaluate((slide) => {
     const canvasRoot = slide.closest<HTMLElement>('.report-workspace__canvas')!;
-    const bars = slide.querySelector<HTMLElement>('[data-panel-kind="comparison-bars"]')!;
     const subtitleBar = document.querySelector<HTMLElement>('.report-subtitle-bar')!;
+    const subtitleText = subtitleBar.querySelector<HTMLElement>('.report-subtitle-bar__text')!;
+    const evidenceDrawer = slide.querySelector<HTMLElement>('.report-evidence-drawer')!;
     const slideBox = slide.getBoundingClientRect();
-    const barBox = bars.getBoundingClientRect();
     const canvasBox = canvasRoot.getBoundingClientRect();
     const subtitleBox = subtitleBar.getBoundingClientRect();
+    const evidenceBox = evidenceDrawer.getBoundingClientRect();
+    const subtitleRange = document.createRange();
+    subtitleRange.selectNodeContents(subtitleText);
+    const subtitleLineTops = new Set([...subtitleRange.getClientRects()].map((rect) => Math.round(rect.top)));
+    const box = (element: Element | null, label: string) => {
+      if (!element) throw new Error(`Missing ${label}`);
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height };
+    };
+    const chartSizes = {
+      bars: box(slide.querySelector('[data-panel-kind="comparison-bars"] .report-chart--bars'), 'bars chart'),
+      ring: box(slide.querySelector('[data-panel-kind="health-ring"] .report-chart--ring'), 'ring chart'),
+    };
+    const metricLabel = slide.querySelector<HTMLElement>('.report-data-dashboard__metric dt')!;
+    const metricValue = slide.querySelector<HTMLElement>('.report-data-dashboard__metric strong')!;
     const title = slide.querySelector<HTMLElement>('h2')!;
     const titleRange = document.createRange();
     titleRange.selectNodeContents(title);
@@ -836,36 +851,69 @@ test('streams a complete no-scroll dynamic report at 1920x1080', async ({ page }
       slideScrollHeight: (slide as HTMLElement).scrollHeight,
       slideBottom: slideBox.bottom,
       viewportHeight: document.documentElement.clientHeight,
-      barWidth: barBox.width,
-      barHeight: barBox.height,
+      documentScrollHeight: document.documentElement.scrollHeight,
+      chartSizes,
       subtitlePosition: getComputedStyle(subtitleBar).position,
       subtitlePointerEvents: getComputedStyle(subtitleBar).pointerEvents,
-      subtitleText: subtitleBar.querySelector<HTMLElement>('.report-subtitle-bar__text')?.textContent ?? '',
+      subtitleText: subtitleText.textContent ?? '',
+      subtitleLineCount: subtitleLineTops.size,
+      subtitleWhiteSpace: getComputedStyle(subtitleText).whiteSpace,
+      subtitleColor: getComputedStyle(subtitleText).color,
+      subtitleTextAlign: getComputedStyle(subtitleText).textAlign,
       canvasBounds: { left: canvasBox.left, right: canvasBox.right, top: canvasBox.top, bottom: canvasBox.bottom },
       subtitleBounds: { left: subtitleBox.left, right: subtitleBox.right, top: subtitleBox.top, bottom: subtitleBox.bottom },
+      evidenceBounds: { left: evidenceBox.left, right: evidenceBox.right, top: evidenceBox.top, bottom: evidenceBox.bottom },
       subtitleCenter: (subtitleBox.left + subtitleBox.right) / 2,
       canvasCenter: (canvasBox.left + canvasBox.right) / 2,
       titleLineCount: titleLineTops.size,
+      metricLabelFontSize: Number.parseFloat(getComputedStyle(metricLabel).fontSize),
+      metricValueFontSize: Number.parseFloat(getComputedStyle(metricValue).fontSize),
+      metricIconFamilies: [...slide.querySelectorAll<HTMLElement>('.report-data-dashboard__metric [data-icon-family]')]
+        .map((icon) => icon.dataset.iconFamily)
+        .filter((family): family is string => Boolean(family)),
       panelBounds,
     };
   });
   expect(reportGeometry.canvasScrollHeight).toBeLessThanOrEqual(reportGeometry.canvasClientHeight + 1);
   expect(reportGeometry.slideScrollHeight).toBeLessThanOrEqual(reportGeometry.slideClientHeight + 1);
   expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
-  expect(reportGeometry.barWidth).toBeGreaterThanOrEqual(300);
-  expect(reportGeometry.barHeight).toBeGreaterThanOrEqual(216);
+  expect(reportGeometry.documentScrollHeight).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
+  expect(reportGeometry.chartSizes.bars.width).toBeGreaterThanOrEqual(300);
+  expect(reportGeometry.chartSizes.bars.height).toBeGreaterThanOrEqual(180);
+  expect(reportGeometry.chartSizes.ring.width).toBeGreaterThanOrEqual(200);
+  expect(reportGeometry.chartSizes.ring.height).toBeGreaterThanOrEqual(200);
+  expect(Math.abs(reportGeometry.chartSizes.ring.width - reportGeometry.chartSizes.ring.height)).toBeLessThanOrEqual(1);
   expect(reportGeometry.subtitlePosition).toBe('fixed');
   expect(reportGeometry.subtitlePointerEvents).toBe('none');
   expect(reportGeometry.subtitleText).not.toBe('等待讲解字幕');
+  expect(reportGeometry.subtitleLineCount).toBe(1);
+  expect(reportGeometry.subtitleWhiteSpace).toBe('nowrap');
+  expect(reportGeometry.subtitleColor).toBe('rgb(255, 255, 255)');
+  expect(reportGeometry.subtitleTextAlign).toBe('center');
   expect(reportGeometry.titleLineCount).toBe(1);
   expect(reportGeometry.subtitleBounds.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
   expect(reportGeometry.subtitleBounds.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
   expect(Math.abs(reportGeometry.subtitleCenter - reportGeometry.canvasCenter)).toBeLessThanOrEqual(1);
+  expect(reportGeometry.subtitleBounds.bottom).toBeLessThanOrEqual(reportGeometry.evidenceBounds.top + 2);
+  expect(reportGeometry.metricLabelFontSize).toBeGreaterThanOrEqual(15);
+  expect(reportGeometry.metricValueFontSize).toBeGreaterThanOrEqual(28);
+  expect(new Set(reportGeometry.metricIconFamilies).size).toBeGreaterThanOrEqual(2);
   for (const panel of reportGeometry.panelBounds) {
     expect(panel.visual.left).toBeGreaterThanOrEqual(panel.panel.left - 1);
     expect(panel.visual.right).toBeLessThanOrEqual(panel.panel.right + 1);
     expect(panel.visual.top).toBeGreaterThanOrEqual(panel.panel.top - 1);
-    expect(panel.visual.bottom).toBeLessThanOrEqual(panel.panel.bottom + 1);
+    expect(panel.visual.bottom, `${panel.kind} visual exceeds panel bottom`).toBeLessThanOrEqual(panel.panel.bottom + 1);
+  }
+  for (let index = 0; index < reportGeometry.panelBounds.length; index += 1) {
+    for (let otherIndex = index + 1; otherIndex < reportGeometry.panelBounds.length; otherIndex += 1) {
+      const panel = reportGeometry.panelBounds[index]!.visual;
+      const other = reportGeometry.panelBounds[otherIndex]!.visual;
+      const overlap = panel.left < other.right - 1
+        && panel.right > other.left + 1
+        && panel.top < other.bottom - 1
+        && panel.bottom > other.top + 1;
+      expect(overlap, `${reportGeometry.panelBounds[index]!.kind} overlaps ${reportGeometry.panelBounds[otherIndex]!.kind}`).toBe(false);
+    }
   }
 
   await page.getByRole('button', { name: '退出汇报' }).focus();
