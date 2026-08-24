@@ -714,14 +714,17 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   api.createGate.resolve();
   await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
   await api.terminalStreamReady;
-  await expect(page.getByRole('status').filter({
-    hasText: /正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u,
-  })).toContainText(/正在理解问题|正在检索相关数据|正在组织分析|正在生成首个页面|正在生成后续页面/u);
-  await expect(page.getByText('实时数据快照')).toHaveCount(0);
-  await expect(page.locator('.report-thumbnail')).toHaveCount(0);
-  await expect(page.locator('[data-slide-mode="canvas"]')).toHaveCount(0);
+  await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
+  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="canvas"]')).toBeVisible();
+  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toBeVisible();
+  await expect(page.getByText('正在生成首个页面', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
 
   api.releaseTerminal();
+  const activeCanvas = page.locator('[data-slide-mode="canvas"]:not([data-slide-state="pending"])');
+  await expect(activeCanvas).toBeVisible();
+  await expect(activeCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
   await expect(page.getByRole('heading', { name: firstSlide.title })).toBeVisible();
   await expect(page.locator('.report-thumbnail')).toHaveCount(3);
   await expect(page.locator('[data-slide-mode="thumbnail"]')).toHaveCount(2);
@@ -1008,6 +1011,41 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   await expect(page.getByRole('list', { name: '追问记录' })).toContainText('这个数怎么算');
   expect(api.sessionBodies.length).toBeGreaterThan(0);
   await attachScreenshot(page, testInfo, 'dynamic-report-1920x1080');
+});
+
+test('keeps the mocked progressive report static under reduced motion at large-screen size', async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await installBrowserAudioFake(page);
+  const api = await installMockReportApi(page);
+
+  await launchReport(page);
+  api.createGate.resolve();
+  await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
+  await api.terminalStreamReady;
+
+  await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
+  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="canvas"]')).toBeVisible();
+  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toBeVisible();
+  await expect(page.getByText('正在生成首个页面', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
+
+  api.releaseTerminal();
+
+  const activeCanvas = page.locator('[data-slide-mode="canvas"]:not([data-slide-state="pending"])');
+  await expect(activeCanvas).toBeVisible();
+  await expect(activeCanvas).toHaveAttribute('data-motion-reduced', 'true');
+  await expect(activeCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
+  await expect(page.getByRole('heading', { name: firstSlide.title })).toBeVisible();
+  expect(await activeCanvas.locator('[data-reveal-module]').count()).toBeGreaterThan(0);
+
+  const moduleAnimations = await activeCanvas.locator('[data-reveal-module]').evaluateAll((modules) => (
+    modules.map((module) => getComputedStyle(module as HTMLElement).animationName)
+  ));
+  expect(moduleAnimations.every((name) => name !== 'report-module-clear')).toBe(true);
+
+  await attachScreenshot(page, testInfo, 'dynamic-report-1920x1080-reduced-motion');
 });
 
 const mockedIntentScenarios = [

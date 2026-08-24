@@ -993,9 +993,11 @@ it('reveals a live-created slide once and keeps restored revisits immediately cl
   );
 
   expect(container.querySelector('[data-slide-state="pending"][data-slide-mode="canvas"]')).not.toBeNull();
+  expect(container.querySelector('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).not.toBeNull();
 
   rerender(<ReportWorkspace session={session(outlineOnly)} launchQuestion="分析总氮趋势" />);
   expect(container.querySelector('[data-slide-state="pending"][data-slide-mode="canvas"]')).not.toBeNull();
+  expect(container.querySelector('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).not.toBeNull();
 
   rerender(<ReportWorkspace session={session(ready)} launchQuestion="分析总氮趋势" />);
 
