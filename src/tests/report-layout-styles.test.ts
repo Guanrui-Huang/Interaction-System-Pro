@@ -62,7 +62,7 @@ it('uses the approved no-scroll 1920 dashboard geometry', () => {
   expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*6\.1rem\s+minmax\(0,\s*1fr\)\s+minmax\(2\.2rem,\s*auto\);/su);
   expect(css).toMatch(/\.report-data-dashboard\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
   expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);[^}]*block-size:\s*5\.5rem;[^}]*min-block-size:\s*4\.8rem;/su);
-  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="2"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
 });
 
 it('uses a compact two-row canvas with a floating subtitle and balanced dashboard heading', () => {
