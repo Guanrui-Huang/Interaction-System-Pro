@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, vi } from 'vitest';
 import type { BoundMetric, ReportJobSnapshot, ReportSlide, SlideOutline } from '../../shared/report';
 import { ReportClientError } from '../features/ai/report/report-api';
+import { ReportSlideView } from '../features/ai/report/ReportSlideView';
+import { reportRevealPlan } from '../features/ai/report/useReportModuleReveal';
 import type { NarrationStatus } from '../features/ai/report/useNarrationController';
 import { reduceReportEvent, type ReportSession } from '../features/ai/report/useReportSession';
 import { ReportWorkspace } from '../features/ai/report/ReportWorkspace';
@@ -55,6 +57,37 @@ function slide(id: string, order: number, title: string): ReportSlide {
       { id: `${id}-segment-1`, text: '第一段。', speechId: `${id}-speech-1`, claimIds: ['claim-1'] },
       { id: `${id}-segment-2`, text: '第二段。', speechId: `${id}-speech-2`, claimIds: ['claim-1'] },
     ],
+  };
+}
+
+function dashboardSlide(id = 'slide-dashboard', order = 0, title = '综合看板'): ReportSlide {
+  const totalNitrogen = metric('tn', '总氮', 2.4);
+  const ammonia = metric('ammonia', '氨氮', 0.5);
+  const health = { ...metric('health', '运行健康度', 92), unit: '分' };
+  return {
+    ...slide(id, order, title),
+    takeaway: '关键指标与支撑图需要按模块渐进展示。',
+    visual: {
+      kind: 'data-dashboard',
+      summaryMetrics: [totalNitrogen, ammonia],
+      primary: {
+        kind: 'trend-area',
+        series: [{
+          key: 'tn',
+          label: '总氮',
+          unit: 'mg/L',
+          snapshotId: 'snapshot-1',
+          claimIds: ['claim-1'],
+          points: [{ label: '07-01', value: 2.2 }, { label: '07-31', value: 2.4 }],
+        }],
+      },
+      supporting: [
+        { kind: 'comparison-bars', items: [totalNitrogen, ammonia] },
+        { kind: 'health-ring', metric: health, target: 100 },
+      ],
+    },
+    metrics: [totalNitrogen, ammonia, health],
+    evidenceRefs: [totalNitrogen, ammonia, health],
   };
 }
 
@@ -317,6 +350,83 @@ it('moves page and narration controls from the header into the composer toolbar'
   for (const button of toolbar!.querySelectorAll('button')) {
     expect(button).toHaveAttribute('title', button.getAttribute('aria-label'));
     expect(button.querySelector('svg')).not.toBeNull();
+  }
+});
+
+it('keeps dashboard modules hidden behind reveal boundaries until their module is unlocked', async () => {
+  const user = userEvent.setup();
+  const slideWithDashboard = dashboardSlide();
+  const fullPlan = new Set(reportRevealPlan(slideWithDashboard));
+  const { container, rerender } = render(
+    <ReportSlideView
+      slide={slideWithDashboard}
+      mode="canvas"
+      active
+      animate={false}
+      revealedModules={new Set(['heading'])}
+    />,
+  );
+
+  const slideRoot = container.querySelector('.report-slide');
+  const visualShell = container.querySelector('.report-slide__visual');
+  const dashboard = container.querySelector('.report-data-dashboard');
+
+  expect(slideRoot).toHaveClass('report-slide--progressive');
+  expect(container.querySelector('[data-reveal-module="heading"]')).toHaveAttribute('data-reveal-visible', 'true');
+  expect(container.querySelector('[data-reveal-module="metrics"]')).toHaveAttribute('data-reveal-visible', 'false');
+  expect(container.querySelector('[data-reveal-module="primary"]')).toHaveAttribute('data-reveal-visible', 'false');
+  expect(container.querySelector('[data-reveal-module="support-0"]')).toHaveAttribute('data-reveal-visible', 'false');
+  expect(container.querySelector('[data-reveal-module="support-1"]')).toHaveAttribute('data-reveal-visible', 'false');
+  expect(container.querySelector('[data-reveal-module="evidence"]')).toHaveAttribute('data-reveal-visible', 'false');
+  expect(container.querySelector('[data-reveal-module="metrics"]')).toHaveAttribute('aria-hidden', 'true');
+  expect(container.querySelector('[data-reveal-module="evidence"]')).toHaveAttribute('inert');
+  expect(visualShell).toHaveClass('report-slide__visual');
+  expect(visualShell).not.toHaveAttribute('data-reveal-module');
+  expect(dashboard).toHaveAttribute('data-summary-columns', '2');
+  expect(dashboard).toHaveAttribute('data-support-count', '2');
+
+  rerender(
+    <ReportSlideView
+      slide={slideWithDashboard}
+      mode="canvas"
+      active
+      animate={false}
+      revealedModules={fullPlan}
+    />,
+  );
+
+  for (const module of fullPlan) {
+    expect(container.querySelector(`[data-reveal-module="${module}"]`)).toHaveAttribute('data-reveal-visible', 'true');
+  }
+  const evidenceButton = screen.getByRole('button', { name: '展开证据明细' });
+  evidenceButton.focus();
+  expect(evidenceButton).toHaveFocus();
+  expect(visualShell).toHaveClass('report-slide__visual');
+  expect(visualShell).not.toHaveAttribute('data-reveal-module');
+  expect(dashboard).toHaveAttribute('data-summary-columns', '2');
+  expect(dashboard).toHaveAttribute('data-support-count', '2');
+
+  await user.click(evidenceButton);
+  expect(screen.getByRole('table', { name: '证据明细' })).toBeInTheDocument();
+});
+
+it('keeps report slides fully visible when no reveal set is supplied', () => {
+  const slideWithDashboard = dashboardSlide('slide-dashboard-full');
+  const { container } = render(
+    <ReportSlideView
+      slide={slideWithDashboard}
+      mode="canvas"
+      active
+      animate={false}
+    />,
+  );
+
+  expect(container.querySelector('.report-slide')).not.toHaveClass('report-slide--progressive');
+  for (const module of reportRevealPlan(slideWithDashboard)) {
+    const marker = container.querySelector(`[data-reveal-module="${module}"]`);
+    expect(marker).toHaveAttribute('data-reveal-visible', 'true');
+    expect(marker).not.toHaveAttribute('aria-hidden');
+    expect(marker).not.toHaveAttribute('inert');
   }
 });
 

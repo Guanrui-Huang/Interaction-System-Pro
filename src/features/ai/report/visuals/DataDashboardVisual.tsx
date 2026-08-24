@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { DataDashboardVisualSpec } from '../../../../../shared/report';
+import type { ReportRevealModule } from '../useReportModuleReveal';
 import { AtomicVisualRenderer } from './AtomicVisualRenderer';
 import { metricIdentitiesForAtomicVisual, ReportChartThemeProvider } from './ReportChartThemeContext';
 import { ReportVisualErrorBoundary } from './ReportVisualErrorBoundary';
@@ -8,6 +9,22 @@ import { formatReportNumber } from './visual-utils';
 import type { VisualMode } from './VisualRenderer';
 
 const MAX_SUMMARY_COLUMNS = 8;
+
+type RevealProps = {
+  'data-reveal-module': ReportRevealModule;
+  'data-reveal-visible': 'true' | 'false';
+  'aria-hidden'?: true;
+  inert?: true;
+};
+
+function revealProps(modules: ReadonlySet<ReportRevealModule> | undefined, module: ReportRevealModule): RevealProps {
+  const visible = modules === undefined || modules.has(module);
+  return {
+    'data-reveal-module': module,
+    'data-reveal-visible': String(visible) as 'true' | 'false',
+    ...(!visible ? { 'aria-hidden': true, inert: true } : {}),
+  };
+}
 
 export function summaryGridForMetricCount(metricCount: number) {
   const count = Math.max(0, Math.floor(metricCount));
@@ -21,7 +38,15 @@ export function summaryGridForMetricCount(metricCount: number) {
   return { columns: MAX_SUMMARY_COLUMNS, rows: Math.ceil(count / MAX_SUMMARY_COLUMNS) };
 }
 
-export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVisualSpec; mode: VisualMode }) {
+export function DataDashboardVisual({
+  visual,
+  mode,
+  revealedModules,
+}: {
+  visual: DataDashboardVisualSpec;
+  mode: VisualMode;
+  revealedModules?: ReadonlySet<ReportRevealModule>;
+}) {
   if (mode === 'thumbnail') {
     return (
       <div className="report-data-dashboard__primary">
@@ -49,9 +74,19 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
     <ReportChartThemeProvider metrics={paletteMetrics}>
       <div className="report-data-dashboard" data-support-count={visual.supporting.length} data-summary-columns={summaryColumns} data-summary-rows={summaryRows}>
         {visual.summaryMetrics.length > 0 && (
-          <dl className="report-data-dashboard__metrics" style={summaryStyle} aria-label="关键指标摘要">
-            {visual.summaryMetrics.map((metric) => (
-              <div className="report-data-dashboard__metric" key={`${metric.snapshotId}:${metric.key}`}>
+          <dl
+            className="report-data-dashboard__metrics"
+            style={summaryStyle}
+            aria-label="关键指标摘要"
+            {...revealProps(revealedModules, 'metrics')}
+          >
+            {visual.summaryMetrics.map((metric, index) => (
+              <div
+                className="report-data-dashboard__metric"
+                key={`${metric.snapshotId}:${metric.key}`}
+                data-reveal-index={index}
+                style={{ '--report-reveal-index': index } as CSSProperties}
+              >
                 <dt>
                   <ReportVisualIcon kind="metric" metricKey={metric.key} metricLabel={metric.label} />
                   <span>{metric.label}</span>
@@ -65,7 +100,12 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
             ))}
           </dl>
         )}
-        <section className="report-data-dashboard__primary" data-panel-kind={visual.primary.kind} aria-label="主图">
+        <section
+          className="report-data-dashboard__primary"
+          data-panel-kind={visual.primary.kind}
+          aria-label="主图"
+          {...revealProps(revealedModules, 'primary')}
+        >
           <div className="report-data-dashboard__panel-label">
             <ReportVisualIcon kind={visual.primary.kind} />
             <span>{reportVisualLabel(visual.primary.kind)}</span>
@@ -77,7 +117,13 @@ export function DataDashboardVisual({ visual, mode }: { visual: DataDashboardVis
         {supporting.length > 0 && (
           <div className="report-data-dashboard__support" aria-label="辅助图">
             {supporting.map((item, index) => (
-              <section key={`${item.kind}-${index + 1}`} data-panel-kind={item.kind} aria-label={`辅助图 ${index + 1}`}>
+              <section
+                key={`${item.kind}-${index + 1}`}
+                data-panel-kind={item.kind}
+                data-reveal-index={index}
+                aria-label={`辅助图 ${index + 1}`}
+                {...revealProps(revealedModules, `support-${index}`)}
+              >
                 <div className="report-data-dashboard__panel-label">
                   <ReportVisualIcon kind={item.kind} />
                   <span>{reportVisualLabel(item.kind)}</span>
