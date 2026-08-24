@@ -5,6 +5,7 @@ import type { NarrationAudioCache } from '../features/ai/report/narration-audio-
 import { useNarrationController } from '../features/ai/report/useNarrationController';
 import { ReportNarrationControls } from '../features/ai/report/ReportNarrationControls';
 import type { AudioSegmentPlayer, PlayableSpeech } from '../features/ai/voice/audio-segment-player';
+import { createVoiceOutputArbiter } from '../features/ai/voice/voice-output-arbiter';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -195,6 +196,66 @@ it('autoplays once and prefetches the current, next segment, and next page first
   expect(model.players).toHaveLength(1);
   expect(model.players[0].play).toHaveBeenCalledOnce();
   expect(result.current.subtitle).toBe('slide-1 讲解 1');
+});
+
+it('waits for a prompt lease before autoplaying report narration', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const prompt = await arbiter.acquire('prompt', async () => undefined);
+  const model = setup({ voiceOutputArbiter: arbiter });
+  const { result } = renderHook(() => useNarrationController(model.input));
+
+  await waitFor(() => expect(result.current.status).toBe('preparing'));
+  expect(model.players).toHaveLength(0);
+  act(() => prompt!.release());
+  await waitFor(() => expect(result.current.status).toBe('speaking'));
+  expect(model.players).toHaveLength(1);
+});
+it('releases the narration lease after natural playback completion', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const only = slide('slide-only', 0, ['speech-only']);
+  const model = setup({
+    voiceOutputArbiter: arbiter,
+    slides: [only],
+    outline: [outline(only, 'ready')],
+    activeSlideId: only.id,
+  });
+  const { result } = renderHook(() => useNarrationController(model.input));
+
+  await waitFor(() => expect(result.current.status).toBe('speaking'));
+  expect(arbiter.getActive()).toBe(true);
+  act(() => model.players[0].finish());
+
+  await waitFor(() => expect(result.current.status).toBe('completed'));
+  expect(arbiter.getActive()).toBe(false);
+});
+
+it('releases the narration lease when an interruption pauses playback', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const model = setup({ voiceOutputArbiter: arbiter });
+  const { result } = renderHook(() => useNarrationController(model.input));
+
+  await waitFor(() => expect(result.current.status).toBe('speaking'));
+  act(() => { result.current.beginInterruption('typing'); });
+
+  await waitFor(() => expect(model.players[0].pause).toHaveBeenCalledOnce());
+  expect(arbiter.getActive()).toBe(false);
+});
+
+it('keeps a narration lease while paused and releases it when stopped or unmounted', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const model = setup({ voiceOutputArbiter: arbiter });
+  const first = renderHook(() => useNarrationController(model.input));
+
+  await waitFor(() => expect(first.result.current.status).toBe('speaking'));
+  await act(async () => first.result.current.pause());
+  expect(arbiter.getActive()).toBe(true);
+  await act(async () => first.result.current.stop());
+  expect(arbiter.getActive()).toBe(false);
+
+  const second = renderHook(() => useNarrationController(model.input));
+  await waitFor(() => expect(second.result.current.status).toBe('speaking'));
+  second.unmount();
+  await waitFor(() => expect(arbiter.getActive()).toBe(false));
 });
 
 it('skips a superseded page and never resumes its stale narration cursor', async () => {
@@ -639,6 +700,20 @@ it('resolves follow-up answer playback only after its audio ends', async () => {
   expect(result.current.status).toBe('resuming');
 });
 
+it('leases follow-up answer playback and releases it after natural completion', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const model = setup({ autoplay: false, voiceOutputArbiter: arbiter });
+  const { result } = renderHook(() => useNarrationController(model.input));
+  let answer!: Promise<'ended' | 'cancelled' | 'failed'>;
+
+  act(() => { answer = result.current.playFollowUpAnswer('answer-speech'); });
+  await waitFor(() => expect(model.players).toHaveLength(1));
+  expect(arbiter.getActive()).toBe(true);
+  act(() => model.players[0].finish());
+
+  await expect(answer).resolves.toBe('ended');
+  expect(arbiter.getActive()).toBe(false);
+});
 it('releases a failed player immediately and permits a clean retry before unmount', async () => {
   const model = setup({
     createPlayer: () => {

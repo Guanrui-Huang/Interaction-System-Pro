@@ -8,6 +8,11 @@ import {
   createAudioSegmentPlayer,
   type AudioSegmentPlayer,
 } from '../voice/audio-segment-player';
+import {
+  voiceOutputArbiter,
+  type VoiceOutputArbiter,
+  type VoiceOutputLease,
+} from '../voice/voice-output-arbiter';
 import { NarrationAudioCache } from './narration-audio-cache';
 import { cueTextAtProgress, splitSubtitleCues, type SubtitleCue } from './narration-subtitle-cues';
 import { finalReplacementFor, playableReportSlides } from './report-playback';
@@ -39,6 +44,7 @@ export type UseNarrationControllerInput = {
   autoplay?: boolean;
   cache?: NarrationAudioCache;
   createPlayer?: () => AudioSegmentPlayer;
+  voiceOutputArbiter?: VoiceOutputArbiter;
 };
 
 export type NarrationController = {
@@ -65,6 +71,8 @@ type ActivePlayback = {
   kind: 'narration' | 'answer';
   operation: number;
   ended: boolean;
+  lease: VoiceOutputLease;
+  leaseReleased: boolean;
   cues?: SubtitleCue[];
   cueInterval?: ReturnType<typeof setInterval>;
   settle?: (result: FollowUpPlaybackResult) => void;
@@ -74,6 +82,12 @@ function clearCueInterval(playback: ActivePlayback): void {
   if (playback.cueInterval === undefined) return;
   clearInterval(playback.cueInterval);
   playback.cueInterval = undefined;
+}
+
+function releaseLease(playback: ActivePlayback): void {
+  if (playback.leaseReleased) return;
+  playback.leaseReleased = true;
+  playback.lease.release();
 }
 
 function sortedSlides(slides: readonly ReportSlide[]): ReportSlide[] {
@@ -131,6 +145,8 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
   if (!cacheRef.current) cacheRef.current = input.cache ?? new NarrationAudioCache();
   const createPlayerRef = useRef(input.createPlayer ?? createAudioSegmentPlayer);
   createPlayerRef.current = input.createPlayer ?? createAudioSegmentPlayer;
+  const arbiterRef = useRef(input.voiceOutputArbiter ?? voiceOutputArbiter);
+  arbiterRef.current = input.voiceOutputArbiter ?? voiceOutputArbiter;
   const cursorRef = useRef<NarrationCursor | undefined>(firstCursor(input));
   const playbackRef = useRef<ActivePlayback | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
@@ -169,6 +185,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     try { active.unsubscribe(); } catch { /* cleanup continues */ }
     cacheRef.current!.markPlaying(inputRef.current.reportId, active.speechId, false);
     try { await active.player.stop(); } catch { /* cleanup continues */ }
+    releaseLease(active);
   }, []);
 
   const cursorParts = useCallback((cursor: NarrationCursor) => {
@@ -238,6 +255,12 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     try {
       const audio = await audioPromise;
       if (!mountedRef.current || operation !== operationRef.current || controller.signal.aborted) return;
+      const lease = await arbiterRef.current.acquire('narration', releasePlayback, controller.signal);
+      if (!lease || !lease.isCurrent() || !mountedRef.current
+        || operation !== operationRef.current || controller.signal.aborted) {
+        lease?.release();
+        return;
+      }
       const player = createPlayerRef.current();
       const active: ActivePlayback = {
         player,
@@ -245,6 +268,8 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
         kind: 'narration',
         operation,
         ended: false,
+        lease,
+        leaseReleased: false,
         cues,
         unsubscribe: () => undefined,
       };
@@ -258,8 +283,11 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
         cacheRef.current!.markPlaying(inputRef.current.reportId, active.speechId, false);
         playbackRef.current = null;
         active.unsubscribe();
-        void active.player.stop().catch(() => undefined);
-        void advanceRef.current();
+        void (async () => {
+          try { await active.player.stop(); } catch { /* cleanup continues */ }
+          releaseLease(active);
+          await advanceRef.current();
+        })();
       });
       playbackRef.current = active;
       cacheRef.current!.markPlaying(inputRef.current.reportId, segment.speechId, true);
@@ -423,6 +451,7 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     if (active?.kind === 'answer') void releasePlayback('cancelled');
     else if (active) {
       clearCueInterval(active);
+      releaseLease(active);
       void active.player.pause().catch(() => undefined);
     }
     setStatus(mode);
@@ -441,7 +470,13 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     setMessage('正在播放追问回答');
     try {
       const audio = await cacheRef.current!.load(inputRef.current.reportId, speechId, controller.signal);
-      if (!mountedRef.current || operation !== operationRef.current) return 'cancelled';
+      if (!mountedRef.current || operation !== operationRef.current || controller.signal.aborted) return 'cancelled';
+      const lease = await arbiterRef.current.acquire('narration', releasePlayback, controller.signal);
+      if (!lease || !lease.isCurrent() || !mountedRef.current
+        || operation !== operationRef.current || controller.signal.aborted) {
+        lease?.release();
+        return 'cancelled';
+      }
       const player = createPlayerRef.current();
       let settle!: (result: FollowUpPlaybackResult) => void;
       const ended = new Promise<FollowUpPlaybackResult>((resolve) => { settle = resolve; });
@@ -451,6 +486,8 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
         kind: 'answer',
         operation,
         ended: false,
+        lease,
+        leaseReleased: false,
         unsubscribe: () => undefined,
         settle,
       };
@@ -461,17 +498,23 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
           cacheRef.current!.markPlaying(inputRef.current.reportId, speechId, false);
           playbackRef.current = null;
           active.unsubscribe();
-          active.settle?.('cancelled');
-          void active.player.stop().catch(() => undefined);
+          void (async () => {
+            try { await active.player.stop(); } catch { /* cleanup continues */ }
+            releaseLease(active);
+            active.settle?.('cancelled');
+          })();
           return;
         }
         cacheRef.current!.markPlaying(inputRef.current.reportId, speechId, false);
         playbackRef.current = null;
         active.unsubscribe();
-        active.settle?.('ended');
-        void active.player.stop().catch(() => undefined);
-        setStatus('resuming');
-        setMessage('追问回答已结束，可继续原讲解');
+        void (async () => {
+          try { await active.player.stop(); } catch { /* cleanup continues */ }
+          releaseLease(active);
+          active.settle?.('ended');
+          setStatus('resuming');
+          setMessage('追问回答已结束，可继续原讲解');
+        })();
       });
       playbackRef.current = active;
       cacheRef.current!.markPlaying(inputRef.current.reportId, speechId, true);
