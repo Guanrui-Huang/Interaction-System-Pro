@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { WATER_QUALITY_METRICS } from '../../shared/dashboard';
@@ -15,6 +15,7 @@ const voiceHarness = vi.hoisted(() => ({
   recognitionStop: vi.fn(async () => undefined),
   recognitionCancel: vi.fn(async () => undefined),
   recognitionOnFinal: undefined as ((text: string) => void) | undefined,
+  recognitionOptions: undefined as { autoStop?: { silenceMs?: number } } | undefined,
   voiceOutputActive: false,
 }));
 
@@ -34,8 +35,12 @@ vi.mock('../features/ai/voice/useVoiceOutputActivity', () => ({
 }));
 
 vi.mock('../features/ai/voice/useVoiceRecognition', () => ({
-  useVoiceRecognition: ({ onFinal }: { onFinal?: (text: string) => void } = {}) => {
+  useVoiceRecognition: ({ onFinal, autoStop }: {
+    onFinal?: (text: string) => void;
+    autoStop?: { silenceMs?: number };
+  } = {}) => {
     voiceHarness.recognitionOnFinal = onFinal;
+    voiceHarness.recognitionOptions = { autoStop };
     return {
       status: 'idle', confirmedText: '', interimText: '', elapsedMs: 0, errorCode: null,
       start: voiceHarness.recognitionStart, stop: voiceHarness.recognitionStop, cancel: voiceHarness.recognitionCancel,
@@ -67,6 +72,7 @@ function stubDashboardFetch(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   voiceHarness.wakeOnWake = undefined;
+  voiceHarness.recognitionOptions = undefined;
   voiceHarness.voiceOutputActive = false;
   stubDashboardFetch();
 });
@@ -155,4 +161,87 @@ it('starts recognition only after the wake acknowledgement completes', async () 
   expect(voiceHarness.recognitionStart).not.toHaveBeenCalled();
   await act(async () => { finishWakePrompt(); });
   expect(voiceHarness.recognitionStart).toHaveBeenCalledOnce();
+});
+
+it('starts the report before the analysis prompt finishes and configures auto-stop recognition', async () => {
+  const user = userEvent.setup();
+  let finishAnalysis!: () => void;
+  voiceHarness.promptPlay
+    .mockResolvedValueOnce(undefined)
+    .mockImplementationOnce(() => new Promise<void>((resolve) => { finishAnalysis = resolve; }));
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  await waitFor(() => expect(voiceHarness.recognitionStart).toHaveBeenCalledOnce());
+  expect(voiceHarness.recognitionOptions?.autoStop?.silenceMs).toBe(1000);
+
+  await act(async () => { voiceHarness.recognitionOnFinal?.('分析出水水质'); });
+
+  expect(screen.getByLabelText('AI 动态汇报工作区')).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: '语音交互' })).toBeInTheDocument();
+  expect(voiceHarness.promptPlay).toHaveBeenLastCalledWith('analysis-started', { question: '分析出水水质' });
+  await act(async () => { finishAnalysis(); });
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: '语音交互' })).not.toBeInTheDocument());
+});
+
+it('ignores repeated final recognition callbacks after launching one report', async () => {
+  const user = userEvent.setup();
+  let finishAnalysis!: () => void;
+  voiceHarness.promptPlay
+    .mockResolvedValueOnce(undefined)
+    .mockImplementationOnce(() => new Promise<void>((resolve) => { finishAnalysis = resolve; }));
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  await waitFor(() => expect(voiceHarness.recognitionStart).toHaveBeenCalledOnce());
+
+  await act(async () => {
+    voiceHarness.recognitionOnFinal?.('分析出水水质');
+    voiceHarness.recognitionOnFinal?.('分析能耗趋势');
+  });
+
+  expect(voiceHarness.promptPlay).toHaveBeenCalledTimes(2);
+  expect(voiceHarness.promptPlay).toHaveBeenLastCalledWith('analysis-started', { question: '分析出水水质' });
+  await act(async () => { finishAnalysis(); });
+});
+
+it('cancels recognition and pending analysis audio when the wake overlay is closed', async () => {
+  const user = userEvent.setup();
+  let finishAnalysis!: () => void;
+  voiceHarness.promptPlay
+    .mockResolvedValueOnce(undefined)
+    .mockImplementationOnce(() => new Promise<void>((resolve) => { finishAnalysis = resolve; }));
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  await waitFor(() => expect(voiceHarness.recognitionStart).toHaveBeenCalledOnce());
+  await act(async () => { voiceHarness.recognitionOnFinal?.('分析出水水质'); });
+
+  await user.click(screen.getByRole('button', { name: '关闭语音交互' }));
+  expect(voiceHarness.recognitionCancel).toHaveBeenCalled();
+  expect(voiceHarness.promptStop).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('dialog', { name: '语音交互' })).not.toBeInTheDocument();
+  await act(async () => { finishAnalysis(); });
+});
+
+it('stops a pending analysis prompt when the wake workflow unmounts', async () => {
+  const user = userEvent.setup();
+  let finishAnalysis!: () => void;
+  voiceHarness.promptPlay
+    .mockResolvedValueOnce(undefined)
+    .mockImplementationOnce(() => new Promise<void>((resolve) => { finishAnalysis = resolve; }));
+  const { unmount } = render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  await waitFor(() => expect(voiceHarness.recognitionStart).toHaveBeenCalledOnce());
+  await act(async () => { voiceHarness.recognitionOnFinal?.('分析出水水质'); });
+
+  unmount();
+
+  expect(voiceHarness.promptStop).toHaveBeenCalledOnce();
+  await act(async () => { finishAnalysis(); });
 });
