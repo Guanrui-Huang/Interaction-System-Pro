@@ -77,6 +77,16 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
+it('stops wake listening and never starts it while logged out, even after a wake overlay is requested', async () => {
+  render(<App />);
+  expect(voiceHarness.wakeStop).toHaveBeenCalledOnce();
+  expect(voiceHarness.wakeStart).not.toHaveBeenCalled();
+
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  expect(voiceHarness.wakeStop).toHaveBeenCalledTimes(2);
+  expect(voiceHarness.wakeStart).not.toHaveBeenCalled();
+});
+
 it('starts listening only after login and shows the breathing-ball overlay without navigation', async () => {
   const user = userEvent.setup();
   render(<App />);
