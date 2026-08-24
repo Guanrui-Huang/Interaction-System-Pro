@@ -133,8 +133,10 @@ it('shows interim text, streams only after ready, and delivers one final transcr
   await act(async () => {
     socket.serverJson({ type: 'ready' });
   });
+  for (let index = 0; index < 10; index += 1) dependencies.node.pcm(new Array(480).fill(0));
+  expect(socket.sent).not.toContainEqual({ type: 'stop' });
   dependencies.node.pcm(new Array(480).fill(0.5));
-  expect(socket.sent.filter((message) => message instanceof ArrayBuffer)).toHaveLength(1);
+  expect(socket.sent.filter((message) => message instanceof ArrayBuffer)).toHaveLength(11);
 
   await act(async () => {
     socket.serverJson({ type: 'transcript', text: '分析总', final: false });
@@ -400,4 +402,147 @@ it('concatenates final chunks and preserves all confirmed subtitles when the soc
   expect(result.current.status).toBe('error');
   expect(result.current.errorCode).toBe('VOICE_UPSTREAM_UNAVAILABLE');
   expect(onFinal).not.toHaveBeenCalled();
+});
+
+it('auto-stops once after speech followed by configured silence', async () => {
+  const socket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(socket);
+  const { result } = renderHook(() => useVoiceRecognition({
+    dependencies,
+    autoStop: { minSpeechMs: 20, silenceMs: 30, rmsThreshold: 0.02 },
+  }));
+
+  await act(async () => result.current.start());
+  await act(async () => socket.serverJson({ type: 'ready' }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+  });
+
+  expect(socket.sent.filter((value) => JSON.stringify(value) === JSON.stringify({ type: 'stop' }))).toHaveLength(1);
+  expect(result.current.status).toBe('stopping');
+});
+
+it('does not auto-stop on leading silence before speech begins', async () => {
+  const socket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(socket);
+  const { result } = renderHook(() => useVoiceRecognition({
+    dependencies,
+    autoStop: { minSpeechMs: 20, silenceMs: 30, rmsThreshold: 0.02 },
+  }));
+
+  await act(async () => result.current.start());
+  await act(async () => socket.serverJson({ type: 'ready' }));
+  for (let index = 0; index < 10; index += 1) dependencies.node.pcm(new Array(480).fill(0));
+
+  expect(socket.sent).not.toContainEqual({ type: 'stop' });
+  expect(result.current.status).toBe('recording');
+});
+
+it('resets trailing silence after interim transcript activity', async () => {
+  const socket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(socket);
+  const { result } = renderHook(() => useVoiceRecognition({
+    dependencies,
+    autoStop: { minSpeechMs: 20, silenceMs: 30, rmsThreshold: 0.02 },
+  }));
+
+  await act(async () => result.current.start());
+  await act(async () => socket.serverJson({ type: 'ready' }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+  });
+  await act(async () => socket.serverJson({ type: 'transcript', text: '分析', final: false }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+  });
+
+  expect(socket.sent).not.toContainEqual({ type: 'stop' });
+  expect(result.current.interimText).toBe('分析');
+  await act(async () => dependencies.node.pcm(new Array(480).fill(0)));
+  expect(socket.sent).toContainEqual({ type: 'stop' });
+});
+
+it('resets trailing silence after final transcript activity', async () => {
+  const socket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(socket);
+  const { result } = renderHook(() => useVoiceRecognition({
+    dependencies,
+    autoStop: { minSpeechMs: 20, silenceMs: 30, rmsThreshold: 0.02 },
+  }));
+
+  await act(async () => result.current.start());
+  await act(async () => socket.serverJson({ type: 'ready' }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0.2));
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+  });
+  await act(async () => socket.serverJson({ type: 'transcript', text: '分析', final: true }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(480).fill(0));
+    dependencies.node.pcm(new Array(480).fill(0));
+  });
+
+  expect(socket.sent).not.toContainEqual({ type: 'stop' });
+  expect(result.current.confirmedText).toBe('分析');
+  await act(async () => dependencies.node.pcm(new Array(480).fill(0)));
+  expect(socket.sent).toContainEqual({ type: 'stop' });
+});
+
+it('uses the default auto-stop thresholds when enabled', async () => {
+  const socket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(socket);
+  const { result } = renderHook(() => useVoiceRecognition({ dependencies, autoStop: {} }));
+
+  await act(async () => result.current.start());
+  await act(async () => socket.serverJson({ type: 'ready' }));
+  await act(async () => {
+    dependencies.node.pcm(new Array(4_800).fill(0.1));
+    dependencies.node.pcm(new Array(4_800).fill(0.1));
+    for (let index = 0; index < 10; index += 1) dependencies.node.pcm(new Array(4_800).fill(0));
+  });
+
+  expect(socket.sent).toContainEqual({ type: 'stop' });
+  expect(result.current.status).toBe('stopping');
+});
+
+it('cleans auto-stop state, timers, and listeners across cancel and restart', async () => {
+  const firstSocket = new FakeBrowserWebSocket();
+  const secondSocket = new FakeBrowserWebSocket();
+  const dependencies = fakeVoiceBrowser(firstSocket);
+  const sockets = [firstSocket, secondSocket];
+  const clearTimeout = vi.fn(globalThis.clearTimeout);
+  const clearInterval = vi.fn(globalThis.clearInterval);
+  dependencies.createWebSocket = vi.fn(() => sockets.shift()!);
+  dependencies.clearTimeout = clearTimeout;
+  dependencies.clearInterval = clearInterval;
+  const { result } = renderHook(() => useVoiceRecognition({
+    dependencies,
+    autoStop: { minSpeechMs: 20, silenceMs: 30, rmsThreshold: 0.02 },
+  }));
+
+  await act(async () => result.current.start());
+  await act(async () => firstSocket.serverJson({ type: 'ready' }));
+  dependencies.node.pcm(new Array(480).fill(0.2));
+  dependencies.node.pcm(new Array(480).fill(0.2));
+  await act(async () => result.current.cancel());
+
+  expect(dependencies.node.port.onmessage).toBeNull();
+  expect(clearTimeout).toHaveBeenCalledOnce();
+  expect(clearInterval).toHaveBeenCalledOnce();
+
+  await act(async () => result.current.start());
+  await act(async () => secondSocket.serverJson({ type: 'ready' }));
+  for (let index = 0; index < 10; index += 1) dependencies.node.pcm(new Array(480).fill(0));
+  expect(secondSocket.sent).not.toContainEqual({ type: 'stop' });
 });

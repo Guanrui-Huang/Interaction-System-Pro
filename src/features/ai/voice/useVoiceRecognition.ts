@@ -4,6 +4,7 @@ import { Pcm16Resampler } from './pcm-resampler';
 
 const RECOGNITION_PATH = '/api/voice/recognize';
 const MAX_RECORDING_MS = 60_000;
+const DEFAULT_AUTO_STOP = { silenceMs: 1000, minSpeechMs: 160, rmsThreshold: 0.015 } as const;
 const SOCKET_OPEN = 1;
 const SOCKET_CLOSED = 3;
 
@@ -33,9 +34,18 @@ export type VoiceBrowserDependencies = {
 
 export type VoiceRecognitionStatus = 'idle' | 'requesting-permission' | 'connecting' | 'recording' | 'stopping' | 'error';
 
+export type VoiceAutoStopOptions = {
+  silenceMs?: number;
+  minSpeechMs?: number;
+  rmsThreshold?: number;
+};
+
+type NormalizedVoiceAutoStopOptions = Required<VoiceAutoStopOptions>;
+
 export type UseVoiceRecognitionOptions = {
   onFinal?: (text: string) => void;
   dependencies?: VoiceBrowserDependencies;
+  autoStop?: VoiceAutoStopOptions;
 };
 
 export type VoiceRecognitionResult = {
@@ -69,6 +79,9 @@ type RecognitionSession = {
   serverReady: boolean;
   intentionallyClosed: boolean;
   startFrameSent: boolean;
+  speechMs: number;
+  silenceMs: number;
+  speechDetected: boolean;
 };
 
 function defaultDependencies(): VoiceBrowserDependencies {
@@ -118,11 +131,33 @@ function isPermissionError(error: unknown): boolean {
     : error instanceof Error && (error.name === 'NotAllowedError' || error.name === 'SecurityError');
 }
 
+function clampPositive(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.max(Number.EPSILON, value);
+}
+
+function normalizeAutoStopOptions(options?: VoiceAutoStopOptions): NormalizedVoiceAutoStopOptions | undefined {
+  if (!options) return undefined;
+  return {
+    silenceMs: clampPositive(options.silenceMs, DEFAULT_AUTO_STOP.silenceMs),
+    minSpeechMs: clampPositive(options.minSpeechMs, DEFAULT_AUTO_STOP.minSpeechMs),
+    rmsThreshold: clampPositive(options.rmsThreshold, DEFAULT_AUTO_STOP.rmsThreshold),
+  };
+}
+
+function rms(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let energy = 0;
+  for (const sample of samples) energy += sample * sample;
+  return Math.sqrt(energy / samples.length);
+}
+
 export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}): VoiceRecognitionResult {
   const dependenciesRef = useRef<VoiceBrowserDependencies>({
     ...defaultDependencies(),
     ...options.dependencies,
   });
+  const autoStop = useRef(normalizeAutoStopOptions(options.autoStop)).current;
   const onFinalRef = useRef(options.onFinal);
   onFinalRef.current = options.onFinal;
   const mountedRef = useRef(true);
@@ -230,6 +265,9 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}): V
       serverReady: false,
       intentionallyClosed: false,
       startFrameSent: false,
+      speechMs: 0,
+      silenceMs: 0,
+      speechDetected: false,
     };
     sessionRef.current = session;
     setIfMounted(() => {
@@ -298,7 +336,19 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}): V
             if (!isActive(session) || session.captureStopped || session.socket?.readyState !== SOCKET_OPEN) return;
             const data = workletEvent.data;
             if (!(data instanceof ArrayBuffer)) return;
-            const pcm = session.resampler!.push(new Float32Array(data));
+            const samples = new Float32Array(data);
+            if (autoStop) {
+              const frameMs = samples.length / session.context!.sampleRate * 1000;
+              if (rms(samples) >= autoStop.rmsThreshold) {
+                session.speechMs += frameMs;
+                session.silenceMs = 0;
+                session.speechDetected ||= session.speechMs >= autoStop.minSpeechMs;
+              } else if (session.speechDetected) {
+                session.silenceMs += frameMs;
+                if (session.silenceMs >= autoStop.silenceMs) requestStop(session);
+              }
+            }
+            const pcm = session.resampler!.push(samples);
             if (pcm.length > 0) session.socket.send(pcm.buffer);
           };
           session.source.connect(session.node);
@@ -314,6 +364,10 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}): V
           return;
         }
         if (message.type === 'transcript') {
+          if (autoStop && message.text.trim()) {
+            session.speechDetected = true;
+            session.silenceMs = 0;
+          }
           setIfMounted(() => {
             if (message.final) {
               setConfirmedText((confirmed) => `${confirmed}${message.text}`);
@@ -340,7 +394,7 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}): V
     } catch (error) {
       fail(session, isPermissionError(error) ? 'VOICE_PERMISSION_DENIED' : 'VOICE_UPSTREAM_UNAVAILABLE');
     }
-  }, [complete, fail, isActive, requestStop, setIfMounted, stopCapture]);
+  }, [autoStop, complete, fail, isActive, requestStop, setIfMounted, stopCapture]);
 
   const stop = useCallback(async () => {
     const session = sessionRef.current;
