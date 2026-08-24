@@ -1060,6 +1060,12 @@ test('keeps pending and ready dashboard canvas geometry stable at 1920x1080', as
 
   const pendingCanvasBox = await stableBox(pendingCanvas);
   const pendingTitleBox = await stableBox(pendingTitle);
+  const pendingSlotBoxes = await Promise.all([
+    stableBox(pendingCanvas.locator('[data-dashboard-slot="metrics"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-slot="primary"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="0"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="1"]')),
+  ]);
 
   api.releaseTerminal();
 
@@ -1071,6 +1077,51 @@ test('keeps pending and ready dashboard canvas geometry stable at 1920x1080', as
 
   expectStableBox(await stableBox(readyCanvas), pendingCanvasBox);
   expectStableBox(await stableBox(readyTitle), pendingTitleBox);
+  const readySlotBoxes = await Promise.all([
+    stableBox(readyCanvas.locator('[data-dashboard-slot="metrics"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-slot="primary"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-support-slot="0"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-support-slot="1"]')),
+  ]);
+  for (let index = 0; index < readySlotBoxes.length; index += 1) {
+    expectStableBox(readySlotBoxes[index]!, pendingSlotBoxes[index]!);
+  }
+});
+
+test('keeps atomic kpi-grid slots stable when the outline falls back from dashboard planning', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await installBrowserAudioFake(page);
+  const api = await installMockReportApi(page);
+
+  await launchQuestion(page, '总氮是什么，目前是否达标？');
+  api.createGate.resolve();
+  await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
+  await api.terminalStreamReady;
+
+  const pendingCanvas = page.locator('[data-slide-state="pending"][data-slide-mode="canvas"][data-slide-id="mixed-answer"]');
+  await expect(pendingCanvas).toBeVisible();
+  const pendingSlotBoxes = await Promise.all([
+    stableBox(pendingCanvas.locator('[data-dashboard-slot="metrics"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-slot="primary"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="0"]')),
+    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="1"]')),
+  ]);
+
+  api.releaseTerminal();
+
+  const readyCanvas = page.locator('[data-slide-mode="canvas"][data-slide-id="mixed-answer"]:not([data-slide-state="pending"])');
+  await expect(readyCanvas).toBeVisible();
+  await expect(readyCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
+  await expect(readyCanvas.locator('.report-data-dashboard--atomic-kpi')).toBeVisible();
+  const readySlotBoxes = await Promise.all([
+    stableBox(readyCanvas.locator('[data-dashboard-slot="metrics"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-slot="primary"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-support-slot="0"]')),
+    stableBox(readyCanvas.locator('[data-dashboard-support-slot="1"]')),
+  ]);
+  for (let index = 0; index < readySlotBoxes.length; index += 1) {
+    expectStableBox(readySlotBoxes[index]!, pendingSlotBoxes[index]!);
+  }
 });
 
 test('keeps the mocked progressive report static under reduced motion at large-screen size', async ({ page }, testInfo) => {

@@ -7,7 +7,9 @@ type PendingMode = 'canvas' | 'thumbnail';
 function PendingBlocks({ count, className }: { count: number; className: string }) {
   return (
     <div className={className} aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => <span key={index} />)}
+      <div className="report-pending-slide__blur-surface">
+        {Array.from({ length: count }, (_, index) => <span key={index} />)}
+      </div>
     </div>
   );
 }
@@ -30,11 +32,13 @@ function PendingPanel({
       data-dashboard-slot={module === 'primary' ? 'primary' : undefined}
       data-dashboard-support-slot={supportSlot}
     >
-      <div className="report-pending-slide__panel-cap" />
-      <div className={surfaceClassName}>
-        <span />
-        <span />
-        <span />
+      <div className="report-pending-slide__panel-surface">
+        <div className="report-pending-slide__panel-cap" />
+        <div className={surfaceClassName}>
+          <span />
+          <span />
+          <span />
+        </div>
       </div>
     </section>
   );
@@ -45,10 +49,12 @@ function PendingMetricCards({ count }: { count: number }) {
     <div className="report-pending-slide__metrics" data-pending-module="metrics" data-dashboard-slot="metrics">
       {Array.from({ length: count }, (_, index) => (
         <section className="report-pending-slide__metric" key={index}>
-          <div className="report-pending-slide__metric-cap" />
-          <div className="report-pending-slide__metric-body">
-            <span />
-            <span />
+          <div className="report-pending-slide__metric-surface">
+            <div className="report-pending-slide__metric-cap" />
+            <div className="report-pending-slide__metric-body">
+              <span />
+              <span />
+            </div>
           </div>
         </section>
       ))}
@@ -124,7 +130,7 @@ export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutli
       </div>
       {mode === 'canvas' && (
         <div className="report-pending-slide__evidence" data-pending-module="evidence" aria-hidden="true">
-          <span />
+          <div className="report-pending-slide__blur-surface"><span /></div>
         </div>
       )}
     </section>

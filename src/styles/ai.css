@@ -227,7 +227,7 @@
 .report-canvas-geometry-shell--dashboard {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "heading" "visual" "evidence";
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: 6.1rem minmax(0, 1fr) minmax(2.2rem, auto);
   align-content: stretch;
   padding-inline: 14px;
 }
@@ -292,12 +292,13 @@
   grid-area: metrics;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  block-size: 5.5rem;
+  min-block-size: 4.8rem;
   gap: .3rem;
 }
 .report-pending-slide__metric,
 .report-pending-slide__panel {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: block;
   min-width: 0;
   min-height: 0;
   overflow: clip;
@@ -306,6 +307,18 @@
   background: rgb(5 17 25 / 36%);
 }
 .report-pending-slide__metric { min-height: 4.8rem; }
+.report-pending-slide__metrics,
+.report-pending-slide__evidence,
+.report-pending-slide__takeaway,
+.report-pending-slide__title-placeholder { overflow: clip; }
+.report-pending-slide__metric-surface,
+.report-pending-slide__panel-surface {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
 .report-pending-slide__metric-cap,
 .report-pending-slide__panel-cap,
 .report-pending-slide__metric-body > span,
@@ -392,7 +405,7 @@
 .report-canvas-geometry-shell--dashboard.report-pending-slide--canvas {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "heading" "visual" "evidence";
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: 6.1rem minmax(0, 1fr) minmax(2.2rem, auto);
   align-content: stretch;
   padding-inline: 14px;
 }
@@ -433,11 +446,9 @@
   width: 9rem;
   margin-top: .55rem;
 }
-.report-pending-slide [data-pending-module],
-.report-pending-slide__metrics,
-.report-pending-slide__metric,
-.report-pending-slide__takeaway,
-.report-pending-slide__title-placeholder {
+.report-pending-slide__metric-surface,
+.report-pending-slide__panel-surface,
+.report-pending-slide__blur-surface {
   filter: blur(8px);
   opacity: .46;
   animation: report-pending-breathe 1.8s ease-in-out infinite alternate;
@@ -457,11 +468,9 @@
   to { opacity: .54; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .report-pending-slide [data-pending-module],
-  .report-pending-slide__metrics,
-  .report-pending-slide__metric,
-  .report-pending-slide__takeaway,
-  .report-pending-slide__title-placeholder {
+  .report-pending-slide__metric-surface,
+  .report-pending-slide__panel-surface,
+  .report-pending-slide__blur-surface {
     animation: none;
   }
 }
@@ -523,7 +532,7 @@
 .report-canvas-geometry-shell--dashboard.report-slide--canvas {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "heading" "visual" "evidence";
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: 6.1rem minmax(0, 1fr) minmax(2.2rem, auto);
   align-content: stretch;
   padding-inline: 14px;
 }
@@ -550,7 +559,7 @@
   height: 100%;
   min-height: 0;
 }
-.report-data-dashboard__metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(var(--report-summary-columns), minmax(0, 1fr)); min-block-size: 4.8rem; gap: .3rem; margin: 0; }
+.report-data-dashboard__metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(var(--report-summary-columns), minmax(0, 1fr)); block-size: 5.5rem; min-block-size: 4.8rem; gap: .3rem; margin: 0; overflow: clip; }
 .report-data-dashboard__metric { min-width: 0; padding: .72rem .75rem; border: 1px solid rgb(111 175 192 / 18%); background: rgb(7 19 27 / 48%); }
 .report-data-dashboard__metric dt,
 .report-data-dashboard__panel-label,

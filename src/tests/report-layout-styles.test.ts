@@ -59,8 +59,9 @@ it('keeps the mint send control contrasted through hover and focus', () => {
 it('uses the approved no-scroll 1920 dashboard geometry', () => {
   expect(css).toMatch(/\.report-workspace__canvas\s*\{[^}]*overflow:\s*hidden;/su);
   expect(css).toMatch(/\.report-slide--canvas\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*6\.1rem\s+minmax\(0,\s*1fr\)\s+minmax\(2\.2rem,\s*auto\);/su);
   expect(css).toMatch(/\.report-data-dashboard\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);[^}]*min-block-size:\s*4\.8rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);[^}]*block-size:\s*5\.5rem;[^}]*min-block-size:\s*4\.8rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
 });
 
@@ -91,6 +92,8 @@ it('restores final zero, one, and two-support dashboard layouts while pending ge
 it('clips pending module surfaces so blur stays inside each slot', () => {
   expect(css).toMatch(/\.report-pending-slide__metric,\s*\.report-pending-slide__panel\s*\{[^}]*overflow:\s*clip;/su);
   expect(css).toMatch(/\.report-data-dashboard--atomic-kpi\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";/su);
+  expect(css).toMatch(/\.report-pending-slide__metric-surface,\s*\.report-pending-slide__panel-surface,\s*\.report-pending-slide__blur-surface\s*\{[^}]*filter:\s*blur\(8px\);/su);
+  expect(css).not.toMatch(/\.report-pending-slide \[data-pending-module\],\s*\.report-pending-slide__metrics,\s*\.report-pending-slide__metric,\s*\.report-pending-slide__takeaway,\s*\.report-pending-slide__title-placeholder\s*\{[^}]*filter:/su);
 });
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
