@@ -46,6 +46,9 @@ it('uses only real outline metadata in the pending canvas', () => {
   expect(canvas).not.toBeNull();
   expect(canvas).toHaveClass('report-pending-slide--layout-visual-focus');
   expect(within(canvas as HTMLElement).getByRole('heading', { name: '总氮与能耗综合分析' })).toBeVisible();
+  expect(within(canvas as HTMLElement).getByText('/ LIVE REPORT')).toBeVisible();
+  expect(within(canvas as HTMLElement).getByText('01')).toBeVisible();
+  expect(canvas?.querySelector('[data-icon-kind="data-dashboard"]')).not.toBeNull();
   expect(canvas?.querySelectorAll('[data-pending-module]').length).toBeGreaterThanOrEqual(3);
   expect(within(canvas as HTMLElement).queryByText('生成中')).not.toBeInTheDocument();
 });

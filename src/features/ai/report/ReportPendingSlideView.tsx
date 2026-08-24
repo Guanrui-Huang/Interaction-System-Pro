@@ -1,4 +1,5 @@
 import type { SlideOutline } from '../../../../shared/report';
+import { ReportVisualIcon, type ReportVisualIconKind } from './visuals/ReportVisualIcon';
 
 type PendingMode = 'canvas' | 'thumbnail';
 
@@ -67,6 +68,7 @@ export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutli
   const layout = outline?.layout ?? 'visual-focus';
   const dashboard = outline ? dashboardKinds.has(outline.visualKind) : true;
   const canvasGeometry = dashboard ? 'dashboard' : layout;
+  const metadataIconKind: ReportVisualIconKind = dashboard ? 'data-dashboard' : (outline?.visualKind ?? 'metric');
   const geometryClass = mode === 'canvas'
     ? ` report-canvas-geometry-shell report-canvas-geometry-shell--${canvasGeometry}`
     : '';
@@ -84,6 +86,12 @@ export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutli
     >
       <div className="report-pending-slide__guide" aria-hidden="true" />
       <header className="report-pending-slide__heading">
+        {outline && (
+          <p>
+            <ReportVisualIcon kind={metadataIconKind} />
+            <span>{String(outline.order + 1).padStart(2, '0')}</span> / LIVE REPORT
+          </p>
+        )}
         {outline ? (
           <h2>{outline.title}</h2>
         ) : (

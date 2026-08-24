@@ -72,6 +72,10 @@ it('uses a compact two-row canvas with a floating subtitle and balanced dashboar
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
+  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
+  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
+  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
+  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
   expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*position:\s*fixed;[^}]*pointer-events:\s*none;[^}]*background:\s*transparent;/su);
   expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*color:\s*#fff;[^}]*text-align:\s*center;[^}]*text-shadow:/su);
   expect(css).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;/su);

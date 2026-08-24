@@ -263,6 +263,16 @@
   box-shadow: 0 0 14px rgb(44 228 245 / 54%);
 }
 .report-pending-slide__heading { grid-area: heading; min-width: 0; }
+.report-pending-slide__heading > p:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 20px;
+  color: #6f98a5;
+  font: 11px "JetBrains Mono", monospace;
+  letter-spacing: .12em;
+}
+.report-pending-slide__heading > p:first-child span { color: var(--report-cyan); }
 .report-pending-slide__heading h2 {
   margin: 0;
   color: #f3fcfd;
@@ -387,12 +397,14 @@
 }
 .report-pending-slide--visual-data-dashboard.report-pending-slide--canvas .report-pending-slide__heading {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "title" "takeaway";
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-areas: "meta title" "takeaway takeaway";
   align-items: start;
-  gap: .4rem;
+  gap: .4rem 1.25rem;
 }
+.report-pending-slide--visual-data-dashboard.report-pending-slide--canvas .report-pending-slide__heading > p:first-child { grid-area: meta; align-self: center; margin: 0; }
 .report-pending-slide--visual-data-dashboard.report-pending-slide--canvas .report-pending-slide__heading h2 { grid-area: title; min-width: 0; max-width: none; text-wrap: balance; overflow-wrap: normal; line-break: strict; }
+.report-pending-slide--visual-data-dashboard.report-pending-slide--canvas .report-pending-slide__title-placeholder { grid-area: title; }
 .report-pending-slide--visual-data-dashboard.report-pending-slide--canvas .report-pending-slide__takeaway { grid-area: takeaway; max-width: none; margin-top: .35rem; }
 .report-pending-slide--visual-data-dashboard .report-pending-slide__visual {
   grid-template-areas: "metrics metrics" "primary support";

@@ -1,4 +1,4 @@
-import { expect, test, type Page, type Route, type TestInfo } from 'playwright/test';
+import { expect, test, type Locator, type Page, type Route, type TestInfo } from 'playwright/test';
 import { ATOMIC_VISUAL_KINDS, type ConversationTurn, type CreateReportResponse, type FollowUpResponse, type ReportEvent, type ReportJobSnapshot, type ReportSlide, type SlideOutline } from '../shared/report';
 import type { AnalysisMetricKey } from '../server/src/domain/analysis-plan';
 import { createDashboardFixtures, type DashboardFixtures } from './dashboard-fixtures';
@@ -353,6 +353,15 @@ function scenarioFor(question: string, clarificationAnswered = false): MockRepor
     ];
     return { question, slides, outline: slides.map((item) => outlineFor(item)) };
   }
+  if (question === '首屏综合看板') {
+    const firstDashboardSlide: ReportSlide = {
+      ...energySlide,
+      id: 'first-dashboard',
+      order: 0,
+      title: '首屏综合看板',
+    };
+    return { question, slides: [firstDashboardSlide], outline: [outlineFor(firstDashboardSlide)] };
+  }
   if (question === '第二页持续失败') {
     const first = slide({ id: 'exhausted-first', order: 0, title: '首屏判断', takeaway: '首屏在后续失败时仍可用。', evidence: tn });
     const second = slide({ id: 'exhausted-second', order: 1, title: '第二页证据', takeaway: '等待手动重试。', evidence: blower });
@@ -701,6 +710,20 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string): P
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
 }
 
+type StableBox = { x: number; width: number; height: number };
+
+async function stableBox(locator: Locator): Promise<StableBox> {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return { x: box!.x, width: box!.width, height: box!.height };
+}
+
+function expectStableBox(actual: StableBox, expected: StableBox, tolerance = 2): void {
+  expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(tolerance);
+  expect(Math.abs(actual.width - expected.width)).toBeLessThanOrEqual(tolerance);
+  expect(Math.abs(actual.height - expected.height)).toBeLessThanOrEqual(tolerance);
+}
+
 test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await installBrowserAudioFake(page);
@@ -1014,6 +1037,39 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   await expect(page.getByRole('list', { name: '追问记录' })).toContainText('这个数怎么算');
   expect(api.sessionBodies.length).toBeGreaterThan(0);
   await attachScreenshot(page, testInfo, 'dynamic-report-1920x1080');
+});
+
+test('keeps pending and ready dashboard canvas geometry stable at 1920x1080', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await installBrowserAudioFake(page);
+  const api = await installMockReportApi(page);
+
+  await launchQuestion(page, '首屏综合看板');
+  api.createGate.resolve();
+  await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
+  await api.terminalStreamReady;
+
+  const pendingCanvas = page.locator('[data-slide-state="pending"][data-slide-mode="canvas"][data-slide-id="first-dashboard"]');
+  const pendingTitle = pendingCanvas.locator('h2', { hasText: '首屏综合看板' });
+  await expect(pendingCanvas).toBeVisible();
+  await expect(pendingTitle).toBeVisible();
+  await expect(page.getByText('正在生成首个页面', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
+
+  const pendingCanvasBox = await stableBox(pendingCanvas);
+  const pendingTitleBox = await stableBox(pendingTitle);
+
+  api.releaseTerminal();
+
+  const readyCanvas = page.locator('[data-slide-mode="canvas"][data-slide-id="first-dashboard"]:not([data-slide-state="pending"])');
+  const readyTitle = readyCanvas.locator('h2', { hasText: '首屏综合看板' });
+  await expect(readyCanvas).toBeVisible();
+  await expect(readyCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
+  await expect(readyTitle).toBeVisible();
+
+  expectStableBox(await stableBox(readyCanvas), pendingCanvasBox);
+  expectStableBox(await stableBox(readyTitle), pendingTitleBox);
 });
 
 test('keeps the mocked progressive report static under reduced motion at large-screen size', async ({ page }, testInfo) => {

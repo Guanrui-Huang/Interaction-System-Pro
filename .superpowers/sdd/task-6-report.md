@@ -111,6 +111,38 @@
 
 ---
 
+# Task 6 Final Review Geometry Fixes
+
+- Date: 2026-08-24
+- Status: Fixed the pending dashboard heading geometry shift and added a real 1920x1080 pending-to-ready Playwright regression.
+
+## Changed Files
+
+- `e2e/dashboard.spec.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-pending-slide.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-pending-slide.test.tsx src/tests/report-layout-styles.test.ts` failed before implementation with 2 failed and 22 passed tests:
+  - `report-pending-slide.test.tsx`: pending canvas did not render the outline-derived/static metadata (`01`, `/ LIVE REPORT`, dashboard icon).
+  - `report-layout-styles.test.ts`: pending dashboard heading did not use the ready dashboard metadata/title/takeaway grid.
+- Red: `CI=1 ./node_modules/.bin/playwright test --project=mocked e2e/dashboard.spec.ts -g "keeps pending and ready dashboard canvas geometry stable"` could not start inside the sandbox because the local `tsx` web server failed with `listen EPERM` on `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/74836.pipe`.
+- Green: `./node_modules/.bin/vitest run src/tests/report-pending-slide.test.tsx src/tests/report-layout-styles.test.ts` passed, 24 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` passed, 71 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` passed outside the sandbox, 11 tests.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
+
+---
+
 # Task 6 Remaining Final-Review Fixes
 
 - Date: 2026-08-24
