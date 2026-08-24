@@ -66,13 +66,18 @@ function PendingMetricCards({ count }: { count: number }) {
 export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutline; mode: PendingMode }) {
   const layout = outline?.layout ?? 'visual-focus';
   const dashboard = outline ? dashboardKinds.has(outline.visualKind) : true;
+  const canvasGeometry = dashboard ? 'dashboard' : layout;
+  const geometryClass = mode === 'canvas'
+    ? ` report-canvas-geometry-shell report-canvas-geometry-shell--${canvasGeometry}`
+    : '';
 
   return (
     <section
-      className={`report-pending-slide report-pending-slide--${mode} report-pending-slide--layout-${layout}${dashboard ? ' report-pending-slide--visual-data-dashboard' : ' report-pending-slide--visual-atomic'}`}
+      className={`report-pending-slide report-pending-slide--${mode} report-pending-slide--layout-${layout}${dashboard ? ' report-pending-slide--visual-data-dashboard' : ' report-pending-slide--visual-atomic'}${geometryClass}`}
       data-slide-id={outline?.id ?? 'pending-report'}
       data-slide-mode={mode}
       data-slide-state="pending"
+      data-canvas-geometry={mode === 'canvas' ? canvasGeometry : undefined}
       role={mode === 'canvas' ? 'region' : undefined}
       aria-label={mode === 'canvas' ? (outline ? `待完成页面：${outline.title}` : '待完成汇报页面') : undefined}
       aria-hidden={mode === 'thumbnail' || undefined}

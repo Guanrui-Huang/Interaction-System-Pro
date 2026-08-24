@@ -48,15 +48,20 @@ export function ReportSlideView({
   }, [active, mode, slide.id]);
   const insufficient = slide.metrics.length === 0 && slide.evidenceRefs.length === 0;
   const superseded = slide.supersededBySlideId !== undefined;
+  const canvasGeometry = slide.visual.kind === 'data-dashboard' ? 'dashboard' : slide.layout;
+  const geometryClass = mode === 'canvas'
+    ? ` report-canvas-geometry-shell report-canvas-geometry-shell--${canvasGeometry}`
+    : '';
 
   return (
     <section
       ref={rootRef}
-      className={`report-slide report-slide--${mode} report-slide--layout-${slide.layout} report-slide--visual-${slide.visual.kind}${superseded ? ' report-slide--superseded' : ''}${revealedModules ? ' report-slide--progressive' : ''}`}
+      className={`report-slide report-slide--${mode} report-slide--layout-${slide.layout} report-slide--visual-${slide.visual.kind}${geometryClass}${superseded ? ' report-slide--superseded' : ''}${revealedModules ? ' report-slide--progressive' : ''}`}
       data-slide-mode={mode}
       data-slide-id={slide.id}
       data-slide-role={slide.role}
       data-visual-kind={slide.visual.kind}
+      data-canvas-geometry={mode === 'canvas' ? canvasGeometry : undefined}
       data-slide-superseded={superseded || undefined}
       {...(mode === 'canvas' ? { role: 'region', 'aria-label': '当前汇报页' } : { 'aria-hidden': true })}
     >

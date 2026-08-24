@@ -213,6 +213,24 @@
 .report-thumbnail__retry-error { margin: 5px 4px 0; color: var(--report-danger); font: 10px/1.45 "JetBrains Mono", "Microsoft YaHei", monospace; }
 .report-workspace__canvas { position: relative; grid-area: canvas; min-width: 0; min-height: 0; padding: clamp(10px, 1.25vw, 20px); overflow: hidden; container-type: inline-size; }
 .report-slide { position: relative; min-width: 0; overflow: hidden; }
+.report-canvas-geometry-shell {
+  position: relative;
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: clip;
+  border: 1px solid rgb(92 158 177 / 18%);
+  background: linear-gradient(145deg, rgb(18 38 51 / 89%), rgb(7 19 27 / 95%));
+  box-shadow: 0 24px 60px rgb(0 0 0 / 28%);
+}
+.report-canvas-geometry-shell--dashboard {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "heading" "visual" "evidence";
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  padding-inline: 14px;
+}
 .report-pending-slide {
   position: relative;
   display: grid;

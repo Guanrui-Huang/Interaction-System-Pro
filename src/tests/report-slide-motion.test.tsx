@@ -95,3 +95,22 @@ it('marks the slide animated only after the GSAP timeline completes', () => {
   expect(onComplete).toHaveBeenCalledTimes(1);
   expect(primary.closest('[data-slide-motion-state]')).toHaveAttribute('data-slide-motion-state', 'final');
 });
+
+it('keeps the active timeline stable when rerendered with a new completion callback', () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+  const firstComplete = vi.fn();
+  const secondComplete = vi.fn();
+  const { rerender } = render(<MotionCallbackHarness onComplete={firstComplete} />);
+  const completion = motionCapture.completions.at(-1);
+
+  rerender(<MotionCallbackHarness onComplete={secondComplete} />);
+
+  expect(motionCapture.scopes).toHaveLength(1);
+  expect(motionCapture.completions).toHaveLength(1);
+
+  completion?.();
+  completion?.();
+
+  expect(firstComplete).not.toHaveBeenCalled();
+  expect(secondComplete).toHaveBeenCalledTimes(1);
+});

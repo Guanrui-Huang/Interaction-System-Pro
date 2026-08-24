@@ -439,6 +439,46 @@ it('keeps report slides fully visible when no reveal set is supplied', () => {
   }
 });
 
+it('keeps the pending and ready dashboard canvas on the same geometry shell', () => {
+  const pendingOutline = {
+    ...outline('slide-dashboard', 0, '综合看板', 'generating'),
+    layout: 'diagnostic-overview',
+    visualKind: 'trend-line',
+  } satisfies SlideOutline;
+  const pendingSnapshot = snapshot({
+    status: 'generating',
+    phase: 'generating-slides',
+    outline: [pendingOutline],
+    slides: [],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: pendingOutline.id },
+  });
+  const { container, rerender } = render(<ReportWorkspace session={session(pendingSnapshot)} />);
+  const pendingCanvas = container.querySelector<HTMLElement>('.report-workspace__canvas > [data-slide-state="pending"][data-slide-mode="canvas"]');
+
+  expect(pendingCanvas).not.toBeNull();
+  expect(pendingCanvas).toHaveClass('report-canvas-geometry-shell', 'report-canvas-geometry-shell--dashboard');
+  expect(pendingCanvas).toHaveAttribute('data-canvas-geometry', 'dashboard');
+  expect(pendingCanvas?.querySelector('.report-pending-slide__support')).not.toHaveAttribute('aria-label');
+  expect(screen.queryByText('生成中', { exact: true })).not.toBeInTheDocument();
+
+  const ready = dashboardSlide('slide-dashboard', 0, '综合看板');
+  rerender(<ReportWorkspace session={session(snapshot({
+    outline: [{ ...pendingOutline, status: 'ready' }],
+    slides: [ready],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: ready.id },
+  }))} />);
+
+  const readyCanvas = container.querySelector<HTMLElement>('.report-workspace__canvas > [data-slide-mode="canvas"][data-slide-id="slide-dashboard"]');
+  expect(readyCanvas).not.toBeNull();
+  expect(readyCanvas).toHaveClass('report-canvas-geometry-shell', 'report-canvas-geometry-shell--dashboard');
+  expect(readyCanvas).toHaveAttribute('data-canvas-geometry', 'dashboard');
+  expect(
+    Array.from(readyCanvas!.classList).filter((className) => className.startsWith('report-canvas-geometry-shell')),
+  ).toEqual(
+    Array.from(pendingCanvas!.classList).filter((className) => className.startsWith('report-canvas-geometry-shell')),
+  );
+});
+
 it('keeps the evidence grid item and reduced-motion reveal override wired in CSS', () => {
   expect(reportStyles).toContain('.report-slide__evidence { grid-area: evidence;');
   expect(reportStyles).toContain('.report-slide--progressive [data-reveal-module] { transition: none; }');

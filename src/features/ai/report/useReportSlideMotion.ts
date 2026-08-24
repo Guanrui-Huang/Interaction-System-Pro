@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import { useLayoutEffect, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 import type { VisualSpec } from '../../../../shared/report';
 
 type MotionRoot = HTMLElement | null;
@@ -20,13 +20,19 @@ export function useReportSlideMotion(
   animate = true,
   onMotionComplete?: () => void,
 ): void {
+  const onMotionCompleteRef = useRef(onMotionComplete);
+
+  useLayoutEffect(() => {
+    onMotionCompleteRef.current = onMotionComplete;
+  }, [onMotionComplete]);
+
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root || !active) return undefined;
     const reduced = typeof window.matchMedia !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || !animate) {
       setFinalState(root, reduced);
-      onMotionComplete?.();
+      onMotionCompleteRef.current?.();
       return undefined;
     }
 
@@ -38,7 +44,7 @@ export function useReportSlideMotion(
       if (completed) return;
       completed = true;
       setFinalState(root, false);
-      onMotionComplete?.();
+      onMotionCompleteRef.current?.();
     };
     const context = gsap.context(() => {
       const timeline = gsap.timeline({ defaults: { ease: 'power2.out' }, onComplete: completeMotion });
@@ -57,5 +63,5 @@ export function useReportSlideMotion(
       if (!numbers.length && !bars.length && !reveals.length && !rings.length) timeline.fromTo(motionRoot.querySelector('.report-visual__graphic'), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .42 }, 0);
     }, motionRoot);
     return () => context.revert();
-  }, [active, animate, onMotionComplete, rootRef, visualKind]);
+  }, [active, animate, rootRef, visualKind]);
 }

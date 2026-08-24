@@ -108,3 +108,36 @@
 
 - `server/.env.example` was left unstaged and unmodified.
 - `.DS_Store` was left unstaged and unmodified.
+
+---
+
+# Task 6 Remaining Final-Review Fixes
+
+- Date: 2026-08-24
+- Status: Fixed the remaining final-review motion rerender and pending-to-ready geometry findings.
+
+## Changed Files
+
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/ReportSlideView.tsx`
+- `src/features/ai/report/useReportSlideMotion.ts`
+- `src/styles/ai.css`
+- `src/tests/report-slide-motion.test.tsx`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-workspace.test.tsx` failed before implementation with 2 failed and 48 passed tests:
+  - `report-slide-motion.test.tsx`: rerendering with a new completion callback recreated the GSAP context.
+  - `report-workspace.test.tsx`: the pending dashboard canvas did not expose the shared geometry shell contract.
+- Green: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-workspace.test.tsx` passed, 50 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-workspace.test.tsx src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts` passed, 136 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/73217.pipe`; rerun outside the sandbox passed, 10 tests.
+- UI detector: `node /Users/xiaoshen001/.codex/skills/impeccable/scripts/detect.mjs --json --scope layout src/features/ai/report/ReportSlideView.tsx src/features/ai/report/ReportPendingSlideView.tsx src/styles/ai.css` passed with `[]`.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
