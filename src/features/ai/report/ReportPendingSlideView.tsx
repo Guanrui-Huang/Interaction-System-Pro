@@ -11,20 +11,58 @@ const dashboardKinds = new Set<SlideOutline['visualKind']>([
   'scatter',
 ]);
 
-function PendingBars({ count, className }: { count: number; className: string }) {
+function PendingBlocks({ count, className }: { count: number; className: string }) {
   return (
     <div className={className} aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => <i key={index} />)}
+      {Array.from({ length: count }, (_, index) => <span key={index} />)}
+    </div>
+  );
+}
+
+function PendingPanel({
+  className,
+  surfaceClassName,
+  module,
+}: {
+  className: string;
+  surfaceClassName: string;
+  module: string;
+}) {
+  return (
+    <section className={className} data-pending-module={module}>
+      <div className="report-pending-slide__panel-cap" />
+      <div className={surfaceClassName}>
+        <span />
+        <span />
+        <span />
+      </div>
+    </section>
+  );
+}
+
+function PendingMetricCards({ count }: { count: number }) {
+  return (
+    <div className="report-pending-slide__metrics" data-pending-module="metrics">
+      {Array.from({ length: count }, (_, index) => (
+        <section className="report-pending-slide__metric" key={index}>
+          <div className="report-pending-slide__metric-cap" />
+          <div className="report-pending-slide__metric-body">
+            <span />
+            <span />
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
 
 export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutline; mode: PendingMode }) {
+  const layout = outline?.layout ?? 'visual-focus';
   const dashboard = outline ? dashboardKinds.has(outline.visualKind) : true;
 
   return (
     <section
-      className={`report-pending-slide report-pending-slide--${mode}${dashboard ? ' report-pending-slide--dashboard' : ' report-pending-slide--atomic'}`}
+      className={`report-pending-slide report-pending-slide--${mode} report-pending-slide--layout-${layout}${dashboard ? ' report-pending-slide--visual-data-dashboard' : ' report-pending-slide--visual-atomic'}`}
       data-slide-id={outline?.id ?? 'pending-report'}
       data-slide-mode={mode}
       data-slide-state="pending"
@@ -37,37 +75,42 @@ export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutli
         {outline ? (
           <h2>{outline.title}</h2>
         ) : (
-          <PendingBars count={1} className="report-pending-slide__title-placeholder" />
+          <PendingBlocks count={1} className="report-pending-slide__title-placeholder" />
         )}
-        <PendingBars count={2} className="report-pending-slide__takeaway" />
+        <PendingBlocks count={2} className="report-pending-slide__takeaway" />
       </header>
       <div className="report-pending-slide__visual" aria-hidden="true">
-        {dashboard && <PendingBars count={4} className="report-pending-slide__metrics" />}
-        <div className="report-pending-slide__chart" data-pending-module="primary">
-          <i />
-          <i />
-          <i />
-          <i />
-          <i />
-        </div>
+        {dashboard && <PendingMetricCards count={4} />}
+        <PendingPanel
+          className={`report-pending-slide__panel report-pending-slide__panel--primary${dashboard ? ' report-pending-slide__dashboard-panel' : ''}`}
+          module="primary"
+          surfaceClassName={dashboard ? 'report-pending-slide__panel-body report-pending-slide__panel-body--dashboard' : 'report-pending-slide__panel-body report-pending-slide__panel-body--atomic'}
+        />
         {dashboard && (
           <div className="report-pending-slide__support">
-            <div data-pending-module="support-1">
-              <i />
-              <i />
-              <i />
-            </div>
-            <div data-pending-module="support-2">
-              <i />
-              <i />
-              <i />
-            </div>
+            <PendingPanel
+              className="report-pending-slide__panel report-pending-slide__dashboard-panel"
+              module="support-1"
+              surfaceClassName="report-pending-slide__panel-body report-pending-slide__panel-body--support"
+            />
+            <PendingPanel
+              className="report-pending-slide__panel report-pending-slide__dashboard-panel"
+              module="support-2"
+              surfaceClassName="report-pending-slide__panel-body report-pending-slide__panel-body--support"
+            />
           </div>
+        )}
+        {!dashboard && (
+          <PendingPanel
+            className="report-pending-slide__panel report-pending-slide__panel--context"
+            module="context"
+            surfaceClassName="report-pending-slide__panel-body report-pending-slide__panel-body--context"
+          />
         )}
       </div>
       {mode === 'canvas' && (
         <div className="report-pending-slide__evidence" data-pending-module="evidence" aria-hidden="true">
-          <i />
+          <span />
         </div>
       )}
     </section>
