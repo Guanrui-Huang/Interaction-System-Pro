@@ -48,38 +48,56 @@ export function useReportModuleReveal({
   const plan = useMemo(() => (slide ? reportRevealPlan(slide) : []), [slide]);
   const planKey = plan.join('|');
   const slideId = slide?.id;
+  const revealKey = slideId ? `${slideId}:${planKey}` : '';
   const reduced = reducedMotionRequested();
-  const [visibleCount, setVisibleCount] = useState(() => (
-    immediate || reduced ? plan.length : Math.min(1, plan.length)
-  ));
+  const [revealState, setRevealState] = useState(() => ({
+    key: revealKey,
+    visibleCount: immediate || reduced ? plan.length : Math.min(1, plan.length),
+  }));
+  const visibleCount = immediate || reduced
+    ? plan.length
+    : revealState.key === revealKey
+      ? Math.min(revealState.visibleCount, plan.length)
+      : Math.min(1, plan.length);
 
   useEffect(() => {
     if (!slideId) {
-      setVisibleCount(0);
+      setRevealState({ key: '', visibleCount: 0 });
       return undefined;
     }
 
     if (immediate || reduced) {
-      setVisibleCount(plan.length);
+      setRevealState({ key: revealKey, visibleCount: plan.length });
       onComplete(slideId);
       return undefined;
     }
 
-    setVisibleCount(Math.min(1, plan.length));
+    setRevealState((current) => (
+      current.key === revealKey
+        ? current
+        : { key: revealKey, visibleCount: Math.min(1, plan.length) }
+    ));
+    let cancelled = false;
     let elapsed = 0;
     const timers = plan.slice(1).map((module, index) => {
       elapsed += gapBeforeModule(module);
       return window.setTimeout(() => {
+        if (cancelled) return;
         const nextCount = index + 2;
-        setVisibleCount(nextCount);
+        setRevealState((current) => (
+          current.key === revealKey
+            ? { key: revealKey, visibleCount: nextCount }
+            : current
+        ));
         if (nextCount === plan.length) onComplete(slideId);
       }, elapsed);
     });
 
     return () => {
+      cancelled = true;
       for (const timer of timers) window.clearTimeout(timer);
     };
-  }, [immediate, onComplete, plan.length, planKey, reduced, slideId]);
+  }, [immediate, onComplete, plan.length, planKey, reduced, revealKey, slideId]);
 
   const revealedModules = useMemo(
     () => new Set<ReportRevealModule>(plan.slice(0, visibleCount)),

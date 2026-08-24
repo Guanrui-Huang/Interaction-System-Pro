@@ -23,13 +23,20 @@ function PendingPanel({
   className,
   surfaceClassName,
   module,
+  supportSlot,
 }: {
   className: string;
   surfaceClassName: string;
   module: string;
+  supportSlot?: number;
 }) {
   return (
-    <section className={className} data-pending-module={module}>
+    <section
+      className={className}
+      data-pending-module={module}
+      data-dashboard-slot={module === 'primary' ? 'primary' : undefined}
+      data-dashboard-support-slot={supportSlot}
+    >
       <div className="report-pending-slide__panel-cap" />
       <div className={surfaceClassName}>
         <span />
@@ -42,7 +49,7 @@ function PendingPanel({
 
 function PendingMetricCards({ count }: { count: number }) {
   return (
-    <div className="report-pending-slide__metrics" data-pending-module="metrics">
+    <div className="report-pending-slide__metrics" data-pending-module="metrics" data-dashboard-slot="metrics">
       {Array.from({ length: count }, (_, index) => (
         <section className="report-pending-slide__metric" key={index}>
           <div className="report-pending-slide__metric-cap" />
@@ -87,15 +94,17 @@ export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutli
           surfaceClassName={dashboard ? 'report-pending-slide__panel-body report-pending-slide__panel-body--dashboard' : 'report-pending-slide__panel-body report-pending-slide__panel-body--atomic'}
         />
         {dashboard && (
-          <div className="report-pending-slide__support">
+          <div className="report-pending-slide__support" data-dashboard-slot="support">
             <PendingPanel
               className="report-pending-slide__panel report-pending-slide__dashboard-panel"
               module="support-1"
+              supportSlot={0}
               surfaceClassName="report-pending-slide__panel-body report-pending-slide__panel-body--support"
             />
             <PendingPanel
               className="report-pending-slide__panel report-pending-slide__dashboard-panel"
               module="support-2"
+              supportSlot={1}
               surfaceClassName="report-pending-slide__panel-body report-pending-slide__panel-body--support"
             />
           </div>

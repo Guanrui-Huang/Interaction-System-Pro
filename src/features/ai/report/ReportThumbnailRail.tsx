@@ -85,7 +85,7 @@ export function ReportThumbnailRail({ snapshot, activeSlideId, playingSlideId, o
                 aria-label={selectionLabel}
                 aria-current={playing ? 'page' : undefined}
                 aria-pressed={activeSlideId === item.id}
-                aria-disabled={!readySlide || undefined}
+                disabled={!readySlide}
                 onClick={() => { if (readySlide) onSelect(item.id); }}
               >
                 <span className="sr-only">{selectionLabel}</span>

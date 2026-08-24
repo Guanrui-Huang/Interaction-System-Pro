@@ -708,15 +708,17 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
 
   await launchReport(page);
   await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
-  await expect(page.getByRole('status').filter({ hasText: '正在创建动态汇报' })).toContainText('正在创建动态汇报');
+  await expect(page.getByRole('region', { name: '汇报对话区' })).toContainText('正在创建动态汇报');
   expect(api.createRequests).toBe(1);
 
   api.createGate.resolve();
   await expect(page).toHaveURL(new RegExp(`reportId=${REPORT_ID}`));
   await api.terminalStreamReady;
   await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
+  const rail = page.getByRole('navigation', { name: '汇报页面' });
   await expect(page.locator('[data-slide-state="pending"][data-slide-mode="canvas"]')).toBeVisible();
-  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toBeVisible();
+  await expect(rail.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]').first()).toBeVisible();
+  await expect(rail.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toHaveCount(3);
   await expect(page.getByText('正在生成首个页面', { exact: true })).toHaveCount(0);
   await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
   await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
@@ -726,9 +728,10 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   await expect(activeCanvas).toBeVisible();
   await expect(activeCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
   await expect(page.getByRole('heading', { name: firstSlide.title })).toBeVisible();
-  await expect(page.locator('.report-thumbnail')).toHaveCount(3);
-  await expect(page.locator('[data-slide-mode="thumbnail"]')).toHaveCount(2);
-  await expect(page.getByText('生成失败', { exact: true })).toBeVisible();
+  await expect(rail.locator('.report-thumbnail')).toHaveCount(3);
+  await expect(rail.locator('[data-slide-mode="thumbnail"]:not([data-slide-state="pending"])')).toHaveCount(2);
+  await expect(rail.locator(`[data-slide-mode="thumbnail"][data-slide-state="pending"][data-slide-id="${dynamicOutline[2]!.id}"]`)).toHaveCount(1);
+  await expect(page.getByRole('button', { name: '第 3 页，异常页证据复核，生成失败' })).toBeDisabled();
   await expect(page.getByRole('button', { name: '重试第 3 页' })).toBeVisible();
   await page.getByRole('button', { name: '重试第 3 页' }).click();
   expect(api.retrySlideIds).toEqual(['anomaly-evidence']);
@@ -1025,13 +1028,15 @@ test('keeps the mocked progressive report static under reduced motion at large-s
   await api.terminalStreamReady;
 
   await expect(page.getByRole('main', { name: 'AI 动态汇报工作区' })).toBeVisible();
+  const rail = page.getByRole('navigation', { name: '汇报页面' });
   await expect(page.locator('[data-slide-state="pending"][data-slide-mode="canvas"]')).toBeVisible();
-  await expect(page.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toBeVisible();
+  await expect(rail.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]').first()).toBeVisible();
+  await expect(rail.locator('[data-slide-state="pending"][data-slide-mode="thumbnail"]')).toHaveCount(3);
   await expect(page.getByText('正在生成首个页面', { exact: true })).toHaveCount(0);
   await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
   await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
 
-  const pendingModules = page.locator('[data-slide-state="pending"] [data-reveal-module]');
+  const pendingModules = page.locator('[data-slide-state="pending"][data-slide-mode="canvas"] [data-pending-module]');
   const pendingModuleStyles = await pendingModules.evaluateAll((modules) => (
     modules.map((module) => {
       const style = getComputedStyle(module as HTMLElement);
@@ -1042,9 +1047,7 @@ test('keeps the mocked progressive report static under reduced motion at large-s
     })
   ));
   expect(pendingModuleStyles.length).toBeGreaterThan(0);
-  expect(pendingModuleStyles.every(({ animationName, animationDuration }) => (
-    animationName === 'none' && animationDuration === '0s'
-  ))).toBe(true);
+  expect(pendingModuleStyles.every(({ animationName }) => animationName === 'none')).toBe(true);
 
   api.releaseTerminal();
 

@@ -226,7 +226,7 @@ it('shows an explicit no-current-page state and disables narration for malformed
   expect(screen.getByRole('button', { name: '重播本页' })).toBeDisabled();
 });
 
-it('does not activate a generating thumbnail', async () => {
+it('removes an unready thumbnail from keyboard activation without hiding its accessible label', async () => {
   const user = userEvent.setup();
   const current = snapshot({
     status: 'generating',
@@ -241,9 +241,8 @@ it('does not activate a generating thumbnail', async () => {
   generating.focus();
   await user.keyboard('{Enter}{Space}');
   expect(model.selectSlide).not.toHaveBeenCalled();
-  expect(generating).toHaveAttribute('aria-disabled', 'true');
-  expect(generating).not.toBeDisabled();
-  expect(generating).toHaveFocus();
+  expect(generating).toBeDisabled();
+  expect(generating).not.toHaveFocus();
   expect(container.querySelector('.report-thumbnail-rail [data-slide-state="pending"][data-slide-mode="thumbnail"]')).not.toBeNull();
   expect(screen.queryByText('生成中', { exact: true })).not.toBeInTheDocument();
   expect(generating).not.toHaveTextContent('%');
@@ -309,7 +308,7 @@ it('keeps the ready page visible with local retry after the correct partial even
 
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: '当前汇报页' })).toHaveTextContent('总氮趋势');
-  expect(screen.getByRole('button', { name: '第 2 页，能耗对比，生成失败' })).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByRole('button', { name: '第 2 页，能耗对比，生成失败' })).toBeDisabled();
   expect(screen.getByRole('button', { name: '重试第 2 页' })).toBeEnabled();
 });
 
@@ -455,7 +454,7 @@ it('renders planned skeletons and accessible narration controls without fabricat
   });
   const { container } = render(<ReportWorkspace session={session(current)} />);
 
-  expect(screen.getByRole('button', { name: '第 2 页，能耗对比，等待生成' })).toHaveAttribute('aria-disabled', 'true');
+  expect(screen.getByRole('button', { name: '第 2 页，能耗对比，等待生成' })).toBeDisabled();
   expect(container.querySelector('.report-thumbnail-rail [data-slide-state="pending"][data-slide-mode="thumbnail"]')).not.toBeNull();
   expect(screen.queryByText('等待生成', { exact: true })).not.toBeInTheDocument();
   expect(screen.getByRole('region', { name: '讲解字幕' })).toHaveTextContent('第一段。');
@@ -1022,6 +1021,62 @@ it('reveals a live-created slide once and keeps restored revisits immediately cl
   rerender(<ReportWorkspace session={session(restored)} />);
   for (const module of reportRevealPlan(restored.slides[0]!)) {
     expect(current().querySelector(`[data-reveal-module="${module}"]`)).toHaveAttribute('data-reveal-visible', 'true');
+  }
+});
+
+it('keeps focus on page one when page two becomes ready and keeps both pages clear on revisit', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })));
+  const first = dashboardSlide('slide-1', 0, '第一页综合看板');
+  const second = dashboardSlide('slide-2', 1, '第二页综合看板');
+  const firstReady = snapshot({
+    status: 'generating',
+    phase: 'generating-slides',
+    outline: [outline(first.id, 0, first.title, 'ready'), outline(second.id, 1, second.title, 'generating')],
+    slides: [first],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: first.id },
+  });
+  const bothReadyOnFirst = snapshot({
+    outline: [outline(first.id, 0, first.title, 'ready'), outline(second.id, 1, second.title, 'ready')],
+    slides: [first, second],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: first.id },
+  });
+  const bothReadyOnSecond = snapshot({
+    outline: bothReadyOnFirst.outline,
+    slides: bothReadyOnFirst.slides,
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: second.id },
+  });
+  const { rerender } = render(<ReportWorkspace session={session(firstReady)} launchQuestion="分析水厂运行状态" />);
+
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+  const followUp = screen.getByRole('textbox', { name: '输入追问' });
+  followUp.focus();
+  rerender(<ReportWorkspace session={session(bothReadyOnFirst)} launchQuestion="分析水厂运行状态" />);
+
+  expect(screen.getByRole('region', { name: '当前汇报页' })).toHaveAttribute('data-slide-id', first.id);
+  expect(followUp).toHaveFocus();
+
+  rerender(<ReportWorkspace session={session(bothReadyOnSecond)} launchQuestion="分析水厂运行状态" />);
+  expect(screen.getByRole('region', { name: '当前汇报页' })).toHaveAttribute('data-slide-id', second.id);
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+
+  rerender(<ReportWorkspace session={session(bothReadyOnFirst)} launchQuestion="分析水厂运行状态" />);
+  for (const module of reportRevealPlan(first)) {
+    expect(screen.getByRole('region', { name: '当前汇报页' }).querySelector(`[data-reveal-module="${module}"]`)).toHaveAttribute('data-reveal-visible', 'true');
+  }
+
+  rerender(<ReportWorkspace session={session(bothReadyOnSecond)} launchQuestion="分析水厂运行状态" />);
+  for (const module of reportRevealPlan(second)) {
+    expect(screen.getByRole('region', { name: '当前汇报页' }).querySelector(`[data-reveal-module="${module}"]`)).toHaveAttribute('data-reveal-visible', 'true');
   }
 });
 

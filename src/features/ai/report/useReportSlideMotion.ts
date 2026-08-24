@@ -33,22 +33,23 @@ export function useReportSlideMotion(
     onFirstActivation?.();
     root.dataset.slideMotionState = 'animating';
     root.dataset.motionReduced = 'false';
+    const motionRoot = root.querySelector<HTMLElement>('[data-reveal-module="primary"][data-reveal-visible="true"]') ?? root;
     const context = gsap.context(() => {
       const timeline = gsap.timeline({ defaults: { ease: 'power2.out' }, onComplete: () => setFinalState(root, false) });
-      const numbers = Array.from(root.querySelectorAll<HTMLElement>('[data-motion-number]'));
+      const numbers = Array.from(motionRoot.querySelectorAll<HTMLElement>('[data-motion-number]'));
       if (numbers.length) timeline.fromTo(numbers, { textContent: 0 }, {
         textContent: (index: number) => Number(numbers[index]?.dataset.finalValue ?? 0),
         duration: .7,
         snap: { textContent: .01 },
       }, 0);
-      const bars = root.querySelectorAll('[data-motion-bar]');
+      const bars = motionRoot.querySelectorAll('[data-motion-bar]');
       if (bars.length) timeline.fromTo(bars, { scaleY: 0, transformOrigin: 'center bottom' }, { scaleY: 1, duration: .72, stagger: .06 }, .08);
-      const reveals = root.querySelectorAll('[data-motion-reveal]');
+      const reveals = motionRoot.querySelectorAll('[data-motion-reveal]');
       if (reveals.length) timeline.fromTo(reveals, { scaleX: 0, transformOrigin: 'left center' }, { scaleX: 1, duration: .9 }, .08);
-      const rings = root.querySelectorAll('[data-motion-ring]');
+      const rings = motionRoot.querySelectorAll('[data-motion-ring]');
       if (rings.length) timeline.fromTo(rings, { scale: 0, transformOrigin: 'center center' }, { scale: 1, duration: .8 }, .08);
-      if (!numbers.length && !bars.length && !reveals.length && !rings.length) timeline.fromTo(root.querySelector('.report-visual__graphic'), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .42 }, 0);
-    }, root);
+      if (!numbers.length && !bars.length && !reveals.length && !rings.length) timeline.fromTo(motionRoot.querySelector('.report-visual__graphic'), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .42 }, 0);
+    }, motionRoot);
     return () => context.revert();
   }, [active, animate, onFirstActivation, rootRef, visualKind]);
 }

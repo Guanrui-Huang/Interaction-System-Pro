@@ -530,18 +530,31 @@ it('caps KPI grids at four columns while preserving every metric card', () => {
   expect(grid.style.getPropertyValue('--report-kpi-columns')).toBe('4');
 });
 
-it('renders a zero-support dashboard with an explicit full-height primary layout hook', () => {
-  const visual = dataDashboardFixture({ supporting: [] });
+it('keeps empty metric and support slots mounted without inventing dashboard content', () => {
+  const visual = dataDashboardFixture({ summaryMetrics: [], supporting: [] });
   const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
   const dashboard = container.querySelector('.report-data-dashboard');
+  const metrics = container.querySelector('.report-data-dashboard__metrics');
+  const support = container.querySelector('.report-data-dashboard__support');
 
   expect(dashboard).toHaveAttribute('data-support-count', '0');
+  expect(dashboard).toHaveAttribute('data-support-slots', '2');
+  expect(Array.from(container.querySelectorAll('[data-dashboard-slot]'), (slot) => slot.getAttribute('data-dashboard-slot'))).toEqual([
+    'metrics',
+    'primary',
+    'support',
+  ]);
+  expect(metrics).toBeInTheDocument();
+  expect(metrics).toHaveAttribute('aria-hidden', 'true');
+  expect(metrics).not.toHaveAttribute('data-reveal-module');
   expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
-  expect(container.querySelector('.report-data-dashboard__support')).toBeNull();
-  expect(reportStyles).toContain('.report-data-dashboard[data-support-count="0"]');
+  expect(support).toBeInTheDocument();
+  expect(support?.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
+  expect(support?.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(2);
+  expect(support?.querySelectorAll('[role="img"]')).toHaveLength(0);
 });
 
-it('renders a one-support dashboard with a single support panel under the split-layout hook', () => {
+it('keeps a one-support dashboard in the same two-slot outer geometry', () => {
   const visual = dataDashboardFixture({
     supporting: [{ kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 }],
   });
@@ -550,10 +563,13 @@ it('renders a one-support dashboard with a single support panel under the split-
   const supportPanels = container.querySelectorAll<HTMLElement>('.report-data-dashboard__support > section');
 
   expect(dashboard).toHaveAttribute('data-support-count', '1');
+  expect(dashboard).toHaveAttribute('data-support-slots', '2');
   expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(1);
   expect(supportPanels).toHaveLength(1);
   expect(supportPanels[0]).toHaveAttribute('data-panel-kind', 'health-ring');
+  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
+  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(1);
 });
 
 it('renders only the primary composite chart in thumbnail mode', () => {

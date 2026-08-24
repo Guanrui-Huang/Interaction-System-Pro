@@ -60,8 +60,8 @@ it('uses the approved no-scroll 1920 dashboard geometry', () => {
   expect(css).toMatch(/\.report-workspace__canvas\s*\{[^}]*overflow:\s*hidden;/su);
   expect(css).toMatch(/\.report-slide--canvas\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;/su);
   expect(css).toMatch(/\.report-data-dashboard\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);/su);
-  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(0,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--report-summary-columns\),\s*minmax\(0,\s*1fr\)\);[^}]*min-block-size:\s*4\.8rem;/su);
+  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
 });
 
 it('uses a compact two-row canvas with a floating subtitle and balanced dashboard heading', () => {
@@ -77,9 +77,11 @@ it('uses a compact two-row canvas with a floating subtitle and balanced dashboar
   expect(css).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;/su);
 });
 
-it('pins the one-support dashboard at the 63/37 split with a single full-height support row', () => {
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/su);
+it('keeps zero, one, and two-support dashboards on one invariant large-screen grid', () => {
+  expect(css).not.toMatch(/\.report-data-dashboard\[data-support-count="[01]"\]\s*\{/u);
+  expect(css).not.toMatch(/\.report-data-dashboard\[data-support-count="[01]"\]\s+\.report-data-dashboard__support/u);
+  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\s+\.report-pending-slide__visual\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-pending-slide__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
 });
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
@@ -147,7 +149,7 @@ it('enforces desktop chart drawing bounds after panel labels and chrome consume 
 });
 
 it('lets two supporting charts share available height without overflow', () => {
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="2"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
+  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;/su);
   expect(css).toMatch(/\.report-data-dashboard__support\s*>\s*section\[data-panel-kind=['"]comparison-bars['"]\]\s*\{[^}]*min-height:\s*0;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*container-type:\s*size;/su);

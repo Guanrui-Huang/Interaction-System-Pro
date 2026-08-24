@@ -59,6 +59,12 @@ it('matches dashboard pending geometry for dashboard-like visuals without fake c
   expect(canvas).toHaveClass('report-pending-slide--visual-data-dashboard');
   expect(canvas?.querySelector('.report-pending-slide__metrics')).not.toBeNull();
   expect(canvas?.querySelector('.report-pending-slide__dashboard-panel')).not.toBeNull();
+  expect(Array.from(canvas?.querySelectorAll('[data-dashboard-slot]') ?? [], (slot) => slot.getAttribute('data-dashboard-slot'))).toEqual([
+    'metrics',
+    'primary',
+    'support',
+  ]);
+  expect(canvas?.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
   expect(canvas?.querySelector('.report-pending-slide__chart')).toBeNull();
   expect(canvas?.textContent).not.toMatch(/\d+(?:\.\d+)?\s*(?:mg\/L|分|%)/u);
 });

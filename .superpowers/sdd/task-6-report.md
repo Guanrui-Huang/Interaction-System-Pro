@@ -35,3 +35,40 @@
 - Preserved zero-support, one-support, and thumbnail dashboard behavior while changing only the 1920 dashboard layout path.
 - `server/.env.example` was already modified before this task and was left untouched as requested.
 - E2E coverage was not changed.
+
+---
+
+# Task 6 Final-Review Fixes
+
+- Date: 2026-08-24
+- Status: Completed final-review fixes for the progressive report canvas.
+
+## Changed Files
+
+- `e2e/dashboard.spec.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/ReportThumbnailRail.tsx`
+- `src/features/ai/report/useReportModuleReveal.ts`
+- `src/features/ai/report/useReportSlideMotion.ts`
+- `src/features/ai/report/visuals/DataDashboardVisual.tsx`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-module-reveal.test.tsx`
+- `src/tests/report-pending-slide.test.tsx`
+- `src/tests/report-slide-motion.test.tsx`
+- `src/tests/report-visuals.test.tsx`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-workspace.test.tsx src/tests/report-pending-slide.test.tsx src/tests/app.test.tsx src/tests/report-visuals.test.tsx` - passed, 134 tests.
+- `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-module-reveal.test.tsx src/tests/report-layout-styles.test.ts src/tests/report-visuals.test.tsx` - passed, 96 tests.
+- `./node_modules/.bin/tsc -b` - passed.
+- `CI=1 ./node_modules/.bin/playwright test --project=mocked` - first sandboxed attempt failed with `listen EPERM` for a local `tsx` IPC pipe; rerun outside the sandbox passed, 10 tests.
+- `git diff --check` - passed with no whitespace errors.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified by this pass.
+- `.DS_Store` was left unstaged and unmodified by this pass.

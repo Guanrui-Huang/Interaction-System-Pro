@@ -7,6 +7,7 @@ import type {
 } from '../../shared/report';
 import {
   reportRevealPlan,
+  type ReportRevealModule,
   useReportModuleReveal,
 } from '../features/ai/report/useReportModuleReveal';
 
@@ -378,4 +379,82 @@ it('does not reset revealed modules when rerendered with a republished slide obj
     'metrics',
     'primary',
   ]);
+});
+
+it('keys the first render to the active slide and reveal plan while replacing slide timers', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const firstSlide = dashboardSlideFixture({ id: 'slide-dashboard-1' });
+  const secondSlide = dashboardSlideFixture({ id: 'slide-dashboard-2', order: 1 });
+  const onComplete = vi.fn();
+  const renderStates: Array<{ slideId: string; modules: ReportRevealModule[] }> = [];
+  const { result, rerender } = renderHook(
+    ({ slide }) => {
+      const reveal = useReportModuleReveal({ slide, immediate: false, onComplete });
+      renderStates.push({ slideId: slide.id, modules: [...reveal.revealedModules] });
+      return reveal;
+    },
+    { initialProps: { slide: firstSlide } },
+  );
+
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+  expect([...result.current.revealedModules]).toEqual(reportRevealPlan(firstSlide));
+  expect(onComplete).toHaveBeenCalledWith(firstSlide.id);
+
+  const stateCountBeforeSwitch = renderStates.length;
+  rerender({ slide: secondSlide });
+
+  expect(renderStates[stateCountBeforeSwitch]).toEqual({
+    slideId: secondSlide.id,
+    modules: ['heading'],
+  });
+  expect([...result.current.revealedModules]).toEqual(['heading']);
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+  await act(async () => vi.advanceTimersByTimeAsync(2_000));
+  expect(onComplete).toHaveBeenCalledTimes(2);
+  expect(onComplete).toHaveBeenLastCalledWith(secondSlide.id);
+});
+
+it('cleans timers when switching slides before the previous reveal can complete', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const firstSlide = dashboardSlideFixture({ id: 'slide-dashboard-1' });
+  const secondSlide = dashboardSlideFixture({ id: 'slide-dashboard-2', order: 1 });
+  const onComplete = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ slide }) => useReportModuleReveal({ slide, immediate: false, onComplete }),
+    { initialProps: { slide: firstSlide } },
+  );
+
+  await act(async () => vi.advanceTimersByTimeAsync(320));
+  expect([...result.current.revealedModules]).toEqual(['heading', 'metrics']);
+
+  rerender({ slide: secondSlide });
+  expect([...result.current.revealedModules]).toEqual(['heading']);
+
+  await act(async () => vi.advanceTimersByTimeAsync(1_579));
+  expect(onComplete).not.toHaveBeenCalled();
+
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onComplete).toHaveBeenCalledWith(secondSlide.id);
 });
