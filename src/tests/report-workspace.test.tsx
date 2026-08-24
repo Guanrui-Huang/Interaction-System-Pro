@@ -439,11 +439,15 @@ it('keeps report slides fully visible when no reveal set is supplied', () => {
   }
 });
 
-it('keeps the pending and ready dashboard canvas on the same geometry shell', () => {
+it.each([
+  'trend-line',
+  'alert-timeline',
+  'kpi-grid',
+] satisfies SlideOutline['visualKind'][])('keeps the pending %s outline and ready dashboard canvas on the same geometry shell', (visualKind) => {
   const pendingOutline = {
     ...outline('slide-dashboard', 0, '综合看板', 'generating'),
     layout: 'diagnostic-overview',
-    visualKind: 'trend-line',
+    visualKind,
   } satisfies SlideOutline;
   const pendingSnapshot = snapshot({
     status: 'generating',

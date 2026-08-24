@@ -111,6 +111,41 @@
 
 ---
 
+# Task 6 Final Review Reveal And Geometry Fixes
+
+- Date: 2026-08-24
+- Status: Fixed pending dashboard classification for all dashboard-capable outline kinds, strict metric-card-to-primary reveal timing up to 8 metrics, and 1920x1080 y-position box comparisons.
+
+## Changed Files
+
+- `e2e/dashboard.spec.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/useReportModuleReveal.ts`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-module-reveal.test.tsx`
+- `src/tests/report-pending-slide.test.tsx`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` failed before implementation with 9 failed and 82 passed tests:
+  - `report-module-reveal.test.tsx`: primary became visible before 4-card and 8-card metric clear animations finished.
+  - `report-layout-styles.test.ts`: missing shared metric clear duration/stagger CSS hooks.
+  - `report-pending-slide.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines used atomic instead of dashboard geometry.
+  - `report-workspace.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines did not share the ready dashboard geometry shell.
+- Green: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` passed, 91 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts src/tests/report-slide-motion.test.tsx` passed, 94 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/77006.pipe`; rerun outside the sandbox passed, 11 tests in 33.1s.
+- Hygiene: `git diff --check` passed with no whitespace errors.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
+
 # Task 6 Final Review Geometry Fixes
 
 - Date: 2026-08-24
@@ -135,6 +170,43 @@
 - Required: `./node_modules/.bin/vitest run src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` passed, 71 tests.
 - Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
 - Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` passed outside the sandbox, 11 tests.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
+
+---
+
+# Task 6 Final Review Reveal And Geometry Fixes
+
+- Date: 2026-08-24
+- Status: Fixed pending dashboard classification for all dashboard-capable outline kinds, strict metric-card-to-primary reveal timing up to 8 metrics, and 1920x1080 y-position box comparisons.
+
+## Changed Files
+
+- `e2e/dashboard.spec.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/useReportModuleReveal.ts`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-module-reveal.test.tsx`
+- `src/tests/report-pending-slide.test.tsx`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` failed before implementation with 9 failed and 82 passed tests:
+  - `report-module-reveal.test.tsx`: primary became visible before 4-card and 8-card metric clear animations finished.
+  - `report-layout-styles.test.ts`: missing shared metric clear duration/stagger CSS hooks.
+  - `report-pending-slide.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines used atomic instead of dashboard geometry.
+  - `report-workspace.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines did not share the ready dashboard geometry shell.
+- Green: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` passed, 91 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts src/tests/report-slide-motion.test.tsx` passed, 94 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/77006.pipe`; rerun outside the sandbox passed, 11 tests in 33.1s.
+- Hygiene: `git diff --check` passed with no whitespace errors.
 
 ## Protected Pre-Existing Changes
 
@@ -168,6 +240,43 @@
 - Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
 - Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/73217.pipe`; rerun outside the sandbox passed, 10 tests.
 - UI detector: `node /Users/xiaoshen001/.codex/skills/impeccable/scripts/detect.mjs --json --scope layout src/features/ai/report/ReportSlideView.tsx src/features/ai/report/ReportPendingSlideView.tsx src/styles/ai.css` passed with `[]`.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
+
+---
+
+# Task 6 Final Review Reveal And Geometry Fixes
+
+- Date: 2026-08-24
+- Status: Fixed pending dashboard classification for all dashboard-capable outline kinds, strict metric-card-to-primary reveal timing up to 8 metrics, and 1920x1080 y-position box comparisons.
+
+## Changed Files
+
+- `e2e/dashboard.spec.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/useReportModuleReveal.ts`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-module-reveal.test.tsx`
+- `src/tests/report-pending-slide.test.tsx`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` failed before implementation with 9 failed and 82 passed tests:
+  - `report-module-reveal.test.tsx`: primary became visible before 4-card and 8-card metric clear animations finished.
+  - `report-layout-styles.test.ts`: missing shared metric clear duration/stagger CSS hooks.
+  - `report-pending-slide.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines used atomic instead of dashboard geometry.
+  - `report-workspace.test.tsx`: `alert-timeline` and `kpi-grid` pending outlines did not share the ready dashboard geometry shell.
+- Green: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts` passed, 91 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts src/tests/report-slide-motion.test.tsx` passed, 94 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/77006.pipe`; rerun outside the sandbox passed, 11 tests in 33.1s.
+- Hygiene: `git diff --check` passed with no whitespace errors.
 
 ## Protected Pre-Existing Changes
 

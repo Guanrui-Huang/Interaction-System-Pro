@@ -121,6 +121,20 @@ it('adds an eight-column dashboard density hook without shrinking metric typogra
   expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dt\s+span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*line-height:\s*1\.25;/su);
 });
 
+it.each([
+  [1, 420],
+  [4, 580],
+  [8, 900],
+] as const)('keeps CSS metric clear timing aligned for %i metric cards', (metricCount, primaryGapAfterMetricsMs) => {
+  const clearDurationMs = 340;
+  const staggerMs = 80;
+  const boundedLastIndex = Math.min(metricCount - 1, 7);
+  expect(Math.max(420, clearDurationMs + boundedLastIndex * staggerMs)).toBe(primaryGapAfterMetricsMs);
+  expect(css).toContain('--report-metric-clear-duration: 340ms;');
+  expect(css).toContain('--report-metric-clear-stagger: 80ms;');
+  expect(css).toMatch(/\.report-slide--progressive\s+\[data-reveal-module="metrics"\]\[data-reveal-visible="true"\]\s+\.report-data-dashboard__metric\s*\{[^}]*animation:\s*report-module-clear\s+var\(--report-metric-clear-duration,\s*340ms\)\s+ease\s+both;[^}]*animation-delay:\s*calc\(min\(var\(--report-reveal-index,\s*0\),\s*7\)\s+\*\s+var\(--report-metric-clear-stagger,\s*80ms\)\);/su);
+});
+
 it('raises comparison bar values and labels to the large-screen scale', () => {
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*18px;/su);
   expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*18px;/su);

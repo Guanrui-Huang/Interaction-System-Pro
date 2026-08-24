@@ -103,6 +103,28 @@ function dashboardSlideFixture(
   };
 }
 
+function dashboardSlideWithMetricCount(count: number): ReportSlide {
+  const dashboardSlide = dashboardSlideFixture();
+  if (dashboardSlide.visual.kind !== 'data-dashboard') throw new Error('Expected dashboard fixture');
+  const summaryMetrics = Array.from({ length: count }, (_, index) => (
+    metric(`metric-${index + 1}`, `指标 ${index + 1}`, index + 1, index % 2 === 0 ? 'mg/L' : '分')
+  ));
+  return {
+    ...dashboardSlide,
+    visual: {
+      ...dashboardSlide.visual,
+      summaryMetrics,
+    },
+    metrics: summaryMetrics,
+    evidenceRefs: summaryMetrics.map(evidenceRefFromMetric),
+  };
+}
+
+function evidenceRefFromMetric(item: BoundMetric): ReportEvidenceRef {
+  const { claimIds: _claimIds, value: _value, limit: _limit, status: _status, derivation: _derivation, ...ref } = item;
+  return ref;
+}
+
 function atomicSlideFixture(
   overrides: Partial<ReportSlide> = {},
 ): ReportSlide {
@@ -194,6 +216,41 @@ it('reveals dashboard modules progressively with the specified delays and comple
   await act(async () => vi.advanceTimersByTimeAsync(240));
   expect(result.current.revealedModules.has('evidence')).toBe(true);
   expect(onComplete).toHaveBeenCalledWith(dashboardSlide.id);
+  unmount();
+});
+
+it.each([
+  [1, 420],
+  [4, 580],
+  [8, 900],
+] as const)('keeps primary hidden until %i metric cards finish their clear animations', async (metricCount, primaryGapAfterMetricsMs) => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const dashboardSlide = dashboardSlideWithMetricCount(metricCount);
+  const onComplete = vi.fn();
+  const { result, unmount } = renderHook(() => useReportModuleReveal({
+    slide: dashboardSlide,
+    immediate: false,
+    onComplete,
+  }));
+
+  await act(async () => vi.advanceTimersByTimeAsync(320));
+  expect([...result.current.revealedModules]).toEqual(['heading', 'metrics']);
+
+  await act(async () => vi.advanceTimersByTimeAsync(primaryGapAfterMetricsMs - 1));
+  expect([...result.current.revealedModules]).toEqual(['heading', 'metrics']);
+
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  expect(result.current.revealedModules.has('primary')).toBe(true);
   unmount();
 });
 

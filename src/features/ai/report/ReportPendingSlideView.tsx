@@ -3,14 +3,22 @@ import { ReportVisualIcon, type ReportVisualIconKind } from './visuals/ReportVis
 
 type PendingMode = 'canvas' | 'thumbnail';
 
-const dashboardKinds = new Set<SlideOutline['visualKind']>([
+export const DASHBOARD_CAPABLE_OUTLINE_KINDS = [
+  'kpi-grid',
   'trend-line',
   'trend-area',
   'comparison-bars',
   'health-ring',
   'radar',
   'scatter',
-]);
+  'alert-timeline',
+] as const satisfies readonly SlideOutline['visualKind'][];
+
+const dashboardCapableOutlineKinds = new Set<SlideOutline['visualKind']>(DASHBOARD_CAPABLE_OUTLINE_KINDS);
+
+export function isDashboardCapableOutlineKind(kind: SlideOutline['visualKind']): boolean {
+  return dashboardCapableOutlineKinds.has(kind);
+}
 
 function PendingBlocks({ count, className }: { count: number; className: string }) {
   return (
@@ -66,7 +74,7 @@ function PendingMetricCards({ count }: { count: number }) {
 
 export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutline; mode: PendingMode }) {
   const layout = outline?.layout ?? 'visual-focus';
-  const dashboard = outline ? dashboardKinds.has(outline.visualKind) : true;
+  const dashboard = outline ? isDashboardCapableOutlineKind(outline.visualKind) : true;
   const canvasGeometry = dashboard ? 'dashboard' : layout;
   const metadataIconKind: ReportVisualIconKind = dashboard ? 'data-dashboard' : (outline?.visualKind ?? 'metric');
   const geometryClass = mode === 'canvas'

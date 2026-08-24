@@ -486,7 +486,7 @@
 [data-reveal-module][data-reveal-visible="false"] { filter: blur(10px) saturate(.45); opacity: .34; pointer-events: none; user-select: none; }
 [data-reveal-module][data-reveal-visible="false"]::after { content: ""; position: absolute; z-index: 8; inset: 0; background: linear-gradient(110deg, rgb(9 28 38 / 78%), rgb(25 65 76 / 62%), rgb(9 28 38 / 78%)); backdrop-filter: blur(8px); }
 .report-slide--progressive [data-reveal-module][data-reveal-visible="true"] { animation: report-module-clear .42s ease both; }
-.report-slide--progressive [data-reveal-module="metrics"][data-reveal-visible="true"] .report-data-dashboard__metric { animation: report-module-clear .34s ease both; animation-delay: calc(var(--report-reveal-index, 0) * 80ms); }
+.report-slide--progressive [data-reveal-module="metrics"][data-reveal-visible="true"] .report-data-dashboard__metric { animation: report-module-clear var(--report-metric-clear-duration, 340ms) ease both; animation-delay: calc(min(var(--report-reveal-index, 0), 7) * var(--report-metric-clear-stagger, 80ms)); }
 @keyframes report-module-clear {
   from { opacity: .42; filter: blur(8px) saturate(.6); }
   to { opacity: 1; filter: none; }
@@ -539,6 +539,8 @@
 .report-slide--visual-data-dashboard.report-slide--canvas > .report-slide__visual > .report-visual-renderer--canvas { min-height: 0; height: 100%; }
 .report-slide--visual-data-dashboard.report-slide--canvas .report-slide__takeaway { grid-area: takeaway; max-width: none; margin-top: .35rem; }
 .report-data-dashboard {
+  --report-metric-clear-duration: 340ms;
+  --report-metric-clear-stagger: 80ms;
   display: grid;
   grid-template-areas: "metrics metrics" "primary support";
   grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr);

@@ -53,13 +53,23 @@ it('uses only real outline metadata in the pending canvas', () => {
   expect(within(canvas as HTMLElement).queryByText('生成中')).not.toBeInTheDocument();
 });
 
-it('matches dashboard pending geometry for dashboard-like visuals without fake chart marks', () => {
-  const { container } = render(<ReportPendingSlideView outline={dashboardOutline} mode="canvas" />);
+it.each([
+  'scatter',
+  'alert-timeline',
+  'kpi-grid',
+] satisfies SlideOutline['visualKind'][])('matches dashboard pending geometry for %s outlines without fake chart marks', (visualKind) => {
+  const { container } = render(
+    <ReportPendingSlideView
+      outline={{ ...dashboardOutline, id: `slide-${visualKind}`, visualKind }}
+      mode="canvas"
+    />,
+  );
 
   const canvas = container.querySelector('[data-slide-state="pending"][data-slide-mode="canvas"]');
   expect(canvas).not.toBeNull();
   expect(canvas).toHaveClass('report-pending-slide--layout-diagnostic-overview');
   expect(canvas).toHaveClass('report-pending-slide--visual-data-dashboard');
+  expect(canvas).toHaveAttribute('data-canvas-geometry', 'dashboard');
   expect(canvas?.querySelector('.report-pending-slide__metrics')).not.toBeNull();
   expect(canvas?.querySelector('.report-pending-slide__dashboard-panel')).not.toBeNull();
   expect(Array.from(canvas?.querySelectorAll('[data-dashboard-slot]') ?? [], (slot) => slot.getAttribute('data-dashboard-slot'))).toEqual([

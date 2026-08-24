@@ -710,16 +710,17 @@ async function attachScreenshot(page: Page, testInfo: TestInfo, name: string): P
   await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
 }
 
-type StableBox = { x: number; width: number; height: number };
+type StableBox = { x: number; y: number; width: number; height: number };
 
 async function stableBox(locator: Locator): Promise<StableBox> {
   const box = await locator.boundingBox();
   expect(box).not.toBeNull();
-  return { x: box!.x, width: box!.width, height: box!.height };
+  return { x: box!.x, y: box!.y, width: box!.width, height: box!.height };
 }
 
 function expectStableBox(actual: StableBox, expected: StableBox, tolerance = 2): void {
   expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(tolerance);
+  expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(tolerance);
   expect(Math.abs(actual.width - expected.width)).toBeLessThanOrEqual(tolerance);
   expect(Math.abs(actual.height - expected.height)).toBeLessThanOrEqual(tolerance);
 }
