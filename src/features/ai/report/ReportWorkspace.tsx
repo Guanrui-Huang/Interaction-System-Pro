@@ -2,15 +2,16 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNod
 import type { ReportSlide } from '../../../../shared/report';
 import { ReportConversationToolbar } from './ReportConversationToolbar';
 import { ReportClarification } from './ReportClarification';
-import { ReportGenerationStatus } from './ReportGenerationStatus';
 import { MicrophoneIcon, ReportFollowUp, SendIcon } from './ReportFollowUp';
 import { ReportHeader } from './ReportHeader';
+import { ReportPendingSlideView } from './ReportPendingSlideView';
 import { ReportThinkingTime } from './ReportThinkingTime';
 import { ReportNarrationActions } from './ReportNarrationActions';
 import { ReportSlideView } from './ReportSlideView';
 import { ReportSubtitleBar } from './ReportSubtitleBar';
 import { ReportThumbnailRail } from './ReportThumbnailRail';
 import type { ReportSession } from './useReportSession';
+import { useReportModuleReveal } from './useReportModuleReveal';
 import { useNarrationController } from './useNarrationController';
 import { finalReplacementFor, playableReportSlides } from './report-playback';
 
@@ -87,6 +88,8 @@ export function ReportWorkspace(
   { session, launchQuestion }: { session: ReportSession; launchQuestion?: string },
 ) {
   const animatedSlides = useRef(new Set<string>());
+  const revealReportId = useRef<string>();
+  const revealedSlides = useRef(new Set<string>());
   const initialTimingRef = useRef<{ question?: string; startedAt?: number; reportId?: string; frozen: boolean }>({ frozen: false });
   const conversationPanelId = useId();
   const [auditSlideId, setAuditSlideId] = useState<string>();
@@ -108,12 +111,22 @@ export function ReportWorkspace(
     autoplay: Boolean(snapshot && playableReportSlides(snapshot.slides).length),
   });
   const readySlides = useMemo(() => snapshot ? [...snapshot.slides].sort((left, right) => left.order - right.order) : [], [snapshot]);
+  const orderedOutlines = useMemo(
+    () => (snapshot ? [...snapshot.outline].sort((left, right) => left.order - right.order) : []),
+    [snapshot],
+  );
   const playableSlides = useMemo(() => playableReportSlides(readySlides), [readySlides]);
   const firstPlayableSlide = playableSlides[0];
+  if (snapshot?.reportId && revealReportId.current !== snapshot.reportId) {
+    revealReportId.current = snapshot.reportId;
+    revealedSlides.current.clear();
+    if (!launchQuestion) snapshot.slides.forEach(({ id }) => revealedSlides.current.add(id));
+  }
   const requestedActive = narration.activeSlideId ?? snapshot?.conversation.activeSlideId;
   const automaticSlide = finalReplacementFor(readySlides, requestedActive) ?? firstPlayableSlide;
   const auditSlide = auditSlideId ? readySlides.find(({ id }) => id === auditSlideId) : undefined;
   const activeSlide = auditSlide ?? automaticSlide;
+  const pendingOutline = orderedOutlines.find(({ id }) => id === requestedActive) ?? orderedOutlines[0];
   const navigationSlide = activeSlide ? finalReplacementFor(readySlides, activeSlide.id) : undefined;
   const activeIndex = navigationSlide ? playableSlides.findIndex(({ id }) => id === navigationSlide.id) : -1;
   const initialAnswerInterrupted = Boolean(
@@ -129,6 +142,12 @@ export function ReportWorkspace(
     || snapshot?.status === 'cancelled'
   );
   const markAnimated = useCallback((slide: ReportSlide) => { animatedSlides.current.add(slide.id); }, []);
+  const markRevealComplete = useCallback((slideId: string) => { revealedSlides.current.add(slideId); }, []);
+  const reveal = useReportModuleReveal({
+    slide: activeSlide,
+    immediate: Boolean(activeSlide && revealedSlides.current.has(activeSlide.id)),
+    onComplete: markRevealComplete,
+  });
   useEffect(() => {
     if (auditSlideId && !readySlides.some(({ id }) => id === auditSlideId)) setAuditSlideId(undefined);
   }, [auditSlideId, readySlides]);
@@ -293,24 +312,12 @@ export function ReportWorkspace(
           : <button type="button" onClick={session.retryConnection}>重试连接</button>}
       </section>
     );
-  } else if (snapshot?.status === 'awaiting-clarification' && snapshot.clarification) {
-    mainContent = (
-      <section className="report-workspace__pending" aria-label="汇报生成状态">
-        <ReportClarification key={snapshot.clarification.clarificationId} request={snapshot.clarification} onSubmit={session.submitClarification} />
-      </section>
-    );
-  } else if (snapshot && !firstPlayableSlide && snapshot.status === 'generating') {
-    mainContent = (
-      <section className="report-workspace__pending" aria-label="汇报生成状态">
-        <ReportGenerationStatus phase={snapshot.phase} />
-      </section>
-    );
-  } else if (snapshot) {
+  } else {
     mainContent = (
       <>
         <ReportThumbnailRail
           snapshot={snapshot}
-          activeSlideId={activeSlide?.id}
+          activeSlideId={activeSlide?.id ?? pendingOutline?.id}
           playingSlideId={session.playingSlideId ?? (narration.status === 'speaking' ? narration.activeSlideId : undefined)}
           onSelect={selectThumbnail}
           onRetry={session.retrySlide}
@@ -324,6 +331,7 @@ export function ReportWorkspace(
                 mode="canvas"
                 active
                 animate={!animatedSlides.current.has(activeSlide.id)}
+                revealedModules={reveal.progressive ? reveal.revealedModules : undefined}
                 onFirstActivation={() => markAnimated(activeSlide)}
               />
               {activeSlide.supersededBySlideId && finalReplacementFor(readySlides, activeSlide.id) && (
@@ -332,24 +340,30 @@ export function ReportWorkspace(
                 </button>
               )}
             </>
-          ) : (
+          ) : snapshot && snapshot.slides.length > 0 && !firstPlayableSlide && !['generating', 'awaiting-clarification'].includes(snapshot.status) ? (
             <div className="report-workspace__empty" role="status">
               <i aria-hidden="true" />
               <p>当前没有可播放的有效页面</p>
               <span>页面更正关系异常，请刷新汇报或稍后重试。</span>
             </div>
+          ) : (
+            <ReportPendingSlideView outline={pendingOutline} mode="canvas" />
+          )}
+          {snapshot?.status === 'awaiting-clarification' && snapshot.clarification && (
+            <div className="report-workspace__clarification-overlay">
+              <ReportClarification
+                key={snapshot.clarification.clarificationId}
+                request={snapshot.clarification}
+                onSubmit={session.submitClarification}
+              />
+            </div>
           )}
         </section>
-        <ReportSubtitleBar controller={narration} />
+        {snapshot && <ReportSubtitleBar controller={narration} />}
+        <p className="sr-only" role="status" aria-live="polite">
+          {activeSlide ? `第 ${activeSlide.order + 1} 页已完成` : pendingOutline ? `第 ${pendingOutline.order + 1} 页正在生成` : '汇报页面结构已建立'}
+        </p>
       </>
-    );
-  } else {
-    mainContent = (
-      <section className="report-workspace__loading" role="status">
-        <i aria-hidden="true" />
-        <p>{session.phase === 'restoring' ? '正在恢复动态汇报' : '正在创建动态汇报'}</p>
-        <span>任务总线连接后将立即显示首个验证页面。</span>
-      </section>
     );
   }
 

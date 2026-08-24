@@ -223,8 +223,39 @@ it('restores report mode from the URL after refresh without showing demo login',
 
 it('switches to a creating report shell before the create request settles', async () => {
   const user = userEvent.setup();
-  stubDashboardFetch();
-  render(<App />);
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url === '/api/ai/reports') return new Promise<Response>(() => {});
+    const path = url.split('/').at(-1);
+    if (path === 'water-quality') return {
+      ok: true,
+      json: async () => ({
+        latest: point,
+        trend: Array.from({ length: 30 }, () => point),
+        alerts: [],
+        metrics: WATER_QUALITY_METRICS,
+      }),
+    } as Response;
+    if (path === 'energy') return {
+      ok: true,
+      json: async () => ({
+        latest: point,
+        trend: Array.from({ length: 30 }, () => point),
+        costConfig: { electricityYuanPerKwh: .86, carbonSourceYuanPerKg: 4.2, electricitySavingsRate: .128 },
+      }),
+    } as Response;
+    return {
+      ok: true,
+      json: async () => ({
+        metrics: { informationCount: 1300000, operatingDays: 366, complianceRate: 99.8 },
+        health: { weights: { quality: 0.4, flow: 0.2, energy: 0.25, carbonSource: 0.15 }, score: 92.3, grade: '优' },
+        trend: Array.from({ length: 30 }, () => point),
+        latest: point,
+        alerts: [],
+      }),
+    } as Response;
+  }));
+  const { container } = render(<App />);
   await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
   await user.click(await screen.findByRole('button', { name: '唤起 AI 运营助手' }));
   await user.type(screen.getByLabelText('请输入需要分析的问题'), '分析总氮趋势');
@@ -232,6 +263,8 @@ it('switches to a creating report shell before the create request settles', asyn
 
   expect(screen.getByRole('main', { name: 'AI 动态汇报工作区' })).toHaveTextContent('正在创建动态汇报');
   expect(screen.getByRole('region', { name: '汇报对话区' })).toHaveTextContent('分析总氮趋势');
+  expect(container.querySelector('.report-thumbnail-rail')).not.toBeNull();
+  expect(container.querySelector('[data-slide-state="pending"][data-slide-mode="canvas"]')).not.toBeNull();
   expect(screen.queryByRole('dialog', { name: 'AI 智慧指挥中心' })).not.toBeInTheDocument();
 });
 

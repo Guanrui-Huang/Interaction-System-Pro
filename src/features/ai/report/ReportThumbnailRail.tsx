@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReportJobSnapshot, SlideOutline } from '../../../../shared/report';
+import { ReportPendingSlideView } from './ReportPendingSlideView';
 import { ReportSlideView } from './ReportSlideView';
 
 const statusText: Record<SlideOutline['status'], string> = {
@@ -10,7 +11,7 @@ const statusText: Record<SlideOutline['status'], string> = {
 };
 
 type ReportThumbnailRailProps = {
-  snapshot: ReportJobSnapshot;
+  snapshot: ReportJobSnapshot | null;
   activeSlideId?: string;
   playingSlideId?: string | null;
   onSelect(slideId: string): void;
@@ -20,8 +21,8 @@ type ReportThumbnailRailProps = {
 export function ReportThumbnailRail({ snapshot, activeSlideId, playingSlideId, onSelect, onRetry }: ReportThumbnailRailProps) {
   const [acceptedRetries, setAcceptedRetries] = useState<Set<string>>(() => new Set());
   const [retryErrors, setRetryErrors] = useState<Record<string, string>>({});
-  const outlines = useMemo(() => [...snapshot.outline].sort((left, right) => left.order - right.order), [snapshot.outline]);
-  const slides = useMemo(() => new Map(snapshot.slides.map((slide) => [slide.id, slide])), [snapshot.slides]);
+  const outlines = useMemo(() => (snapshot ? [...snapshot.outline].sort((left, right) => left.order - right.order) : []), [snapshot]);
+  const slides = useMemo(() => new Map((snapshot?.slides ?? []).map((slide) => [slide.id, slide])), [snapshot]);
 
   useEffect(() => {
     setAcceptedRetries((current) => {
@@ -54,8 +55,16 @@ export function ReportThumbnailRail({ snapshot, activeSlideId, playingSlideId, o
 
   return (
     <nav className="report-thumbnail-rail" aria-label="汇报页面">
-      <div className="report-thumbnail-rail__label"><span>PAGE CHANNEL</span><strong>{outlines.length} 页</strong></div>
+      <div className="report-thumbnail-rail__label"><span>PAGE CHANNEL</span><strong>{Math.max(1, outlines.length)} 页</strong></div>
       <ol>
+        {!snapshot && (
+          <li className="report-thumbnail report-thumbnail--planned">
+            <div className="report-thumbnail__preview" aria-hidden="true">
+              <span className="report-thumbnail__sequence">01</span>
+              <ReportPendingSlideView mode="thumbnail" />
+            </div>
+          </li>
+        )}
         {outlines.map((item) => {
           const readySlide = item.status === 'ready' ? slides.get(item.id) : undefined;
           const playing = playingSlideId === item.id;
@@ -66,9 +75,9 @@ export function ReportThumbnailRail({ snapshot, activeSlideId, playingSlideId, o
             <li className={`report-thumbnail report-thumbnail--${item.status}${superseded ? ' report-thumbnail--superseded' : ''}${playing ? ' report-thumbnail--playing' : ''}${activeSlideId === item.id ? ' report-thumbnail--active' : ''}`} key={item.id}>
               <div className="report-thumbnail__preview" aria-hidden="true">
                 <span className="report-thumbnail__sequence">{String(item.order + 1).padStart(2, '0')}</span>
-                {readySlide ? <ReportSlideView slide={readySlide} mode="thumbnail" active={activeSlideId === item.id} animate={false} /> : (
-                  <span className="report-thumbnail__pending"><i aria-hidden="true" /><strong>{item.title}</strong><em>{statusText[item.status]}</em></span>
-                )}
+                {readySlide
+                  ? <ReportSlideView slide={readySlide} mode="thumbnail" active={activeSlideId === item.id} animate={false} />
+                  : <ReportPendingSlideView outline={item} mode="thumbnail" />}
               </div>
               <button
                 className="report-thumbnail__select"

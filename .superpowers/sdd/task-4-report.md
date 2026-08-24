@@ -1,80 +1,129 @@
-# Task 4 Report — Desktop readability and panel fill
+# Task 4 Report — Persistent Report Canvas During Creation
 
 ## Scope
 
-Implemented the Task 4 desktop report readability treatment in:
+Implemented Task 4 of the progressive report canvas plan in:
 
+- `src/features/ai/report/ReportWorkspace.tsx`
+- `src/features/ai/report/ReportThumbnailRail.tsx`
+- `src/features/ai/report/ReportGenerationStatus.tsx` (deleted)
 - `src/styles/ai.css`
-- `src/features/ai/report/ReportSubtitleBar.tsx`
-- `src/tests/report-layout-styles.test.ts`
 - `src/tests/report-workspace.test.tsx`
+- `src/tests/app.test.tsx`
 
-The unrelated pre-existing changes in `.superpowers/sdd/task-1-report.md` and `server/.env.example` were left untouched.
+Kept the pre-existing unrelated changes in `server/.env.example` and `.DS_Store` untouched.
 
-## TDD evidence
+Did not modify:
+
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/useReportModuleReveal.ts`
+- server code
+- Task 5 E2E files
+
+## TDD Evidence
 
 ### RED
 
-After adding the desktop readability, geometry-bound, subtitle, and active-cue tests, ran:
+Updated the workspace and app tests first to encode the approved behavior:
+
+- persistent rail/canvas during null, generating, and clarification states
+- no visible `等待生成` / `生成中` thumbnail copy
+- accessible pending button names preserved
+- live-create reveal-once then restored immediate-clear coverage
+
+Tried the brief’s focused command first:
 
 ```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx
+pnpm test src/tests/report-workspace.test.tsx src/tests/app.test.tsx --run
 ```
 
-Result: `4 failed | 53 passed`.
+In this sandbox, `pnpm` could not verify the pinned package-manager signature without registry access, so it was not usable as a reliable verifier here.
 
-The failures were the intended missing behavior:
-
-1. Desktop metric padding/value/icon/panel-label scale had not been raised.
-2. Bars, radar, and ring had no protected `300×180`, `220×220`, and `200×200` drawing bounds after panel chrome consumed space.
-3. The health ring still used its old `340px` sizing rather than the required `320px` panel-short-edge cap.
-4. The subtitle still used the old low bottom offset and did not enforce a single desktop line.
-
-For the later review correction, first added a test forbidding subtitle `overflow: hidden` and `text-overflow: ellipsis`, then ran:
+Used the repo-local Vitest runner to continue the red/green loop:
 
 ```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts
+./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx src/tests/app.test.tsx
 ```
 
-Result: `1 failed | 15 passed`, specifically because the subtitle rule contained `overflow: hidden`.
+Result before implementation: failures matched the intended Task 4 gap:
+
+- `ReportWorkspace` still branched to blocking generation UI
+- pending thumbnails still relied on visible status text
 
 ### GREEN
 
-After implementing the styles and direct cue binding, ran the focused command:
+Implemented the workspace/rail refactor, then verified with the user-provided local Vitest command:
 
 ```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-workspace.test.tsx src/tests/app.test.tsx src/tests/report-module-reveal.test.tsx src/tests/narration-controller.test.tsx
 ```
 
-Result: `2 passed`, `58 passed`.
+Result: `4 passed`, `101 passed`.
 
-Then ran the relevant wider report regressions:
+## Implementation Summary
+
+### `ReportThumbnailRail`
+
+- Changed `snapshot` to accept `ReportJobSnapshot | null`.
+- For `snapshot === null`, renders one decorative pending thumbnail shell with `ReportPendingSlideView mode="thumbnail"` and no selection button.
+- Replaced visible pending thumbnail text blocks with structural `ReportPendingSlideView` previews.
+- Kept pending/failed state text only in accessible button labels and retry behavior.
+
+### `ReportWorkspace`
+
+- Removed the blocking `ReportGenerationStatus` and no-snapshot loading branches.
+- Always renders the rail/canvas stage for non-error creation and restore flows.
+- Tracks reveal completion by report ID and slide ID so:
+  - slides created in the live request reveal once
+  - restored slides render immediately clear when there is no `launchQuestion`
+- Calls `useReportModuleReveal` unconditionally from the workspace and passes revealed modules into `ReportSlideView`.
+- Preserved:
+  - invalid-correction fallback
+  - clarification flow, now as an overlay above the canvas
+  - chat/sidebar behavior
+  - narration controls and subtitle bar
+  - retry/correction handling
+  - keyboard focus behavior driven by existing slide and clarification components
+
+### Styles
+
+- Removed obsolete blocking-generation CSS for:
+  - `.report-generation-status`
+  - `.report-workspace__loading`
+  - `.report-workspace__pending`
+- Removed obsolete thumbnail pending text styling that no longer has callers.
+- Added `.report-workspace__clarification-overlay` with the requested blurred overlay treatment.
+- Kept the large-screen fixed workspace layout intact and did not add any new `1280x800` page treatment.
+
+### Tests
+
+- Rewrote pending-state expectations to assert the persistent workspace stage.
+- Added reveal lifecycle coverage for:
+  - null/create shell
+  - outline-only generating shell
+  - first ready live-created slide progressive reveal
+  - restored revisit immediate-clear behavior
+- Updated the app-level create-shell test to hold the report creation request open so it genuinely observes the pre-settlement state.
+
+## Verification
+
+Verified with:
 
 ```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-layout-styles.test.ts src/tests/report-workspace.test.tsx src/tests/report-visuals.test.tsx src/tests/narration-subtitle-cues.test.ts
+CI=1 node node_modules/vitest/vitest.mjs run src/tests/report-workspace.test.tsx src/tests/app.test.tsx src/tests/report-module-reveal.test.tsx src/tests/narration-controller.test.tsx
 ```
 
-Result: `4 passed`, `106 passed`.
+Observed result:
 
-Finally ran:
-
-```sh
-pnpm run build
-```
-
-Result: exit code `0`.
-
-## Implementation
-
-- Raised desktop metric padding, text scale, panel labels, chart labels/values, and semantic icons; thumbnail icons remain smaller.
-- Changed dashboard panel content tracks to `minmax(min-content, 1fr)` and added chart-level minimum drawing bounds: bars `300×180`, radar `220×220`, ring `200×200`. The style test injects the report stylesheet and verifies those dimensions through `getComputedStyle`.
-- Kept panel overflow unmasked; the chart child owns the minimum dimensions so panel labels and padding cannot shrink the drawable geometry.
-- Updated health rings to a `min(100%, 320px)` width/height cap, retaining an SVG square drawing area and proportionally enlarged center value.
-- Kept the subtitle directly bound to the current controller cue (including an empty cue), raised its desktop bottom clearance above evidence, and made it a centered non-interactive single line without CSS ellipsis or hidden overflow.
-- Preserved the narrow-screen grid and thumbnail chart overrides.
+- `src/tests/report-workspace.test.tsx`: passed
+- `src/tests/app.test.tsx`: passed
+- `src/tests/report-module-reveal.test.tsx`: passed
+- `src/tests/narration-controller.test.tsx`: passed
+- total: `101 passed`
 
 ## Self-review
 
-- `git diff --check` reported no whitespace errors.
-- Confirmed no panel selector introduces `overflow: hidden`.
-- Confirmed `server/.env.example` was not staged or modified by this task.
+- Checked the task diff for unintended overlap with unrelated user changes.
+- Confirmed only Task 4 implementation/test files plus this report are intended for staging.
+- Confirmed the stale previous contents of `task-4-report.md` were replaced with this task’s report.
+- `git diff --check` reported no whitespace issues for the task files.
