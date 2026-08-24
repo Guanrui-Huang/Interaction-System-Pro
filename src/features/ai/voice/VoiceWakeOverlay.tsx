@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BusinessPage } from '../../../../shared/dashboard';
 import { useVoiceRecognition } from './useVoiceRecognition';
 import { type AssistantPromptPlayback } from './useAssistantPromptPlayback';
+import { LiquidVoiceOrb } from './LiquidVoiceOrb';
 import '../voice/voice-wake.css';
 
 export type VoiceWakeOverlayProps = {
@@ -75,13 +76,9 @@ export function VoiceWakeOverlay({ originPage, promptPlayback, onStartReport, on
       : '好滴，现在我来分析…';
 
   return (
-    <div aria-label="语音交互" aria-modal="false" className="voice-wake-overlay" role="dialog">
-      <div className={`voice-breathing-ball voice-breathing-ball--${phase}`}>
-        <span aria-hidden="true" className="voice-breathing-ball__ring voice-breathing-ball__ring--outer" />
-        <span aria-hidden="true" className="voice-breathing-ball__ring voice-breathing-ball__ring--inner" />
-        <div aria-hidden="true" className="voice-breathing-ball__core">✦</div>
-      </div>
+    <div aria-label="语音交互" aria-modal="false" className="voice-wake-overlay voice-wake-overlay--bottom-center" role="dialog">
       <div aria-live="polite" className="voice-wake-overlay__text" role="status">{displayText}</div>
+      <LiquidVoiceOrb phase={phase} />
       {phase === 'analyzing' && <div className="voice-wake-overlay__question">正在分析：{question}</div>}
       <button aria-label="关闭语音交互" className="voice-wake-overlay__close" type="button" onClick={dismiss}>×</button>
     </div>
