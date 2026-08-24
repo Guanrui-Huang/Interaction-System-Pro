@@ -51,12 +51,14 @@ function reducedMotionRequested(): boolean {
 }
 
 type UseReportModuleRevealOptions = {
+  reportId?: string;
   slide?: ReportSlide;
   immediate: boolean;
   onComplete(slideId: string): void;
 };
 
 export function useReportModuleReveal({
+  reportId,
   slide,
   immediate,
   onComplete,
@@ -65,7 +67,7 @@ export function useReportModuleReveal({
   const planKey = plan.join('|');
   const slideId = slide?.id;
   const summaryMetricCount = slide?.visual.kind === 'data-dashboard' ? slide.visual.summaryMetrics.length : 0;
-  const revealKey = slideId ? `${slideId}:${planKey}` : '';
+  const revealKey = slideId ? `${reportId ?? 'report-default'}:${slideId}:${planKey}` : '';
   const reduced = reducedMotionRequested();
   const [revealState, setRevealState] = useState(() => ({
     key: revealKey,
@@ -114,7 +116,7 @@ export function useReportModuleReveal({
       cancelled = true;
       for (const timer of timers) window.clearTimeout(timer);
     };
-  }, [immediate, onComplete, plan.length, planKey, reduced, revealKey, slideId, summaryMetricCount]);
+  }, [immediate, onComplete, plan.length, planKey, reduced, revealKey, reportId, slideId, summaryMetricCount]);
 
   const revealedModules = useMemo(
     () => new Set<ReportRevealModule>(plan.slice(0, visibleCount)),

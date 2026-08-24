@@ -70,17 +70,18 @@ export function DataDashboardVisual({
     '--report-summary-columns': String(summaryColumns),
   } as CSSProperties & { '--report-summary-columns': string };
   const supportSlots = supporting.slice(0, 2);
+  const fixedSupportSlots = Array.from({ length: 2 }, (_, index) => supportSlots[index]);
 
   return (
     <ReportChartThemeProvider metrics={paletteMetrics}>
       <div
         className="report-data-dashboard"
         data-support-count={supportSlots.length}
-        data-support-slots={supportSlots.length}
+        data-support-slots="2"
         data-summary-columns={summaryColumns}
         data-summary-rows={summaryRows}
       >
-        {visual.summaryMetrics.length > 0 && (
+        {visual.summaryMetrics.length > 0 ? (
           <dl
             className="report-data-dashboard__metrics"
             style={summaryStyle}
@@ -107,6 +108,8 @@ export function DataDashboardVisual({
               </div>
             ))}
           </dl>
+        ) : (
+          <div className="report-data-dashboard__metrics report-data-dashboard__metrics--empty" data-dashboard-slot="metrics" aria-hidden="true" />
         )}
         <section
           className="report-data-dashboard__primary"
@@ -123,13 +126,13 @@ export function DataDashboardVisual({
             <AtomicVisualRenderer visual={visual.primary} mode={mode} />
           </ReportVisualErrorBoundary>
         </section>
-        {supportSlots.length > 0 && (
-          <div
-            className="report-data-dashboard__support"
-            data-dashboard-slot="support"
-            aria-label="辅助图"
-          >
-            {supportSlots.map((item, index) => (
+        <div
+          className="report-data-dashboard__support"
+          data-dashboard-slot="support"
+          aria-label="辅助图"
+        >
+          {fixedSupportSlots.map((item, index) => (
+            item ? (
               <section
                 key={`${item.kind}-${index + 1}`}
                 data-dashboard-support-slot={index}
@@ -146,9 +149,17 @@ export function DataDashboardVisual({
                   <AtomicVisualRenderer visual={item} mode={mode} />
                 </ReportVisualErrorBoundary>
               </section>
-            ))}
-          </div>
-        )}
+            ) : (
+              <section
+                key={`empty-support-${index + 1}`}
+                className="report-data-dashboard__support-empty"
+                data-dashboard-support-slot={index}
+                data-dashboard-support-empty="true"
+                aria-hidden="true"
+              />
+            )
+          ))}
+        </div>
       </div>
     </ReportChartThemeProvider>
   );

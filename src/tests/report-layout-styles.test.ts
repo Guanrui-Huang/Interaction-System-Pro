@@ -82,12 +82,15 @@ it('uses a compact two-row canvas with a floating subtitle and balanced dashboar
 });
 
 it('restores final zero, one, and two-support dashboard layouts while pending geometry stays stable', () => {
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="0"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary primary";[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/su);
-  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="2"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
+  expect(css).not.toMatch(/\.report-data-dashboard\[data-support-count="[01]"\]/u);
+  expect(css).toMatch(/\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
   expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\s+\.report-pending-slide__visual\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
   expect(css).toMatch(/\.report-pending-slide__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
+});
+
+it('clips pending module surfaces so blur stays inside each slot', () => {
+  expect(css).toMatch(/\.report-pending-slide__metric,\s*\.report-pending-slide__panel\s*\{[^}]*overflow:\s*clip;/su);
+  expect(css).toMatch(/\.report-data-dashboard--atomic-kpi\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";/su);
 });
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {

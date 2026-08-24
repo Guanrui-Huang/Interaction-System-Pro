@@ -300,6 +300,7 @@
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
+  overflow: clip;
   padding: .55rem;
   border: 1px solid rgb(111 175 192 / 16%);
   background: rgb(5 17 25 / 36%);
@@ -570,14 +571,11 @@
 .report-data-dashboard__support > section { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; padding: .55rem; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 36%); container-type: size; }
 .report-data-dashboard__primary { grid-area: primary; }
 .report-data-dashboard__support { grid-area: support; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr); gap: .75rem; min-height: 0; }
-.report-data-dashboard[data-support-count="0"] { grid-template-areas: "metrics metrics" "primary primary"; grid-template-rows: auto minmax(0, 1fr); }
-.report-data-dashboard[data-support-count="1"] {
-  grid-template-areas: "metrics metrics" "primary support";
-  grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-}
-.report-data-dashboard[data-support-count="1"] .report-data-dashboard__support { grid-template-rows: minmax(0, 1fr); }
-.report-data-dashboard[data-support-count="2"] .report-data-dashboard__support { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.report-data-dashboard__support { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.report-data-dashboard__metrics--empty { min-height: 4.8rem; }
+.report-data-dashboard__support-empty { min-width: 0; min-height: 0; border: 1px solid rgb(111 175 192 / 16%); background: rgb(5 17 25 / 24%); }
+.report-data-dashboard--atomic-kpi { grid-template-areas: "metrics metrics" "primary support"; }
+.report-data-dashboard--atomic-kpi .report-data-dashboard__primary { min-height: 0; }
 .report-data-dashboard__panel-label { margin: 0 0 .55rem; color: #7fa0aa; font-size: .94rem; letter-spacing: .04em; }
 .report-canvas-geometry-shell--dashboard.report-slide--canvas .report-data-dashboard__panel-label { font-size: 16px; }
 .report-data-dashboard .report-visual-renderer,

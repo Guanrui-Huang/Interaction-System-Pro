@@ -219,6 +219,71 @@ it('reveals dashboard modules progressively with the specified delays and comple
   unmount();
 });
 
+it('starts a fresh reveal when a new report reuses the same slide id', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const slide = dashboardSlideFixture({ id: 'shared-slide-id' });
+  const onComplete = vi.fn();
+  const { result, rerender, unmount } = renderHook(
+    ({ reportId }: { reportId: string }) => useReportModuleReveal({
+      reportId,
+      slide,
+      immediate: false,
+      onComplete,
+    }),
+    { initialProps: { reportId: 'report-a' } },
+  );
+
+  await act(async () => vi.advanceTimersByTimeAsync(320));
+  expect(result.current.revealedModules.has('metrics')).toBe(true);
+
+  rerender({ reportId: 'report-b' });
+  expect([...result.current.revealedModules]).toEqual(['heading']);
+  await act(async () => vi.advanceTimersByTimeAsync(319));
+  expect(result.current.revealedModules.has('metrics')).toBe(false);
+  unmount();
+});
+
+it('cancels staged reveal when the active slide becomes unavailable', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const onComplete = vi.fn();
+  const initialProps: { slide?: ReportSlide } = { slide: dashboardSlideFixture() };
+  const { result, rerender, unmount } = renderHook(
+    ({ slide }: { slide?: ReportSlide }) => useReportModuleReveal({
+      reportId: 'report-a',
+      slide,
+      immediate: false,
+      onComplete,
+    }),
+    { initialProps },
+  );
+
+  rerender({ slide: undefined });
+  await act(async () => vi.advanceTimersByTimeAsync(3_000));
+  expect([...result.current.revealedModules]).toEqual([]);
+  expect(onComplete).not.toHaveBeenCalled();
+  unmount();
+});
+
 it.each([
   [1, 420],
   [4, 580],

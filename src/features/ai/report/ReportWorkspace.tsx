@@ -141,11 +141,15 @@ export function ReportWorkspace(
     || snapshot?.status === 'failed'
     || snapshot?.status === 'cancelled'
   );
+  const revealableActiveSlide = session.error || snapshot?.status === 'failed' || snapshot?.status === 'cancelled'
+    ? undefined
+    : activeSlide;
   const markAnimated = useCallback((slide: ReportSlide) => { animatedSlides.current.add(slide.id); }, []);
   const markRevealComplete = useCallback((slideId: string) => { revealedSlides.current.add(slideId); }, []);
   const reveal = useReportModuleReveal({
-    slide: activeSlide,
-    immediate: Boolean(activeSlide && revealedSlides.current.has(activeSlide.id)),
+    reportId: snapshot?.reportId,
+    slide: revealableActiveSlide,
+    immediate: Boolean(revealableActiveSlide && revealedSlides.current.has(revealableActiveSlide.id)),
     onComplete: markRevealComplete,
   });
   useEffect(() => {
