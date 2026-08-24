@@ -104,8 +104,9 @@ it('releases the desktop heading row height on narrow report canvases', () => {
   const mobileEnd = css.indexOf('@media (max-width: 1180px)', mobileStart);
   const mobileCss = css.slice(mobileStart, mobileEnd);
 
-  expect(containerCss).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/su);
-  expect(mobileCss).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/su);
+  const narrowRowOverride = /\.report-canvas-geometry-shell--dashboard\.report-pending-slide--canvas,\s*\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/su;
+  expect(containerCss).toMatch(narrowRowOverride);
+  expect(mobileCss).toMatch(narrowRowOverride);
 });
 
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
