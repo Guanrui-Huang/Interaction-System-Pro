@@ -286,6 +286,56 @@ it('cancels pending timers on unmount and does not complete afterward', async ()
   expect(onComplete).not.toHaveBeenCalled();
 });
 
+it('switches a progressive reveal to immediate mode without leaving staged timers behind', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', vi.fn(() => ({
+    matches: false,
+    media: '(prefers-reduced-motion: reduce)',
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+    onchange: null,
+  })));
+  const dashboardSlide = dashboardSlideFixture();
+  const onComplete = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ slide, immediate }) => useReportModuleReveal({
+      slide,
+      immediate,
+      onComplete,
+    }),
+    { initialProps: { slide: dashboardSlide, immediate: false } },
+  );
+
+  expect([...result.current.revealedModules]).toEqual(['heading']);
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+  await act(async () => vi.advanceTimersByTimeAsync(320));
+  expect([...result.current.revealedModules]).toEqual(['heading', 'metrics']);
+
+  await act(async () => {
+    rerender({ slide: dashboardSlide, immediate: true });
+  });
+
+  expect([...result.current.revealedModules]).toEqual([
+    'heading',
+    'metrics',
+    'primary',
+    'support-0',
+    'support-1',
+    'evidence',
+  ]);
+  expect(result.current.progressive).toBe(false);
+  expect(vi.getTimerCount()).toBe(0);
+  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(onComplete).toHaveBeenCalledWith(dashboardSlide.id);
+
+  await act(async () => vi.advanceTimersByTimeAsync(5_000));
+  expect(onComplete).toHaveBeenCalledTimes(1);
+});
+
 it('does not reset revealed modules when rerendered with a republished slide object that keeps the same id and plan', async () => {
   vi.useFakeTimers();
   vi.stubGlobal('matchMedia', vi.fn(() => ({

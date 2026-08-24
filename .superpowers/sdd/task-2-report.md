@@ -1,83 +1,143 @@
-# Task 2 Report: Audio Duration and Subtitle Synchronization
+# Task 2 Report
+
+Date: 2026-08-24
 
 ## Scope
 
-Implemented Task 2 subtitle synchronization without changing `server/.env.example`.
+Implemented Task 2 of the progressive report canvas plan in `Interaction-System-Pro` without modifying Task 1 files or later-task files.
 
-- `AudioSegmentPlayer.durationMs()` now exposes decoded speech duration and returns `0` before decoding.
-- Narration text is split into subtitle cues immediately when a cursor begins; the first cue is rendered before audio resolves.
-- A 120 ms narration-only timer derives the current cue from `positionMs() / durationMs()`.
-- Timers are cleared during release, segment end, pause, interruption, stop, and unmount. Resume starts a fresh timer.
-- Timer callbacks require the mounted component, current operation, and active playback identity, so stale audio cannot replace a later slide's subtitle.
-- Existing voice-playback fake player now implements the expanded audio-player contract with `durationMs(): 0`.
+## Changed Files
 
-## TDD Evidence
+- `src/features/ai/report/useReportModuleReveal.ts`
+- `src/tests/report-module-reveal.test.tsx`
+
+## Commit
+
+- `cc200f4` `feat: add report module reveal controller`
+
+## Test Commands And Output
 
 ### RED
 
 Command:
 
-```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/narration-controller.test.tsx
+```bash
+./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx
 ```
 
-Result: exit 1; 34 passed and 3 failed. The new controller regressions received the complete narration (`第一句。第二句。第三句。`) where they expected the initial or offset-aligned single cue. This demonstrated the missing controller behavior before implementation.
+Output summary:
+
+```text
+FAIL  src/tests/report-module-reveal.test.tsx
+Error: Failed to resolve import "../features/ai/report/useReportModuleReveal" from "src/tests/report-module-reveal.test.tsx". Does the file exist?
+Test Files  1 failed (1)
+Tests  no tests
+```
 
 ### GREEN
 
 Command:
 
-```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/narration-subtitle-cues.test.ts src/tests/narration-controller.test.tsx
+```bash
+./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx
 ```
 
-Result: exit 0; 43 tests passed across 2 files.
+Output summary:
 
-The controller regressions cover initial cue rendering, progress advance, pause/resume stability, and restoring a saved offset. They use a controllable fake player implementing the real `AudioSegmentPlayer` contract and the production cue splitter.
+```text
+✓ src/tests/report-module-reveal.test.tsx (7 tests)
+✓ builds the reveal plan for dashboard slides in the required module order
+✓ uses the atomic reveal plan for non-dashboard slides
+✓ reveals dashboard modules progressively with the specified delays and completes on the final module
+✓ returns the complete reveal set immediately when immediate mode is requested
+✓ returns the complete reveal set immediately when reduced motion is requested
+✓ cancels pending timers on unmount and does not complete afterward
+✓ does not reset revealed modules when rerendered with a republished slide object that keeps the same id and plan
+Test Files  1 passed (1)
+Tests  7 passed (7)
+```
 
-### Type Check
+### Diff Hygiene
 
 Command:
 
-```sh
-node node_modules/typescript/bin/tsc -b --pretty false
+```bash
+git diff --check
 ```
 
-The first run exposed the expanded interface requirement in the pre-existing `FakeAudioSegmentPlayer` used by `voice-playback.test.tsx`. Added its zero-duration contract implementation. The final run exited 0 with no diagnostics.
+Output summary:
+
+```text
+no output
+```
 
 ## Self-Review
 
-- Confirmed `speechDurationMs` already records decoded total duration; `durationMs()` exposes that state directly.
-- Confirmed subtitle updates are narration-only and do not alter aria-live status, error text, or pause/resume cursor-offset semantics.
-- Confirmed timer teardown covers every required lifecycle path and callbacks guard mounted, operation, and active playback ownership.
-- Confirmed only Task 2 implementation/tests are staged for commit; this report and unrelated workspace edits are excluded.
+- The hook stays constrained to the new Task 2 boundary: it only exports the reveal module type, the reveal-plan helper, and the hook itself.
+- Reveal scheduling matches the brief exactly: `metrics` after `320ms`, `primary` after `420ms`, each support module after `300ms`, and `evidence` after `240ms`.
+- Progressive behavior is bypassed correctly for `immediate: true` and reduced-motion users, and both paths complete synchronously.
+- Cleanup logic clears outstanding timers on unmount, preventing a late `onComplete` callback after teardown.
+- The same-ID republished-object regression is covered so equivalent republished slide objects do not restart the reveal sequence.
 
-## Final Verification
+## Concerns
 
-- Focused subtitle/controller tests: 43/43 passing.
-- TypeScript project check: passing.
+- The focused Task 2 suite is green, but this turn did not run the broader Vitest suite, so any integration issues outside the new hook boundary would still need wider test coverage later.
 
-## Task 2 Review Fix
+## Fix Addendum
 
-- Reset `speechDurationMs` to `0` at the start of every new `WebAudioSegmentPlayer.play()` before asynchronous decoding, preventing a reused player from exposing stale duration.
-- Added a focused `voice-playback.test.tsx` regression covering zero duration before first decode, decoded duration after play resolves, and zero duration during a second decode.
+Date: 2026-08-24
 
-### Verification
+### Files
 
-```sh
-CI=1 node node_modules/vitest/vitest.mjs run src/tests/narration-subtitle-cues.test.ts src/tests/narration-controller.test.tsx src/tests/voice-playback.test.tsx
+- `src/tests/report-module-reveal.test.tsx`
+- `.superpowers/sdd/task-2-report.md`
+
+### Commit
+
+- Pending final commit hash for this turn
+
+### Test Evidence
+
+Command:
+
+```bash
+./node_modules/.bin/vitest run src/tests/report-module-reveal.test.tsx
 ```
 
-Result: exit 0; 66 tests passed across 3 files.
+Output summary:
 
-```sh
-node node_modules/typescript/bin/tsc -b --pretty false
+```text
+✓ src/tests/report-module-reveal.test.tsx (8 tests)
+✓ builds the reveal plan for dashboard slides in the required module order
+✓ uses the atomic reveal plan for non-dashboard slides
+✓ reveals dashboard modules progressively with the specified delays and completes on the final module
+✓ switches a progressive reveal to immediate mode without leaving staged timers behind
+✓ returns the complete reveal set immediately when immediate mode is requested
+✓ returns the complete reveal set immediately when reduced motion is requested
+✓ cancels pending timers on unmount and does not complete afterward
+✓ does not reset revealed modules when rerendered with a republished slide object that keeps the same id and plan
+Test Files  1 passed (1)
+Tests  8 passed (8)
 ```
 
-Result: exit 0 with no diagnostics.
+Command:
+
+```bash
+git diff --check
+```
+
+Output summary:
+
+```text
+no output
+```
 
 ### Self-Review
 
-- Confirmed the production change is limited to resetting the existing duration state before decode; no unrelated playback behavior changed.
-- Confirmed the regression uses the existing fake audio context/deferred decode pattern and exercises the public player contract.
-- Confirmed `server/.env.example` and pre-existing unrelated workspace edits remain untouched.
+- The new regression test exercises the exact transition the review called out: a slide that starts in progressive mode and is then rerendered with `immediate: true`.
+- The assertion set covers the visible-state jump, timer cleanup, and completion behavior with real fake timers.
+- No production code was changed because the hook already handles the transition correctly once the missing test coverage is in place.
+
+### Concerns
+
+- This fix is deliberately narrow and only revalidates the targeted hook file, so wider report rendering flows still depend on later integration coverage.
