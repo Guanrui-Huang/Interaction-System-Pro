@@ -101,6 +101,22 @@ it('starts listening only after login and shows the breathing-ball overlay witho
   expect(voiceHarness.promptPlay).toHaveBeenCalledWith('wake');
 });
 
+it('stops wake listening for a signed-in open overlay and does not restart while it remains open', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  expect(voiceHarness.wakeStart).toHaveBeenCalledOnce();
+
+  voiceHarness.wakeStart.mockClear();
+  await act(async () => { voiceHarness.wakeOnWake?.('小智小智'); });
+  expect(screen.getByRole('dialog', { name: '语音交互' })).toBeInTheDocument();
+  expect(voiceHarness.wakeStop).toHaveBeenCalled();
+  await act(async () => { await Promise.resolve(); });
+  expect(voiceHarness.wakeStart).not.toHaveBeenCalled();
+  expect(screen.getByRole('dialog', { name: '语音交互' })).toBeInTheDocument();
+});
+
 it('does not create another wake session when the signed-in page changes', async () => {
   const user = userEvent.setup();
   render(<App />);
