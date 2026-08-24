@@ -171,3 +171,44 @@ git diff --check
 ```
 
 Result: clean, with no whitespace or patch-format issues.
+
+## Follow-up Fix: Ref Initialization Compile Regression
+
+### Root Cause
+
+`revealReportId` was declared as `useRef<string>()`, which is no longer accepted by the current React typings in this repo. The compiler now requires an explicit initial value for the ref overload, so the zero-argument form triggers `TS2554`.
+
+### Fix
+
+- Changed `revealReportId` in `src/features/ai/report/ReportWorkspace.tsx` to:
+
+```ts
+const revealReportId = useRef<string | undefined>(undefined);
+```
+
+This preserves the same runtime behavior while satisfying the current typings.
+
+### Verification
+
+Ran the requested commands after the fix:
+
+```sh
+./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx --reporter=basic
+```
+
+Result:
+
+- `src/tests/report-workspace.test.tsx`: passed
+- total: `45 passed`
+
+```sh
+./node_modules/.bin/tsc -b
+```
+
+Result: passed with exit code `0`.
+
+```sh
+git diff --check
+```
+
+Result: clean, with no whitespace or patch-format issues.

@@ -88,7 +88,7 @@ export function ReportWorkspace(
   { session, launchQuestion }: { session: ReportSession; launchQuestion?: string },
 ) {
   const animatedSlides = useRef(new Set<string>());
-  const revealReportId = useRef<string>();
+  const revealReportId = useRef<string | undefined>(undefined);
   const revealedSlides = useRef(new Set<string>());
   const initialTimingRef = useRef<{ question?: string; startedAt?: number; reportId?: string; frozen: boolean }>({ frozen: false });
   const conversationPanelId = useId();
