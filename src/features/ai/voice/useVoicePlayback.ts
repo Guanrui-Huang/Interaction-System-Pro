@@ -8,7 +8,11 @@ import {
   type VoiceErrorCode,
 } from '../../../../shared/voice';
 import { createAudioSegmentPlayer, type AudioSegmentPlayer } from './audio-segment-player';
-
+import {
+  voiceOutputArbiter,
+  type VoiceOutputArbiter,
+  type VoiceOutputLease,
+} from './voice-output-arbiter';
 const SYNTHESIS_PATH = '/api/voice/synthesize';
 const SOCKET_CONNECTING = 0;
 const SOCKET_OPEN = 1;
@@ -43,6 +47,7 @@ export type VoicePlaybackDependencies = {
   player?: AudioSegmentPlayer;
   createWebSocket?: (url: string) => VoicePlaybackSocket;
   createPlayer?: () => AudioSegmentPlayer;
+  arbiter?: VoiceOutputArbiter;
 };
 
 export type UseVoicePlaybackOptions = {
@@ -76,6 +81,7 @@ type PlaybackSession = {
   intentionallyClosed: boolean;
   closed: boolean;
   userPaused: boolean;
+  lease: VoiceOutputLease;
 };
 
 function defaultDependencies(): Required<Pick<VoicePlaybackDependencies, 'createWebSocket' | 'createPlayer'>> {
@@ -151,6 +157,7 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
   const mountedRef = useRef(true);
   const sessionRef = useRef<PlaybackSession | null>(null);
   const playGenerationRef = useRef(0);
+  const arbiterRef = useRef(options.dependencies?.arbiter ?? voiceOutputArbiter);
   const [status, setStatus] = useState<VoicePlaybackStatus>('idle');
   const [progress, setProgress] = useState<VoicePlaybackProgress>({ completed: 0, total: 0 });
   const [errorCode, setErrorCode] = useState<VoiceErrorCode | null>(null);
@@ -194,6 +201,7 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
         // Playback cleanup is best-effort and must remain no-throw.
       }
       if (sessionRef.current === session) sessionRef.current = null;
+      session.lease.release();
     }
   }, []);
 
@@ -239,6 +247,11 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
       setErrorCode('VOICE_ANSWER_NOT_FOUND');
       return;
     }
+    const lease = await arbiterRef.current.acquire('narration', stopActiveSession);
+    if (!lease || !lease.isCurrent() || !mountedRef.current || playGeneration !== playGenerationRef.current) {
+      lease?.release();
+      return;
+    }
 
     const dependencies = dependenciesRef.current;
     let socket: VoicePlaybackSocket;
@@ -254,6 +267,7 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
       } catch {
         // A partially constructed player is best-effort cleanup.
       }
+      lease.release();
       if (!mountedRef.current || playGeneration !== playGenerationRef.current) return;
       setIfMounted(() => {
         setStatus('error');
@@ -274,6 +288,7 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
           // Stale construction cleanup is best-effort.
         }
       }
+      lease.release();
       return;
     }
 
@@ -294,6 +309,7 @@ export function useVoicePlayback(options: UseVoicePlaybackOptions = {}): VoicePl
       intentionallyClosed: false,
       closed: false,
       userPaused: false,
+      lease,
     };
     sessionRef.current = session;
     socket.binaryType = 'arraybuffer';
