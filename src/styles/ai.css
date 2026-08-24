@@ -573,18 +573,36 @@
   grid-template-rows: minmax(0, 1fr);
 }
 .report-data-dashboard__metrics { grid-area: metrics; display: grid; grid-template-columns: repeat(var(--report-summary-columns), minmax(0, 1fr)); block-size: 5.5rem; min-block-size: 4.8rem; gap: .3rem; margin: 0; overflow: clip; }
-.report-data-dashboard__metric { min-width: 0; padding: .72rem .75rem; border: 1px solid rgb(111 175 192 / 18%); background: rgb(7 19 27 / 48%); }
+.report-data-dashboard__metric {
+  display: grid;
+  grid-template-areas: "label status" "value value";
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  min-width: 0;
+  padding: .72rem .75rem;
+  border: 1px solid rgb(111 175 192 / 18%);
+  background: rgb(7 19 27 / 48%);
+}
 .report-data-dashboard__metric dt,
 .report-data-dashboard__panel-label,
 .report-kpi__label { display: inline-flex; align-items: center; gap: .45rem; min-width: 0; }
-.report-data-dashboard__metric dt { color: #7fa0aa; font-size: .94rem; }
+.report-data-dashboard__metric dt { grid-area: label; color: #7fa0aa; font-size: .94rem; }
 .report-data-dashboard__metric dt span,
 .report-data-dashboard__panel-label span,
 .report-kpi__label span { min-width: 0; }
-.report-data-dashboard__metric dd { display: flex; align-items: baseline; gap: .4rem; margin: .36rem 0 0; }
+.report-data-dashboard__metric dd { grid-area: value; display: flex; align-items: baseline; align-self: end; gap: .4rem; min-width: 0; margin: .36rem 0 0; }
 .report-data-dashboard__metric strong { color: #efffff; font: 650 1.8rem "JetBrains Mono", monospace; }
 .report-data-dashboard__metric span,
 .report-data-dashboard__metric small { color: #72949e; font-size: .82rem; }
+.report-data-dashboard__metric-status {
+  grid-area: status;
+  justify-self: end;
+  max-inline-size: 5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metrics { gap: .24rem; }
 .report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric { padding-inline: .55rem; }
 .report-data-dashboard[data-summary-columns="8"] .report-data-dashboard__metric dt span { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }

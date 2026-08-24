@@ -142,6 +142,14 @@ it('adds an eight-column dashboard density hook without shrinking metric typogra
   expect(css).toMatch(/\.report-data-dashboard\[data-summary-columns="8"\]\s+\.report-data-dashboard__metric\s+dt\s+span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*line-height:\s*1\.25;/su);
 });
 
+it('keeps metric labels, status, and values in separate card grid areas', () => {
+  expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*display:\s*grid;[^}]*grid-template-areas:\s*"label status"\s*"value value";[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+max-content;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*grid-area:\s*label;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric\s+dd\s*\{[^}]*grid-area:\s*value;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric-status\s*\{[^}]*grid-area:\s*status;[^}]*overflow:\s*hidden;/su);
+  expect(css).toMatch(/\.report-data-dashboard__metric-status\s*\{[^}]*white-space:\s*nowrap;/su);
+});
+
 it.each([
   [1, 420],
   [4, 580],

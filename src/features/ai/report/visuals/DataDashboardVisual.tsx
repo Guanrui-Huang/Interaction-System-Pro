@@ -103,7 +103,7 @@ export function DataDashboardVisual({
                   <strong data-motion-number data-final-value={metric.value}>{formatReportNumber(metric.value)}</strong>
                   <span>{metric.unit}</span>
                 </dd>
-                {metric.status && <small>{metric.status}</small>}
+                {metric.status && <small className="report-data-dashboard__metric-status">{metric.status}</small>}
               </div>
             ))}
           </dl>

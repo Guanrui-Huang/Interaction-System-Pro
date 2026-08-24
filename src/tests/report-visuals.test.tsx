@@ -234,6 +234,18 @@ it('assigns different bar themes to separate carbon metrics in the same chart', 
   expect(carbonBars[0]?.dataset.barTheme).not.toBe(carbonBars[1]?.dataset.barTheme);
 });
 
+it('renders metric status in a dedicated card status slot', () => {
+  const compliant = { ...metric('tn', '总氮', 2.4), status: '达标' };
+  const { container } = render(
+    <VisualRenderer visual={dataDashboardFixture({ summaryMetrics: [compliant] })} mode="canvas" />,
+  );
+
+  const card = container.querySelector('.report-data-dashboard__metric');
+  expect(card?.querySelector('dt')).toHaveTextContent('总氮');
+  expect(card?.querySelector('dd')).toHaveTextContent('2.4');
+  expect(card?.querySelector('.report-data-dashboard__metric-status')).toHaveTextContent('达标');
+});
+
 it('uses the same seven semantic themes for trend series and fills only the primary series', () => {
   const items = [
     metric('qualityScore', '出水水质得分', 96, '分'),
