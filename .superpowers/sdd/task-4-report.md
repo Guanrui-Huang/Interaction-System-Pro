@@ -127,3 +127,47 @@ Observed result:
 - Confirmed only Task 4 implementation/test files plus this report are intended for staging.
 - Confirmed the stale previous contents of `task-4-report.md` were replaced with this task’s report.
 - `git diff --check` reported no whitespace issues for the task files.
+
+## Follow-up Fix: Clarification Overlay Containment
+
+### Root Cause
+
+The clarification overlay for `awaiting-clarification` was already rendered inside `.report-workspace__canvas` in the DOM, but the canvas itself did not establish a positioning context. Because `.report-workspace__clarification-overlay` is `position: absolute; inset: 0`, it was positioning against the outer `.report-workspace` shell instead of the canvas, which let it visually cover the thumbnail rail.
+
+### Fix
+
+- Added `position: relative;` to `.report-workspace__canvas` in `src/styles/ai.css`.
+- Tightened the clarification regression in `src/tests/report-workspace.test.tsx` to assert:
+  - the overlay remains inside `.report-workspace__canvas`
+  - the thumbnail rail stays outside the canvas as a sibling
+  - the stylesheet now gives the canvas a local positioning context
+
+No other Task 4 behavior changed.
+
+### Verification
+
+Attempted the brief’s focused command:
+
+```sh
+pnpm test src/tests/report-workspace.test.tsx src/tests/app.test.tsx --run
+```
+
+In this sandbox that command stalled without producing a useful result, so I used the repo-local Vitest binary for the actual proof step:
+
+```sh
+./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx src/tests/app.test.tsx
+```
+
+Result after the fix:
+
+- `src/tests/app.test.tsx`: passed
+- `src/tests/report-workspace.test.tsx`: passed
+- total: `56 passed`
+
+Also ran:
+
+```sh
+git diff --check
+```
+
+Result: clean, with no whitespace or patch-format issues.

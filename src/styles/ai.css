@@ -211,7 +211,7 @@
 .report-thumbnail__retry { position: absolute; z-index: 4; right: 7px; bottom: 7px; padding: 3px 6px; border: 1px solid rgb(255 180 91 / 48%); border-radius: 2px; background: #15232a; color: var(--report-warn) !important; font: 10px "JetBrains Mono", "Microsoft YaHei", monospace; }
 .report-thumbnail__retry:disabled { opacity: .45; cursor: wait; }
 .report-thumbnail__retry-error { margin: 5px 4px 0; color: var(--report-danger); font: 10px/1.45 "JetBrains Mono", "Microsoft YaHei", monospace; }
-.report-workspace__canvas { grid-area: canvas; min-width: 0; min-height: 0; padding: clamp(10px, 1.25vw, 20px); overflow: hidden; container-type: inline-size; }
+.report-workspace__canvas { position: relative; grid-area: canvas; min-width: 0; min-height: 0; padding: clamp(10px, 1.25vw, 20px); overflow: hidden; container-type: inline-size; }
 .report-slide { position: relative; min-width: 0; overflow: hidden; }
 .report-pending-slide {
   position: relative;

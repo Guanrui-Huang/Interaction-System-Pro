@@ -598,7 +598,18 @@ it('shows a clarification-pending label instead of unavailable when awaiting cla
   expect(screen.getByRole('region', { name: '汇报对话区' })).toHaveTextContent('等待补充说明后生成汇报');
   expect(screen.getByRole('region', { name: '汇报对话区' })).not.toHaveTextContent('暂无有效汇报页');
   expect(screen.getByRole('heading', { name: '请说明您要分析的指标。' })).toBeVisible();
-  expect(container.querySelector('.report-workspace__clarification-overlay')).not.toBeNull();
+  const canvas = container.querySelector('.report-workspace__canvas');
+  const rail = container.querySelector('.report-thumbnail-rail');
+  const overlay = container.querySelector('.report-workspace__clarification-overlay');
+
+  expect(canvas).not.toBeNull();
+  expect(overlay).toBeTruthy();
+  expect(canvas).toContainElement(overlay as HTMLElement);
+  expect(canvas?.querySelector('.report-workspace__clarification-overlay')).toBe(overlay);
+  expect(rail).toBeTruthy();
+  expect(canvas).not.toContainElement(rail as HTMLElement);
+  expect(container.querySelector('.report-workspace > .report-thumbnail-rail')).toBe(rail);
+  expect(reportStyles).toMatch(/\.report-workspace__canvas\s*\{[^}]*position:\s*relative;/su);
 });
 
 it('keeps the conversation in waiting state when generating has no valid playable page yet', () => {
