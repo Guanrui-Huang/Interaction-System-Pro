@@ -1,24 +1,8 @@
 import type { SlideOutline } from '../../../../shared/report';
+import { canvasGeometryForOutline, isDashboardCapableOutlineKind } from './reportCanvasGeometry';
 import { ReportVisualIcon, type ReportVisualIconKind } from './visuals/ReportVisualIcon';
 
 type PendingMode = 'canvas' | 'thumbnail';
-
-export const DASHBOARD_CAPABLE_OUTLINE_KINDS = [
-  'kpi-grid',
-  'trend-line',
-  'trend-area',
-  'comparison-bars',
-  'health-ring',
-  'radar',
-  'scatter',
-  'alert-timeline',
-] as const satisfies readonly SlideOutline['visualKind'][];
-
-const dashboardCapableOutlineKinds = new Set<SlideOutline['visualKind']>(DASHBOARD_CAPABLE_OUTLINE_KINDS);
-
-export function isDashboardCapableOutlineKind(kind: SlideOutline['visualKind']): boolean {
-  return dashboardCapableOutlineKinds.has(kind);
-}
 
 function PendingBlocks({ count, className }: { count: number; className: string }) {
   return (
@@ -75,7 +59,7 @@ function PendingMetricCards({ count }: { count: number }) {
 export function ReportPendingSlideView({ outline, mode }: { outline?: SlideOutline; mode: PendingMode }) {
   const layout = outline?.layout ?? 'visual-focus';
   const dashboard = outline ? isDashboardCapableOutlineKind(outline.visualKind) : true;
-  const canvasGeometry = dashboard ? 'dashboard' : layout;
+  const canvasGeometry = canvasGeometryForOutline(outline);
   const metadataIconKind: ReportVisualIconKind = dashboard ? 'data-dashboard' : (outline?.visualKind ?? 'metric');
   const geometryClass = mode === 'canvas'
     ? ` report-canvas-geometry-shell report-canvas-geometry-shell--${canvasGeometry}`

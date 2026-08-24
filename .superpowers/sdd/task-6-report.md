@@ -111,6 +111,40 @@
 
 ---
 
+# Task 6 Last Important Kpi Geometry Fix
+
+- Date: 2026-08-24
+- Status: Fixed the pending-to-ready geometry mismatch when a `kpi-grid` outline resolves to a legitimate atomic `kpi-grid` slide instead of `data-dashboard`.
+
+## Changed Files
+
+- `src/features/ai/report/reportCanvasGeometry.ts`
+- `src/features/ai/report/ReportPendingSlideView.tsx`
+- `src/features/ai/report/ReportSlideView.tsx`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx` failed before implementation with 1 failed and 49 passed tests:
+  - `report-workspace.test.tsx`: ready atomic `kpi-grid` used `report-canvas-geometry-shell--diagnostic-overview` instead of matching the pending dashboard geometry shell.
+- Green: `./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx` passed, 50 tests.
+- Green: `./node_modules/.bin/vitest run src/tests/report-layout-styles.test.ts` passed, 24 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-pending-slide.test.tsx src/tests/report-workspace.test.tsx src/tests/report-layout-styles.test.ts src/tests/report-visuals.test.tsx` passed, 144 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/79102.pipe`.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` rerun outside the sandbox initially exposed the missing higher-specificity geometry root override with 2 failed and 9 passed tests.
+- Required: `CI=1 ./node_modules/.bin/playwright test --project=mocked` rerun outside the sandbox after the focused CSS correction passed, 11 tests in 32.6s.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
+
+---
+
 # Task 6 Final Review Reveal And Geometry Fixes
 
 - Date: 2026-08-24

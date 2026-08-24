@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { ReportSlide } from '../../../../shared/report';
 import { ReportEvidenceDrawer } from './ReportEvidenceDrawer';
+import { canvasGeometryForSlide } from './reportCanvasGeometry';
 import type { ReportRevealModule } from './useReportModuleReveal';
 import { useReportSlideMotion } from './useReportSlideMotion';
 import { ReportVisualIcon } from './visuals/ReportVisualIcon';
@@ -48,7 +49,7 @@ export function ReportSlideView({
   }, [active, mode, slide.id]);
   const insufficient = slide.metrics.length === 0 && slide.evidenceRefs.length === 0;
   const superseded = slide.supersededBySlideId !== undefined;
-  const canvasGeometry = slide.visual.kind === 'data-dashboard' ? 'dashboard' : slide.layout;
+  const canvasGeometry = canvasGeometryForSlide(slide);
   const geometryClass = mode === 'canvas'
     ? ` report-canvas-geometry-shell report-canvas-geometry-shell--${canvasGeometry}`
     : '';

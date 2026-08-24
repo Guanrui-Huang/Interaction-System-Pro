@@ -483,6 +483,58 @@ it.each([
   );
 });
 
+it('keeps pending and ready atomic kpi-grid slides on the dashboard geometry heading contract', () => {
+  const pendingOutline = {
+    ...outline('slide-kpi-grid', 0, '关键指标总览', 'generating'),
+    layout: 'diagnostic-overview',
+    visualKind: 'kpi-grid',
+  } satisfies SlideOutline;
+  const pendingSnapshot = snapshot({
+    status: 'generating',
+    phase: 'generating-slides',
+    outline: [pendingOutline],
+    slides: [],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: pendingOutline.id },
+  });
+  const ready = {
+    ...slide('slide-kpi-grid', 0, '关键指标总览'),
+    layout: 'diagnostic-overview',
+  } satisfies ReportSlide;
+  const { container, rerender } = render(<ReportWorkspace session={session(pendingSnapshot)} />);
+  const pendingCanvas = container.querySelector<HTMLElement>('.report-workspace__canvas > [data-slide-state="pending"][data-slide-mode="canvas"]');
+
+  expect(pendingCanvas).not.toBeNull();
+  expect(pendingCanvas).toHaveClass('report-canvas-geometry-shell', 'report-canvas-geometry-shell--dashboard');
+  expect(pendingCanvas).toHaveClass('report-pending-slide--visual-data-dashboard');
+  expect(pendingCanvas).toHaveAttribute('data-canvas-geometry', 'dashboard');
+  expect(pendingCanvas?.querySelector('.report-pending-slide__heading > p:first-child')).not.toBeNull();
+  expect(pendingCanvas?.querySelector('.report-pending-slide__heading h2')).toHaveTextContent('关键指标总览');
+  expect(pendingCanvas?.querySelector('.report-pending-slide__takeaway')).not.toBeNull();
+  expect(pendingCanvas?.textContent).not.toMatch(/\d+(?:\.\d+)?\s*(?:mg\/L|分|%)/u);
+
+  rerender(<ReportWorkspace session={session(snapshot({
+    outline: [{ ...pendingOutline, status: 'ready' }],
+    slides: [ready],
+    conversation: { originalQuestion: '分析水厂运行状态', turns: [], compactSummary: '', activeSlideId: ready.id },
+  }))} />);
+
+  const readyCanvas = container.querySelector<HTMLElement>('.report-workspace__canvas > [data-slide-mode="canvas"][data-slide-id="slide-kpi-grid"]');
+  expect(readyCanvas).not.toBeNull();
+  expect(readyCanvas).toHaveClass('report-canvas-geometry-shell', 'report-canvas-geometry-shell--dashboard');
+  expect(readyCanvas).toHaveAttribute('data-canvas-geometry', 'dashboard');
+  expect(readyCanvas).toHaveAttribute('data-visual-kind', 'kpi-grid');
+  expect(readyCanvas?.querySelector('.report-slide__heading > p:first-child')).not.toBeNull();
+  expect(readyCanvas?.querySelector('.report-slide__heading h2')).toHaveTextContent('关键指标总览');
+  expect(readyCanvas?.querySelector('.report-slide__takeaway')).toHaveTextContent('关键指标总览保持稳定。');
+  expect(readyCanvas?.querySelector('.report-kpi-grid')).not.toBeNull();
+  expect(readyCanvas?.querySelector('.report-data-dashboard')).toBeNull();
+  expect(
+    Array.from(readyCanvas!.classList).filter((className) => className.startsWith('report-canvas-geometry-shell')),
+  ).toEqual(
+    Array.from(pendingCanvas!.classList).filter((className) => className.startsWith('report-canvas-geometry-shell')),
+  );
+});
+
 it('keeps the evidence grid item and reduced-motion reveal override wired in CSS', () => {
   expect(reportStyles).toContain('.report-slide__evidence { grid-area: evidence;');
   expect(reportStyles).toContain('.report-slide--progressive [data-reveal-module] { transition: none; }');

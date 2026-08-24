@@ -68,14 +68,14 @@ it('uses a compact two-row canvas with a floating subtitle and balanced dashboar
   expect(css).toMatch(/\.report-workspace\s*\{[^}]*grid-template-areas:\s*"header header header"\s+"rail canvas chat";[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
   expect(css).toMatch(/\.report-workspace__canvas\s*\{[^}]*padding:\s*clamp\(10px,\s*1\.25vw,\s*20px\);/su);
   expect(css).toMatch(/\.report-slide--canvas\s*\{[^}]*gap:\s*clamp\(10px,\s*1\.35vw,\s*22px\);[^}]*padding:\s*clamp\(14px,\s*1\.65vw,\s*28px\);/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
-  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
-  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
-  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
-  expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*\{[^}]*grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\);[^}]*grid-template-areas:\s*"meta title"\s+"takeaway takeaway";/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s*>\s*p:first-child\s*\{[^}]*grid-area:\s*meta;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__heading\s+h2\s*\{[^}]*grid-area:\s*title;[^}]*text-wrap:\s*balance;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-pending-slide--canvas\s+\.report-pending-slide__takeaway\s*\{[^}]*grid-area:\s*takeaway;/su);
   expect(css).toMatch(/\.report-subtitle-bar\s*\{[^}]*position:\s*fixed;[^}]*pointer-events:\s*none;[^}]*background:\s*transparent;/su);
   expect(css).toMatch(/\.report-subtitle-bar__text\s*\{[^}]*color:\s*#fff;[^}]*text-align:\s*center;[^}]*text-shadow:/su);
   expect(css).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;/su);
@@ -94,20 +94,20 @@ it('keeps dashboard panels and charts on the full-height propagation chain', () 
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*min-height:\s*0;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+>\s+\.report-slide__visual\s+>\s+\.report-visual-renderer--canvas\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+>\s+\.report-slide__visual\s+>\s+\.report-visual-renderer--canvas\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-visual-renderer,\s*\.report-data-dashboard\s+\.report-visual,\s*\.report-data-dashboard\s+\.report-visual__graphic\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;/su);
   expect(css).toMatch(/\.report-data-dashboard\s+\.report-chart\s*\{[^}]*height:\s*100%;[^}]*max-height:\s*none;/su);
   expect(css).toMatch(/\.report-data-dashboard__support\s*>\s*section\[data-panel-kind=['"]comparison-bars['"]\]\s*\{[^}]*min-height:\s*0;/su);
 });
 
 it('raises the desktop report readability scale without changing thumbnail sizing', () => {
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s*\{[^}]*padding-inline:\s*14px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s*\{[^}]*padding-inline:\s*14px;/su);
   expect(css).toMatch(/\.report-data-dashboard__metrics\s*\{[^}]*gap:\s*\.3rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s*\{[^}]*padding:\s*\.72rem\s+\.75rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+dt\s*\{[^}]*font-size:\s*\.94rem;/su);
   expect(css).toMatch(/\.report-data-dashboard__metric\s+strong\s*\{[^}]*font:\s*[^;}]*1\.8rem/isu);
   expect(css).toMatch(/\.report-chart__axis-label\s*\{[^}]*font:\s*12px\s+"JetBrains Mono",\s*monospace;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-data-dashboard__panel-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).toMatch(/\.report-visual-icon\s*\{[^}]*width:\s*1\.25rem;[^}]*height:\s*1\.25rem;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
 });
@@ -136,21 +136,21 @@ it.each([
 });
 
 it('raises comparison bar values and labels to the large-screen scale', () => {
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*18px;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*18px;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--radar\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;[^}]*fill:\s*#d9f8f5;/su);
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__value\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--bars\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*18px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--radar\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;[^}]*fill:\s*#d9f8f5;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
 });
 
 it('raises trend and scatter auxiliary labels on the desktop canvas without affecting thumbnails', () => {
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--trend\s+\.report-chart__axis-label,\s*\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--trend\s+\.report-chart__axis-label,\s*\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--trend\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
 });
 
 it('keeps score-ring units hidden while preserving non-score unit styling and thumbnail rules', () => {
-  expect(css).toMatch(/\.report-slide--visual-data-dashboard\.report-slide--canvas\s+\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/su);
+  expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-health-ring__unit\s*\{[^}]*font-size:\s*13px;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart\s*\{[^}]*max-height:\s*78px;/su);
   expect(css).toMatch(/\.report-visual-renderer--thumbnail\s+\.report-radar__axis-value\s*\{[^}]*display:\s*none;/su);
   expect(css).not.toMatch(/(?:^|\n)\.report-radar__axis-value\s*\{[^}]*font-size:\s*15px;/u);
