@@ -77,9 +77,11 @@ it('uses a compact two-row canvas with a floating subtitle and balanced dashboar
   expect(css).toMatch(/\.report-subtitle-bar__status\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px;/su);
 });
 
-it('keeps zero, one, and two-support dashboards on one invariant large-screen grid', () => {
-  expect(css).not.toMatch(/\.report-data-dashboard\[data-support-count="[01]"\]\s*\{/u);
-  expect(css).not.toMatch(/\.report-data-dashboard\[data-support-count="[01]"\]\s+\.report-data-dashboard__support/u);
+it('restores final zero, one, and two-support dashboard layouts while pending geometry stays stable', () => {
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="0"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary primary";[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="1"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);/su);
+  expect(css).toMatch(/\.report-data-dashboard\[data-support-count="2"\]\s+\.report-data-dashboard__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
   expect(css).toMatch(/\.report-pending-slide--visual-data-dashboard\s+\.report-pending-slide__visual\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";[^}]*grid-template-columns:\s*minmax\(0,\s*1\.7fr\)\s+minmax\(18rem,\s*1fr\);/su);
   expect(css).toMatch(/\.report-pending-slide__support\s*\{[^}]*grid-template-rows:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/su);
 });

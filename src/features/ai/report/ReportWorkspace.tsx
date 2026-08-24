@@ -332,7 +332,7 @@ export function ReportWorkspace(
                 active
                 animate={!animatedSlides.current.has(activeSlide.id)}
                 revealedModules={reveal.progressive ? reveal.revealedModules : undefined}
-                onFirstActivation={() => markAnimated(activeSlide)}
+                onMotionComplete={() => markAnimated(activeSlide)}
               />
               {activeSlide.supersededBySlideId && finalReplacementFor(readySlides, activeSlide.id) && (
                 <button className="report-workspace__show-correction" type="button" onClick={showCorrection}>

@@ -69,26 +69,25 @@ export function DataDashboardVisual({
   const summaryStyle = {
     '--report-summary-columns': String(summaryColumns),
   } as CSSProperties & { '--report-summary-columns': string };
-  const supportSlots = [supporting[0], supporting[1]] as const;
+  const supportSlots = supporting.slice(0, 2);
 
   return (
     <ReportChartThemeProvider metrics={paletteMetrics}>
       <div
         className="report-data-dashboard"
-        data-support-count={visual.supporting.length}
+        data-support-count={supportSlots.length}
         data-support-slots={supportSlots.length}
         data-summary-columns={summaryColumns}
         data-summary-rows={summaryRows}
       >
-        <dl
-          className="report-data-dashboard__metrics"
-          style={summaryStyle}
-          data-dashboard-slot="metrics"
-          aria-label={visual.summaryMetrics.length > 0 ? '关键指标摘要' : undefined}
-          {...(visual.summaryMetrics.length > 0
-            ? revealProps(revealedModules, 'metrics')
-            : { 'aria-hidden': true })}
-        >
+        {visual.summaryMetrics.length > 0 && (
+          <dl
+            className="report-data-dashboard__metrics"
+            style={summaryStyle}
+            data-dashboard-slot="metrics"
+            aria-label="关键指标摘要"
+            {...revealProps(revealedModules, 'metrics')}
+          >
             {visual.summaryMetrics.map((metric, index) => (
               <div
                 className="report-data-dashboard__metric"
@@ -107,7 +106,8 @@ export function DataDashboardVisual({
                 {metric.status && <small>{metric.status}</small>}
               </div>
             ))}
-        </dl>
+          </dl>
+        )}
         <section
           className="report-data-dashboard__primary"
           data-dashboard-slot="primary"
@@ -123,39 +123,32 @@ export function DataDashboardVisual({
             <AtomicVisualRenderer visual={visual.primary} mode={mode} />
           </ReportVisualErrorBoundary>
         </section>
-        <div
-          className="report-data-dashboard__support"
-          data-dashboard-slot="support"
-          aria-label={supporting.length > 0 ? '辅助图' : undefined}
-          aria-hidden={supporting.length === 0 || undefined}
-        >
-          {supportSlots.map((item, index) => item ? (
-            <section
-              key={`${item.kind}-${index + 1}`}
-              data-dashboard-support-slot={index}
-              data-panel-kind={item.kind}
-              data-reveal-index={index}
-              aria-label={`辅助图 ${index + 1}`}
-              {...revealProps(revealedModules, `support-${index}`)}
-            >
-              <div className="report-data-dashboard__panel-label">
-                <ReportVisualIcon kind={item.kind} />
-                <span>{reportVisualLabel(item.kind)}</span>
-              </div>
-              <ReportVisualErrorBoundary label={`辅助图 ${index + 1}`}>
-                <AtomicVisualRenderer visual={item} mode={mode} />
-              </ReportVisualErrorBoundary>
-            </section>
-          ) : (
-            <div
-              className="report-data-dashboard__support-empty"
-              data-dashboard-support-slot={index}
-              data-dashboard-support-empty
-              aria-hidden="true"
-              key={`empty-support-${index}`}
-            />
-          ))}
-        </div>
+        {supportSlots.length > 0 && (
+          <div
+            className="report-data-dashboard__support"
+            data-dashboard-slot="support"
+            aria-label="辅助图"
+          >
+            {supportSlots.map((item, index) => (
+              <section
+                key={`${item.kind}-${index + 1}`}
+                data-dashboard-support-slot={index}
+                data-panel-kind={item.kind}
+                data-reveal-index={index}
+                aria-label={`辅助图 ${index + 1}`}
+                {...revealProps(revealedModules, `support-${index}`)}
+              >
+                <div className="report-data-dashboard__panel-label">
+                  <ReportVisualIcon kind={item.kind} />
+                  <span>{reportVisualLabel(item.kind)}</span>
+                </div>
+                <ReportVisualErrorBoundary label={`辅助图 ${index + 1}`}>
+                  <AtomicVisualRenderer visual={item} mode={mode} />
+                </ReportVisualErrorBoundary>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </ReportChartThemeProvider>
   );

@@ -18,7 +18,7 @@ export function useReportSlideMotion(
   visualKind: VisualSpec['kind'],
   active: boolean,
   animate = true,
-  onFirstActivation?: () => void,
+  onMotionComplete?: () => void,
 ): void {
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -26,16 +26,22 @@ export function useReportSlideMotion(
     const reduced = typeof window.matchMedia !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || !animate) {
       setFinalState(root, reduced);
-      if (animate) onFirstActivation?.();
+      onMotionComplete?.();
       return undefined;
     }
 
-    onFirstActivation?.();
     root.dataset.slideMotionState = 'animating';
     root.dataset.motionReduced = 'false';
     const motionRoot = root.querySelector<HTMLElement>('[data-reveal-module="primary"][data-reveal-visible="true"]') ?? root;
+    let completed = false;
+    const completeMotion = () => {
+      if (completed) return;
+      completed = true;
+      setFinalState(root, false);
+      onMotionComplete?.();
+    };
     const context = gsap.context(() => {
-      const timeline = gsap.timeline({ defaults: { ease: 'power2.out' }, onComplete: () => setFinalState(root, false) });
+      const timeline = gsap.timeline({ defaults: { ease: 'power2.out' }, onComplete: completeMotion });
       const numbers = Array.from(motionRoot.querySelectorAll<HTMLElement>('[data-motion-number]'));
       if (numbers.length) timeline.fromTo(numbers, { textContent: 0 }, {
         textContent: (index: number) => Number(numbers[index]?.dataset.finalValue ?? 0),
@@ -51,5 +57,5 @@ export function useReportSlideMotion(
       if (!numbers.length && !bars.length && !reveals.length && !rings.length) timeline.fromTo(motionRoot.querySelector('.report-visual__graphic'), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: .42 }, 0);
     }, motionRoot);
     return () => context.revert();
-  }, [active, animate, onFirstActivation, rootRef, visualKind]);
+  }, [active, animate, onMotionComplete, rootRef, visualKind]);
 }

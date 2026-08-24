@@ -27,7 +27,7 @@ type ReportSlideViewProps = {
   mode: VisualMode;
   active: boolean;
   animate?: boolean;
-  onFirstActivation?(): void;
+  onMotionComplete?(): void;
   revealedModules?: ReadonlySet<ReportRevealModule>;
 };
 
@@ -36,13 +36,13 @@ export function ReportSlideView({
   mode,
   active,
   animate = true,
-  onFirstActivation,
+  onMotionComplete,
   revealedModules,
 }: ReportSlideViewProps) {
   const rootRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const primaryVisible = revealedModules === undefined || revealedModules.has('primary');
-  useReportSlideMotion(rootRef, slide.visual.kind, active && mode === 'canvas' && primaryVisible, animate, onFirstActivation);
+  useReportSlideMotion(rootRef, slide.visual.kind, active && mode === 'canvas' && primaryVisible, animate, onMotionComplete);
   useEffect(() => {
     if (mode === 'canvas' && active) headingRef.current?.focus();
   }, [active, mode, slide.id]);

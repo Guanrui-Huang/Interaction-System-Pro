@@ -6,6 +6,7 @@ import { useReportSlideMotion } from '../features/ai/report/useReportSlideMotion
 const motionCapture = vi.hoisted(() => ({
   scopes: [] as Element[],
   targets: [] as Element[][],
+  completions: [] as Array<(() => void) | undefined>,
 }));
 
 vi.mock('gsap', () => ({
@@ -15,7 +16,8 @@ vi.mock('gsap', () => ({
       callback();
       return { revert: vi.fn() };
     }),
-    timeline: vi.fn(() => {
+    timeline: vi.fn((options?: { onComplete?: () => void }) => {
+      motionCapture.completions.push(options?.onComplete);
       const timeline = {
         fromTo: vi.fn((targets: Iterable<Element>) => {
           motionCapture.targets.push(Array.from(targets));
@@ -44,11 +46,24 @@ function MotionHarness() {
   );
 }
 
+function MotionCallbackHarness({ onComplete }: { onComplete: () => void }) {
+  const rootRef = useRef<HTMLElement>(null);
+  useReportSlideMotion(rootRef, 'data-dashboard', true, true, onComplete);
+  return (
+    <section ref={rootRef}>
+      <div data-reveal-module="primary" data-reveal-visible="true" data-testid="primary-module">
+        <strong data-motion-number data-final-value="12.5">12.5</strong>
+      </div>
+    </section>
+  );
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   motionCapture.scopes.length = 0;
   motionCapture.targets.length = 0;
+  motionCapture.completions.length = 0;
   vi.clearAllMocks();
 });
 
@@ -64,4 +79,19 @@ it('scopes GSAP targets to the revealed primary module and leaves hidden support
   expect(motionCapture.targets.flat()).toContain(primary.querySelector('[data-motion-number]'));
   expect(motionCapture.targets.flat()).toContain(primary.querySelector('[data-motion-bar]'));
   expect(hiddenSupport.querySelector('[data-motion-number]')).toHaveTextContent('92');
+});
+
+it('marks the slide animated only after the GSAP timeline completes', () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })));
+  const onComplete = vi.fn();
+  const { getByTestId } = render(<MotionCallbackHarness onComplete={onComplete} />);
+  const primary = getByTestId('primary-module');
+
+  expect(motionCapture.scopes).toEqual([primary]);
+  expect(onComplete).not.toHaveBeenCalled();
+
+  motionCapture.completions.at(-1)?.();
+
+  expect(onComplete).toHaveBeenCalledTimes(1);
+  expect(primary.closest('[data-slide-motion-state]')).toHaveAttribute('data-slide-motion-state', 'final');
 });

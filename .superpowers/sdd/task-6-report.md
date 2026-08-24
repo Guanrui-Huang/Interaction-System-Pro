@@ -72,3 +72,39 @@
 
 - `server/.env.example` was left unstaged and unmodified by this pass.
 - `.DS_Store` was left unstaged and unmodified by this pass.
+
+---
+
+# Task 6 Important-Finding Fixes
+
+- Date: 2026-08-24
+- Status: Fixed Finding A and Finding B on top of `4710846`.
+
+## Changed Files
+
+- `src/features/ai/report/ReportSlideView.tsx`
+- `src/features/ai/report/ReportWorkspace.tsx`
+- `src/features/ai/report/useReportSlideMotion.ts`
+- `src/features/ai/report/visuals/DataDashboardVisual.tsx`
+- `src/styles/ai.css`
+- `src/tests/report-layout-styles.test.ts`
+- `src/tests/report-slide-motion.test.tsx`
+- `src/tests/report-visuals.test.tsx`
+- `.superpowers/sdd/task-6-report.md`
+
+## Exact Tests
+
+- Red: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts` failed before implementation with 5 failed and 83 passed tests:
+  - `report-slide-motion.test.tsx`: callback was called before the captured GSAP `onComplete`.
+  - `report-layout-styles.test.ts`: missing `data-support-count="0"` / `"1"` / `"2"` final layout CSS branches.
+  - `report-visuals.test.tsx`: zero- and one-support dashboards still reported `data-support-slots="2"` and mounted placeholder support slots.
+- Green: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts` passed, 88 tests.
+- Required: `./node_modules/.bin/vitest run src/tests/report-slide-motion.test.tsx src/tests/report-workspace.test.tsx src/tests/report-visuals.test.tsx src/tests/report-layout-styles.test.ts` passed, 134 tests.
+- Required: `./node_modules/.bin/tsc -b` passed with no diagnostics.
+- Feasible E2E: `CI=1 ./node_modules/.bin/playwright test --project=mocked` first failed inside the sandbox with `listen EPERM` for `/var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/70928.pipe`; rerun outside the sandbox passed, 10 tests.
+- Hygiene: `git diff --check` passed with no whitespace errors.
+
+## Protected Pre-Existing Changes
+
+- `server/.env.example` was left unstaged and unmodified.
+- `.DS_Store` was left unstaged and unmodified.
