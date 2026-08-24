@@ -96,6 +96,18 @@ it('clips pending module surfaces so blur stays inside each slot', () => {
   expect(css).not.toMatch(/\.report-pending-slide \[data-pending-module\],\s*\.report-pending-slide__metrics,\s*\.report-pending-slide__metric,\s*\.report-pending-slide__takeaway,\s*\.report-pending-slide__title-placeholder\s*\{[^}]*filter:/su);
 });
 
+it('releases the desktop heading row height on narrow report canvases', () => {
+  const containerStart = css.indexOf('@container (max-width: 720px)');
+  const containerEnd = css.indexOf('@keyframes report-bus', containerStart);
+  const containerCss = css.slice(containerStart, containerEnd);
+  const mobileStart = css.indexOf('@media (max-width: 899px)');
+  const mobileEnd = css.indexOf('@media (max-width: 1180px)', mobileStart);
+  const mobileCss = css.slice(mobileStart, mobileEnd);
+
+  expect(containerCss).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/su);
+  expect(mobileCss).toMatch(/\.report-canvas-geometry-shell--dashboard\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;/su);
+});
+
 it('keeps dashboard panels and charts on the full-height propagation chain', () => {
   expect(css).toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\);[^}]*min-height:\s*0;/su);
   expect(css).not.toMatch(/\.report-data-dashboard__primary,\s*\.report-data-dashboard__support\s*>\s*section\s*\{[^}]*overflow:\s*hidden;/su);

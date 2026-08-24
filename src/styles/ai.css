@@ -936,6 +936,7 @@
 .report-visual-renderer--thumbnail .report-capability-map__item { min-height: 2.5rem; padding: 4px; }
 .report-visual-renderer--thumbnail .report-capability-map__item strong, .report-visual-renderer--thumbnail .report-capability-map__item p { font-size: 5px; }
 @container (max-width: 720px) {
+  .report-canvas-geometry-shell--dashboard { grid-template-rows: auto minmax(0, 1fr) auto; }
   .report-slide--canvas { grid-template-columns: 1fr; grid-template-areas: "heading" "visual" "evidence"; }
   .report-canvas-geometry-shell--dashboard.report-slide--canvas .report-slide__heading { grid-template-columns: 1fr; grid-template-areas: "meta" "title" "takeaway"; }
   .report-data-dashboard {
@@ -964,6 +965,7 @@
   .report-thumbnail__select,
   .report-slide--thumbnail { min-height: 96px; }
   .report-workspace__canvas { padding: 12px; }
+  .report-canvas-geometry-shell--dashboard { grid-template-rows: auto minmax(0, 1fr) auto; }
   .report-subtitle-bar { position: static; z-index: auto; grid-area: subtitle; justify-items: stretch; padding: .9rem 1.15rem; border-top: 1px solid rgb(44 228 245 / 16%); background: linear-gradient(180deg, rgb(7 19 27 / 94%), rgb(8 22 30 / 98%)); pointer-events: auto; }
   .report-subtitle-bar__status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .report-slide--canvas { grid-template-columns: 1fr; grid-template-areas: "heading" "visual" "evidence"; min-height: 0; padding: 20px; }
