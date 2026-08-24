@@ -94,7 +94,7 @@ Date: 2026-08-24
 
 ### Commit
 
-- Pending final commit hash for this turn
+- `8b9e23f` `test: cover immediate reveal rerender`
 
 ### Test Evidence
 
