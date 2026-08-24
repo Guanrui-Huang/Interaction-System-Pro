@@ -79,7 +79,11 @@ export function ReportSlideView({
       >
         <VisualRenderer visual={slide.visual} mode={mode} revealedModules={revealedModules} />
       </div>
-      {mode === 'canvas' && <div {...revealProps(revealedModules, 'evidence')}><ReportEvidenceDrawer slide={slide} /></div>}
+      {mode === 'canvas' && (
+        <div className="report-slide__evidence" {...revealProps(revealedModules, 'evidence')}>
+          <ReportEvidenceDrawer slide={slide} />
+        </div>
+      )}
     </section>
   );
 }

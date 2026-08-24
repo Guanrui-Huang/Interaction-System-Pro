@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, vi } from 'vitest';
@@ -35,6 +37,8 @@ vi.mock('../features/ai/report/useNarrationController', () => ({
     },
   }),
 }));
+
+const reportStyles = readFileSync(resolve(process.cwd(), 'src/styles/ai.css'), 'utf8');
 
 const metric = (key: string, label: string, value: number): BoundMetric => ({
   key, kind: 'metric', source: 'excel', snapshotId: 'snapshot-1', module: 'water-quality', label, unit: 'mg/L', claimIds: ['claim-1'], value,
@@ -370,6 +374,7 @@ it('keeps dashboard modules hidden behind reveal boundaries until their module i
   const slideRoot = container.querySelector('.report-slide');
   const visualShell = container.querySelector('.report-slide__visual');
   const dashboard = container.querySelector('.report-data-dashboard');
+  const evidenceBoundary = container.querySelector('.report-slide > [data-reveal-module="evidence"]');
 
   expect(slideRoot).toHaveClass('report-slide--progressive');
   expect(container.querySelector('[data-reveal-module="heading"]')).toHaveAttribute('data-reveal-visible', 'true');
@@ -380,6 +385,9 @@ it('keeps dashboard modules hidden behind reveal boundaries until their module i
   expect(container.querySelector('[data-reveal-module="evidence"]')).toHaveAttribute('data-reveal-visible', 'false');
   expect(container.querySelector('[data-reveal-module="metrics"]')).toHaveAttribute('aria-hidden', 'true');
   expect(container.querySelector('[data-reveal-module="evidence"]')).toHaveAttribute('inert');
+  expect(evidenceBoundary).toHaveClass('report-slide__evidence');
+  expect(evidenceBoundary?.querySelector('.report-evidence-drawer')).not.toBeNull();
+  expect(container.querySelector('.report-slide > .report-evidence-drawer')).toBeNull();
   expect(visualShell).toHaveClass('report-slide__visual');
   expect(visualShell).not.toHaveAttribute('data-reveal-module');
   expect(dashboard).toHaveAttribute('data-summary-columns', '2');
@@ -428,6 +436,13 @@ it('keeps report slides fully visible when no reveal set is supplied', () => {
     expect(marker).not.toHaveAttribute('aria-hidden');
     expect(marker).not.toHaveAttribute('inert');
   }
+});
+
+it('keeps the evidence grid item and reduced-motion reveal override wired in CSS', () => {
+  expect(reportStyles).toContain('.report-slide__evidence { grid-area: evidence;');
+  expect(reportStyles).toContain('.report-slide--progressive [data-reveal-module] { transition: none; }');
+  expect(reportStyles).toContain('.report-slide--progressive [data-reveal-module][data-reveal-visible="true"],');
+  expect(reportStyles).toContain('.report-slide--progressive [data-reveal-module="metrics"][data-reveal-visible="true"] .report-data-dashboard__metric { animation: none; }');
 });
 
 it('renders planned skeletons and accessible narration controls without fabricating progress', () => {

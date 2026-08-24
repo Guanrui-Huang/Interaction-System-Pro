@@ -109,3 +109,90 @@ no output
 ## Concerns
 
 - The required focused tests are green, but this turn did not run the full Vitest suite or style-regex suites outside Task 3, so unrelated integration regressions outside the touched boundary would still rely on broader CI coverage.
+
+---
+
+## Review Fix Addendum
+
+Date: 2026-08-24
+
+### Findings Addressed
+
+1. Restored evidence reveal placement on the actual slide grid item by giving the reveal wrapper its own `report-slide__evidence` class and matching `grid-area: evidence` styling.
+2. Extended the reduced-motion override so progressive reveal disables the base `filter` / `opacity` transition in addition to the clear animation.
+3. Added focused regression coverage for the evidence boundary contract and the reduced-motion reveal CSS contract while preserving the existing reveal-boundary assertions.
+
+### Files Updated
+
+- `src/features/ai/report/ReportSlideView.tsx`
+- `src/styles/ai.css`
+- `src/tests/report-workspace.test.tsx`
+- `.superpowers/sdd/task-3-report.md`
+
+Scoped review only:
+
+- `src/features/ai/report/visuals/VisualRenderer.tsx` required no change for these findings.
+- `src/features/ai/report/visuals/DataDashboardVisual.tsx` required no change for these findings.
+
+### Commit
+
+- Planned commit message: `fix: preserve task 3 reveal boundaries`
+
+### Test Commands And Output
+
+RED verification after tightening the regression test:
+
+```bash
+./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx --reporter=basic
+```
+
+Output summary:
+
+```text
+FAIL  src/tests/report-workspace.test.tsx
+- keeps dashboard modules hidden behind reveal boundaries until their module is unlocked
+  expect(element).toHaveClass("report-slide__evidence")
+- keeps the evidence grid item and reduced-motion reveal override wired in CSS
+  expected css to contain '.report-slide__evidence { grid-area: evidence;'
+```
+
+Required verification:
+
+```bash
+./node_modules/.bin/vitest run src/tests/report-workspace.test.tsx --reporter=basic
+```
+
+```text
+✓ src/tests/report-workspace.test.tsx (44 tests)
+Test Files  1 passed (1)
+Tests  44 passed (44)
+```
+
+```bash
+./node_modules/.bin/vitest run src/tests/dashboard-motion.test.tsx --reporter=basic
+```
+
+```text
+✓ src/tests/dashboard-motion.test.tsx (19 tests)
+Test Files  1 passed (1)
+Tests  19 passed (19)
+```
+
+```bash
+git diff --check
+```
+
+```text
+no output
+```
+
+### Self-Review
+
+- The evidence reveal boundary is now the direct grid item, so the slide layout no longer depends on a nested `.report-evidence-drawer` selector for placement.
+- Reduced motion now removes both the reveal animation and the reveal transition, which avoids the remaining filter/opacity motion path.
+- The new regression assertions stay focused on the review findings and keep the earlier dashboard reveal visibility checks intact.
+- Unrelated Task 1/2 files and the user’s existing worktree changes were left untouched.
+
+### Concerns
+
+- This fix pass intentionally stayed inside the requested Task 3 scope, so broader CSS or report-workspace integration coverage still depends on the rest of the project test suite and CI.
