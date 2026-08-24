@@ -241,6 +241,31 @@ it('releases the narration lease when an interruption pauses playback', async ()
   expect(arbiter.getActive()).toBe(false);
 });
 
+it('keeps a prompt lease blocked until interruption pause settles', async () => {
+  const arbiter = createVoiceOutputArbiter();
+  const model = setup({ voiceOutputArbiter: arbiter });
+  const { result } = renderHook(() => useNarrationController(model.input));
+  const pausing = deferred<void>();
+
+  await waitFor(() => expect(result.current.status).toBe('speaking'));
+  model.players[0].pause.mockReturnValueOnce(pausing.promise);
+  act(() => { result.current.beginInterruption('typing'); });
+  expect(model.players[0].pause).toHaveBeenCalledOnce();
+
+  const prompt = arbiter.acquire('prompt', async () => undefined);
+  let promptResolved = false;
+  void prompt.then(() => { promptResolved = true; });
+  await Promise.resolve();
+  expect(promptResolved).toBe(false);
+
+  let promptLease: Awaited<typeof prompt> | undefined;
+  await act(async () => {
+    pausing.resolve();
+    promptLease = await prompt;
+  });
+  expect(promptLease).not.toBeNull();
+  promptLease?.release();
+});
 it('keeps a narration lease while paused and releases it when stopped or unmounted', async () => {
   const arbiter = createVoiceOutputArbiter();
   const model = setup({ voiceOutputArbiter: arbiter });
@@ -709,9 +734,11 @@ it('leases follow-up answer playback and releases it after natural completion', 
   act(() => { answer = result.current.playFollowUpAnswer('answer-speech'); });
   await waitFor(() => expect(model.players).toHaveLength(1));
   expect(arbiter.getActive()).toBe(true);
-  act(() => model.players[0].finish());
+  await act(async () => {
+    model.players[0].finish();
+    await answer;
+  });
 
-  await expect(answer).resolves.toBe('ended');
   expect(arbiter.getActive()).toBe(false);
 });
 it('releases a failed player immediately and permits a clean retry before unmount', async () => {
@@ -903,16 +930,24 @@ it.each([
   ['page switch', (controller: ReturnType<typeof useNarrationController>) => controller.goToSlide('slide-2')],
   ['new interruption', (controller: ReturnType<typeof useNarrationController>) => controller.beginInterruption('typing')],
 ] as const)('returns cancelled when user priority takes over answer playback via %s', async (_label, takeOver) => {
-  const model = setup({ autoplay: false });
+  const arbiter = createVoiceOutputArbiter();
+  const model = setup({ autoplay: false, voiceOutputArbiter: arbiter });
   const { result } = renderHook(() => useNarrationController(model.input));
   let answer!: Promise<'ended' | 'cancelled' | 'failed'>;
   act(() => { answer = result.current.playFollowUpAnswer('answer-speech'); });
   await waitFor(() => expect(model.players).toHaveLength(1));
+  expect(arbiter.getActive()).toBe(true);
 
   await act(async () => { await takeOver(result.current); });
 
   await expect(answer).resolves.toBe('cancelled');
   expect(model.players[0].stop).toHaveBeenCalled();
+  if (_label === 'page switch') {
+    expect(model.players).toHaveLength(2);
+    expect(arbiter.getActive()).toBe(true);
+  } else {
+    expect(arbiter.getActive()).toBe(false);
+  }
 });
 
 it('keeps a restored cursor offset after autoplay rejection and resumes without restarting the page', async () => {

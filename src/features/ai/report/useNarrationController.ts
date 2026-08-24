@@ -451,8 +451,10 @@ export function useNarrationController(input: UseNarrationControllerInput): Narr
     if (active?.kind === 'answer') void releasePlayback('cancelled');
     else if (active) {
       clearCueInterval(active);
-      releaseLease(active);
-      void active.player.pause().catch(() => undefined);
+      void (async () => {
+        try { await active.player.pause(); } catch { /* cleanup continues */ }
+        finally { releaseLease(active); }
+      })();
     }
     setStatus(mode);
     setMessage(mode === 'listening' ? '正在聆听追问' : '正在输入追问');
