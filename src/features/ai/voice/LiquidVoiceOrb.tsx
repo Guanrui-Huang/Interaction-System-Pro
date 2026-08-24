@@ -9,7 +9,10 @@ export type LiquidVoiceOrbPhase = 'waking' | 'hearing' | 'analyzing';
 type GpuContext = {
   configure(options: { device: unknown; format: string; alphaMode: 'premultiplied' }): void;
   getCurrentTexture(): { createView(): unknown };
+  unconfigure?(): void;
 };
+
+type GpuBuffer = { destroy?(): void };
 
 type GpuDevice = {
   queue: {
@@ -23,7 +26,7 @@ type GpuDevice = {
   createRenderPipeline(descriptor: unknown): {
     getBindGroupLayout(index: number): unknown;
   };
-  createBuffer(descriptor: { size: number; usage: number }): unknown;
+  createBuffer(descriptor: { size: number; usage: number }): GpuBuffer;
   createBindGroup(descriptor: { layout: unknown; entries: Array<{ binding: number; resource: { buffer: unknown } }> }): unknown;
   createCommandEncoder(): {
     beginRenderPass(descriptor: unknown): {
@@ -72,6 +75,7 @@ function isReducedMotion(): boolean {
 export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const phaseRef = useRef(phase);
+  const fallbackRef = useRef(false);
   const [fallback, setFallback] = useState(false);
   phaseRef.current = phase;
 
@@ -79,13 +83,29 @@ export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
     const canvas = canvasRef.current;
     if (!canvas || typeof window === 'undefined') return undefined;
 
-    let frame = 0;
+    let frame: number | null = null;
     let stopped = false;
+    let disposed = false;
     let device: GpuDevice | undefined;
+    let context: GpuContext | undefined;
+    let uniformBuffer: GpuBuffer | undefined;
 
-    const stop = () => {
+    const transitionToFallback = () => {
+      if (stopped || fallbackRef.current) return;
+      fallbackRef.current = true;
+      setFallback(true);
+    };
+
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
       stopped = true;
-      if (frame) window.cancelAnimationFrame(frame);
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+        frame = null;
+      }
+      try { uniformBuffer?.destroy?.(); } catch { /* cleanup continues */ }
+      try { context?.unconfigure?.(); } catch { /* cleanup continues */ }
       try { device?.destroy?.(); } catch { /* cleanup continues */ }
     };
 
@@ -95,22 +115,24 @@ export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
       if (stopped) return;
       if (!adapter || !gpu) throw new Error('WEBGPU_UNAVAILABLE');
 
-      device = await adapter.requestDevice();
+      const acquiredDevice = await adapter.requestDevice();
       if (stopped) {
-        try { device.destroy?.(); } catch { /* cleanup continues */ }
+        try { acquiredDevice.destroy?.(); } catch { /* cleanup continues */ }
         return;
       }
+      device = acquiredDevice;
 
-      const context = canvas.getContext('webgpu' as never) as unknown as GpuContext | null;
+      context = canvas.getContext('webgpu' as never) as unknown as GpuContext | null ?? undefined;
       if (!context) throw new Error('WEBGPU_CONTEXT_UNAVAILABLE');
       const format = gpu.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: 'premultiplied' });
 
       const shader = device.createShaderModule({ code: shaderSource });
       const compilation = await shader.getCompilationInfo?.();
+      if (stopped) return;
       const errors = compilation?.messages.filter((message) => message.type === 'error') ?? [];
       if (errors.length) {
-        throw new Error(errors.map((message) => `${message.lineNum ?? 0}:${message.linePos ?? 0} ${message.message}`).join('\n'));
+        throw new Error(errors.map((message) => String(message.lineNum ?? 0) + ':' + String(message.linePos ?? 0) + ' ' + message.message).join('\n'));
       }
 
       const pipeline = device.createRenderPipeline({
@@ -120,7 +142,7 @@ export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
         primitive: { topology: 'triangle-list' },
       });
       const values = new Float32Array(LIQUID_VOICE_ORB_UNIFORMS);
-      const uniformBuffer = device.createBuffer({
+      uniformBuffer = device.createBuffer({
         size: values.byteLength,
         usage: UNIFORM_USAGE_UNIFORM | UNIFORM_USAGE_COPY_DST,
       });
@@ -151,7 +173,7 @@ export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
           const encoder = device.createCommandEncoder();
           const pass = encoder.beginRenderPass({
             colorAttachments: [{
-              view: context.getCurrentTexture().createView(),
+              view: context!.getCurrentTexture().createView(),
               clearValue: { r: 0, g: 0, b: 0, a: 0 },
               loadOp: 'clear',
               storeOp: 'store',
@@ -164,36 +186,44 @@ export function LiquidVoiceOrb({ phase }: { phase: LiquidVoiceOrbPhase }) {
           device.queue.submit([encoder.finish()]);
           if (!isReducedMotion()) frame = window.requestAnimationFrame(draw);
         } catch (error) {
-          if (!stopped) setFallback(true);
-          stop();
+          if (stopped) return;
+          transitionToFallback();
+          dispose();
           console.error(error);
         }
       };
 
       void device.lost?.then((info) => {
-        if (!stopped) setFallback(true);
-        if (info.message) console.error(new Error(`WebGPU device lost: ${info.message}`));
+        if (stopped) return;
+        if (info.message) console.error(new Error('WebGPU device lost: ' + info.message));
+        transitionToFallback();
+        dispose();
       });
       device.addEventListener?.('uncapturederror', (event) => {
-        if (!stopped) setFallback(true);
-        console.error(new Error(`WebGPU rendering error: ${event.error.message}`));
+        if (stopped) return;
+        transitionToFallback();
+        dispose();
+        console.error(new Error('WebGPU rendering error: ' + event.error.message));
       });
 
+      if (stopped) return;
       if (isReducedMotion()) draw(performance.now());
       else frame = window.requestAnimationFrame(draw);
     };
 
     void run().catch((error) => {
-      if (!stopped) setFallback(true);
+      if (stopped) return;
       if (!(error instanceof Error && error.message === 'WEBGPU_UNAVAILABLE')) console.error(error);
+      transitionToFallback();
+      dispose();
     });
 
-    return stop;
+    return dispose;
   }, []);
 
   return (
     <div
-      className={`liquid-voice-orb${fallback ? ' liquid-voice-orb--fallback' : ''}`}
+      className={'liquid-voice-orb' + (fallback ? ' liquid-voice-orb--fallback' : '')}
       data-phase={phase}
       data-testid="liquid-voice-orb"
     >

@@ -52,3 +52,26 @@ Task: Supplied WebGPU liquid orb and bottom-center overlay
 - `.superpowers/sdd/2026-08-24-voice-wake-liquid-orb-v4-implementation/task-6-report.md`
 
 No unrelated user files are included in the Task 6 commit.
+
+
+## Fix round 1/5
+
+Reviewer finding: the async WebGPU initializer could resume after unmount while shader compilation info was pending, and initialization failures could leave an acquired device alive.
+
+Root cause and fix:
+
+- Added a stopped check after each awaited adapter, device, and shader-compilation boundary.
+- Added idempotent disposal that cancels RAF, destroys the uniform buffer when available, unconfigures the canvas context when available, and destroys the acquired device.
+- Initialization failures, device loss, uncaptured GPU errors, and render errors now transition to the CSS fallback once and dispose resources safely.
+- A device returned after cancellation is destroyed immediately before initialization can continue.
+
+TDD evidence:
+
+1. RED: the new deferred-compilation unmount test reproduced pipeline allocation/RAF scheduling after cleanup, and the shader-failure test observed zero device destruction.
+2. GREEN: both regressions pass with the existing fallback, cleanup, and overlay tests.
+
+Round-1 verification:
+
+- pnpm test --run src/tests/liquid-voice-orb.test.tsx: 1 test file passed, 5 tests passed.
+- pnpm exec tsc --noEmit: exit code 0.
+- pnpm run build: exit code 0; the existing post-minification chunk-size warning remains.

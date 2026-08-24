@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LiquidVoiceOrb } from '../features/ai/voice/LiquidVoiceOrb';
 import { VoiceWakeOverlay } from '../features/ai/voice/VoiceWakeOverlay';
@@ -28,6 +28,15 @@ function makePromptPlayback() {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
 beforeEach(() => {
   vi.stubGlobal('navigator', { ...navigator, gpu: undefined });
 });
@@ -85,6 +94,86 @@ it('destroys the WebGPU device and cancels the animation frame on unmount', asyn
   expect(destroy).toHaveBeenCalledOnce();
 });
 
+it('does not resume initialization after unmount while shader compilation is pending', async () => {
+  const compilation = deferred<{ messages: [] }>();
+  const destroy = vi.fn();
+  const createRenderPipeline = vi.fn(() => ({ getBindGroupLayout: vi.fn(() => ({})) }));
+  const createBuffer = vi.fn(() => ({}));
+  const requestAnimationFrame = vi.spyOn(window, 'requestAnimationFrame').mockReturnValue(91);
+  const context = {
+    configure: vi.fn(),
+    getCurrentTexture: vi.fn(() => ({ createView: vi.fn() })),
+  };
+  const device = {
+    queue: { writeBuffer: vi.fn(), submit: vi.fn() },
+    lost: new Promise<never>(() => undefined),
+    destroy,
+    createShaderModule: vi.fn(() => ({ getCompilationInfo: vi.fn(() => compilation.promise) })),
+    createRenderPipeline,
+    createBuffer,
+    createBindGroup: vi.fn(() => ({})),
+    createCommandEncoder: vi.fn(),
+  };
+  const adapter = { requestDevice: vi.fn(async () => device) };
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    gpu: {
+      requestAdapter: vi.fn(async () => adapter),
+      getPreferredCanvasFormat: vi.fn(() => 'rgba8unorm'),
+    },
+  });
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
+
+  const { unmount } = render(<LiquidVoiceOrb phase="hearing" />);
+  await waitFor(() => expect(device.createShaderModule).toHaveBeenCalledOnce());
+
+  unmount();
+  await act(async () => {
+    compilation.resolve({ messages: [] });
+    await compilation.promise;
+  });
+
+  expect(createRenderPipeline).not.toHaveBeenCalled();
+  expect(createBuffer).not.toHaveBeenCalled();
+  expect(requestAnimationFrame).not.toHaveBeenCalled();
+  expect(destroy).toHaveBeenCalledOnce();
+});
+
+it('destroys the acquired device exactly once when shader compilation fails before fallback', async () => {
+  const destroy = vi.fn();
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const device = {
+    queue: { writeBuffer: vi.fn(), submit: vi.fn() },
+    lost: new Promise<never>(() => undefined),
+    destroy,
+    createShaderModule: vi.fn(() => ({
+      getCompilationInfo: vi.fn(async () => { throw new Error('shader compile failed'); }),
+    })),
+    createRenderPipeline: vi.fn(() => ({ getBindGroupLayout: vi.fn(() => ({})) })),
+    createBuffer: vi.fn(() => ({})),
+    createBindGroup: vi.fn(() => ({})),
+    createCommandEncoder: vi.fn(),
+  };
+  const adapter = { requestDevice: vi.fn(async () => device) };
+  const context = { configure: vi.fn(), getCurrentTexture: vi.fn() };
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    gpu: {
+      requestAdapter: vi.fn(async () => adapter),
+      getPreferredCanvasFormat: vi.fn(() => 'rgba8unorm'),
+    },
+  });
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context as never);
+
+  const { unmount } = render(<LiquidVoiceOrb phase="waking" />);
+  const orb = await screen.findByTestId('liquid-voice-orb');
+  await waitFor(() => expect(orb).toHaveClass('liquid-voice-orb--fallback'));
+
+  expect(destroy).toHaveBeenCalledOnce();
+  expect(consoleError).toHaveBeenCalled();
+  unmount();
+  expect(destroy).toHaveBeenCalledOnce();
+});
 it('renders status text before the orb in the lightweight bottom-center overlay', async () => {
   const promptPlayback = makePromptPlayback();
   render(
