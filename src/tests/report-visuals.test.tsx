@@ -281,25 +281,12 @@ it('renders a metric strip, one primary chart and at most two supporting charts'
   expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(2);
 });
 
-it('keeps two fixed supporting slots when a dashboard has fewer than two supports', () => {
-  const { container } = render(<VisualRenderer visual={dataDashboardFixture({ summaryMetrics: [], supporting: [] })} mode="canvas" />);
-
-  const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard');
-  expect(dashboard).toHaveAttribute('data-support-slots', '2');
-  expect(dashboard?.querySelector('[data-dashboard-slot="metrics"]')).not.toBeNull();
-  expect(dashboard?.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
-  expect(dashboard?.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(2);
-  expect(dashboard?.querySelector('[data-dashboard-slot="primary"]')).not.toBeNull();
-});
-
-it('renders atomic kpi-grid inside the stable dashboard canvas slots', () => {
+it('renders atomic kpi-grid directly without empty dashboard chrome', () => {
   const { container } = render(<VisualRenderer visual={visualFixture('kpi-grid')} mode="canvas" />);
 
-  const dashboard = container.querySelector<HTMLElement>('.report-data-dashboard--atomic-kpi');
-  expect(dashboard).not.toBeNull();
-  expect(dashboard?.querySelector('[data-dashboard-slot="metrics"]')).not.toBeNull();
-  expect(dashboard?.querySelector('[data-dashboard-slot="primary"] .report-kpi-grid')).not.toBeNull();
-  expect(dashboard?.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(2);
+  expect(container.querySelector('.report-kpi-grid')).not.toBeNull();
+  expect(container.querySelector('.report-data-dashboard--atomic-kpi')).toBeNull();
+  expect(container.querySelector('[data-dashboard-support-empty]')).toBeNull();
 });
 
 it('shares one ordered palette across dashboard trend and comparison visuals without duplicate bar colors', () => {
@@ -551,41 +538,30 @@ it('caps KPI grids at four columns while preserving every metric card', () => {
   expect(grid.style.getPropertyValue('--report-kpi-columns')).toBe('4');
 });
 
-it('keeps a zero-support dashboard on the fixed two-slot canvas geometry', () => {
+it('omits empty ready dashboard modules when there are no summary metrics or supports', () => {
   const visual = dataDashboardFixture({ summaryMetrics: [], supporting: [] });
   const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
   const dashboard = container.querySelector('.report-data-dashboard');
-  const support = container.querySelector('.report-data-dashboard__support');
 
   expect(dashboard).toHaveAttribute('data-support-count', '0');
-  expect(dashboard).toHaveAttribute('data-support-slots', '2');
-  expect(Array.from(container.querySelectorAll('[data-dashboard-slot]'), (slot) => slot.getAttribute('data-dashboard-slot'))).toEqual([
-    'metrics',
-    'primary',
-    'support',
-  ]);
+  expect(dashboard).toHaveAttribute('data-support-slots', '0');
+  expect(container.querySelector('[data-dashboard-slot="metrics"]')).toBeNull();
+  expect(container.querySelector('[data-dashboard-slot="support"]')).toBeNull();
+  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(0);
   expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
-  expect(support).not.toBeNull();
-  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
-  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(2);
 });
 
-it('keeps a one-support dashboard on the fixed two-slot canvas geometry', () => {
+it('renders one real support without a second empty ready slot', () => {
   const visual = dataDashboardFixture({
     supporting: [{ kind: 'health-ring', metric: metric('health', '运行健康度', 92, '分'), target: 100 }],
   });
   const { container } = render(<VisualRenderer visual={visual} mode="canvas" />);
   const dashboard = container.querySelector('.report-data-dashboard');
-  const supportPanels = container.querySelectorAll<HTMLElement>('.report-data-dashboard__support > section');
 
   expect(dashboard).toHaveAttribute('data-support-count', '1');
-  expect(dashboard).toHaveAttribute('data-support-slots', '2');
-  expect(container.querySelectorAll('.report-data-dashboard__primary [role="img"]')).toHaveLength(1);
-  expect(container.querySelectorAll('.report-data-dashboard__support [role="img"]')).toHaveLength(1);
-  expect(supportPanels).toHaveLength(2);
-  expect(supportPanels[0]).toHaveAttribute('data-panel-kind', 'health-ring');
-  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
-  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(1);
+  expect(dashboard).toHaveAttribute('data-support-slots', '1');
+  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(1);
+  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(0);
 });
 
 it('keeps actual support panels mounted across staged reveal without placeholder reflow', () => {
@@ -597,14 +573,14 @@ it('keeps actual support panels mounted across staged reveal without placeholder
   );
 
   const supportPanel = container.querySelector<HTMLElement>('[data-dashboard-support-slot="0"]');
-  expect(container.querySelector('.report-data-dashboard')).toHaveAttribute('data-support-slots', '2');
+  expect(container.querySelector('.report-data-dashboard')).toHaveAttribute('data-support-slots', '1');
   expect(supportPanel).toHaveAttribute('data-reveal-module', 'support-0');
   expect(supportPanel).toHaveAttribute('data-reveal-visible', 'false');
-  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(1);
+  expect(container.querySelectorAll('[data-dashboard-support-empty]')).toHaveLength(0);
 
   rerender(<VisualRenderer visual={visual} mode="canvas" revealedModules={new Set(['heading', 'metrics', 'primary', 'support-0'])} />);
 
-  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(2);
+  expect(container.querySelectorAll('[data-dashboard-support-slot]')).toHaveLength(1);
   expect(container.querySelector('[data-dashboard-support-slot="0"]')).toHaveAttribute('data-reveal-visible', 'true');
 });
 
