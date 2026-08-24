@@ -64,12 +64,14 @@ function metric(
   };
 }
 
+type MockMetric = ReturnType<typeof metric> & { status?: string };
+
 const tn = metric('tn', '总氮', 'mg/L', 2.68);
 const blower = metric('blowerKwh', '鼓风能耗', 'kWh/d', 128.4);
 const largeScreenMetrics = [
   metric('qualityScore', '出水水质得分', '分', 96),
   metric('energyScore', '电耗得分', '分', 90),
-  metric('tn', '总氮（TN）', 'mg/L', 1.96),
+  { ...metric('tn', '总氮（TN）', 'mg/L', 1.96), status: '达标' },
   metric('ammonia', '氨氮', 'mg/L', .38),
   metric('tp', '总磷', 'mg/L', .29),
   metric('cod', 'COD', 'mg/L', 22.26),
@@ -84,13 +86,13 @@ const largeScreenCarbonMetrics = [
 const largeScreenEvidenceMetrics = [...largeScreenMetrics, largeScreenCarbonMetrics[1]!];
 const largeScreenMetricKeys = largeScreenEvidenceMetrics.map(({ key }) => key);
 
-function evidenceRef(value: typeof tn) {
-  const { value: _metricValue, claimIds: _claimIds, ...evidence } = value;
+function evidenceRef(value: MockMetric) {
+  const { value: _metricValue, claimIds: _claimIds, status: _status, ...evidence } = value;
   return evidence;
 }
 
-function conversationEvidenceRef(value: typeof tn) {
-  const { value: _metricValue, claimIds: _claimIds, snapshotId: _snapshotId, ...evidence } = value;
+function conversationEvidenceRef(value: MockMetric) {
+  const { value: _metricValue, claimIds: _claimIds, snapshotId: _snapshotId, status: _status, ...evidence } = value;
   return evidence;
 }
 
@@ -184,6 +186,9 @@ const energySlide: ReportSlide = {
     { id: 'energy-trend-segment-2', text: '再对比两项主趋势与得分、碳指标辅助条形图的联动关系。', speechId: 'energy-trend-speech-2', claimIds: ['claim-e2e'] },
   ],
 };
+const firstDashboardVisual = energySlide.visual.kind === 'data-dashboard'
+  ? { ...energySlide.visual, supporting: energySlide.visual.supporting.slice(0, 1) }
+  : (() => { throw new Error('Expected energy dashboard visual'); })();
 
 function outlineVisualKind(slide: ReportSlide): SlideOutline['visualKind'] {
   const kind = slide.visual.kind === 'data-dashboard' ? slide.visual.primary.kind : slide.visual.kind;
@@ -359,6 +364,7 @@ function scenarioFor(question: string, clarificationAnswered = false): MockRepor
       id: 'first-dashboard',
       order: 0,
       title: '首屏综合看板',
+      visual: firstDashboardVisual,
     };
     return { question, slides: [firstDashboardSlide], outline: [outlineFor(firstDashboardSlide)] };
   }
@@ -863,6 +869,10 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
     };
     const metricCardBounds = [...slide.querySelectorAll<HTMLElement>('.report-data-dashboard__metric')]
       .map((card) => box(card, 'metric card'));
+    const metricStatusBounds = [...slide.querySelectorAll<HTMLElement>('.report-data-dashboard__metric-status')].map((status) => ({
+      status: box(status, 'metric status'),
+      card: box(status.closest('.report-data-dashboard__metric'), 'metric status card'),
+    }));
     const barCharts = [...slide.querySelectorAll<HTMLElement>('[data-panel-kind="comparison-bars"] .report-chart--bars')]
       .map((chart) => box(chart, 'bar chart'));
     const barThemes = [...slide.querySelectorAll<HTMLElement>('.report-chart__bar[data-bar-theme]')]
@@ -913,6 +923,7 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
       viewportHeight: document.documentElement.clientHeight,
       documentScrollHeight: document.documentElement.scrollHeight,
       metricCardBounds,
+      metricStatusBounds,
       barCharts,
       barThemes,
       barAxisLabelBounds,
@@ -946,12 +957,19 @@ test('keeps eight metrics and auxiliary labels readable at 1920x1080', async ({ 
   expect(reportGeometry.slideBottom).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.documentScrollHeight).toBeLessThanOrEqual(reportGeometry.viewportHeight + 1);
   expect(reportGeometry.metricCardBounds).toHaveLength(8);
+  expect(reportGeometry.metricStatusBounds).toHaveLength(1);
   expect(new Set(reportGeometry.metricCardBounds.map(({ top }) => Math.round(top))).size).toBe(1);
   for (const card of reportGeometry.metricCardBounds) {
     expect(card.left).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.left - 1);
     expect(card.right).toBeLessThanOrEqual(reportGeometry.canvasBounds.right + 1);
     expect(card.top).toBeGreaterThanOrEqual(reportGeometry.canvasBounds.top - 1);
     expect(card.bottom).toBeLessThanOrEqual(reportGeometry.canvasBounds.bottom + 1);
+  }
+  for (const { status, card } of reportGeometry.metricStatusBounds) {
+    expect(status.left).toBeGreaterThanOrEqual(card.left - 1);
+    expect(status.right).toBeLessThanOrEqual(card.right + 1);
+    expect(status.top).toBeGreaterThanOrEqual(card.top - 1);
+    expect(status.bottom).toBeLessThanOrEqual(card.bottom + 1);
   }
   expect(reportGeometry.barCharts).toHaveLength(2);
   for (const chart of reportGeometry.barCharts) {
@@ -1074,18 +1092,17 @@ test('keeps pending and ready dashboard canvas geometry stable at 1920x1080', as
   await expect(readyCanvas).toBeVisible();
   await expect(readyCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
   await expect(readyTitle).toBeVisible();
+  await expect(readyCanvas.locator('.report-data-dashboard')).toHaveAttribute('data-support-count', '1');
+  await expect(readyCanvas.locator('[data-dashboard-support-slot]')).toHaveCount(1);
+  await expect(readyCanvas.locator('[data-dashboard-support-empty]')).toHaveCount(0);
 
   expectStableBox(await stableBox(readyCanvas), pendingCanvasBox);
   expectStableBox(await stableBox(readyTitle), pendingTitleBox);
-  const readySlotBoxes = await Promise.all([
-    stableBox(readyCanvas.locator('[data-dashboard-slot="metrics"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-slot="primary"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-support-slot="0"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-support-slot="1"]')),
-  ]);
-  for (let index = 0; index < readySlotBoxes.length; index += 1) {
-    expectStableBox(readySlotBoxes[index]!, pendingSlotBoxes[index]!);
-  }
+  expectStableBox(await stableBox(readyCanvas.locator('[data-dashboard-slot="metrics"]')), pendingSlotBoxes[0]!);
+  expectStableBox(await stableBox(readyCanvas.locator('[data-dashboard-slot="primary"]')), pendingSlotBoxes[1]!);
+  const readySupport = await stableBox(readyCanvas.locator('[data-dashboard-support-slot="0"]'));
+  expect(Math.abs(readySupport.y - pendingSlotBoxes[2]!.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs((readySupport.y + readySupport.height) - (pendingSlotBoxes[3]!.y + pendingSlotBoxes[3]!.height))).toBeLessThanOrEqual(2);
 });
 
 test('keeps atomic kpi-grid slots stable when the outline falls back from dashboard planning', async ({ page }) => {
@@ -1100,28 +1117,15 @@ test('keeps atomic kpi-grid slots stable when the outline falls back from dashbo
 
   const pendingCanvas = page.locator('[data-slide-state="pending"][data-slide-mode="canvas"][data-slide-id="mixed-answer"]');
   await expect(pendingCanvas).toBeVisible();
-  const pendingSlotBoxes = await Promise.all([
-    stableBox(pendingCanvas.locator('[data-dashboard-slot="metrics"]')),
-    stableBox(pendingCanvas.locator('[data-dashboard-slot="primary"]')),
-    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="0"]')),
-    stableBox(pendingCanvas.locator('[data-dashboard-support-slot="1"]')),
-  ]);
 
   api.releaseTerminal();
 
   const readyCanvas = page.locator('[data-slide-mode="canvas"][data-slide-id="mixed-answer"]:not([data-slide-state="pending"])');
   await expect(readyCanvas).toBeVisible();
   await expect(readyCanvas.locator('[data-reveal-visible="false"]')).toHaveCount(0, { timeout: 5_000 });
-  await expect(readyCanvas.locator('.report-data-dashboard--atomic-kpi')).toBeVisible();
-  const readySlotBoxes = await Promise.all([
-    stableBox(readyCanvas.locator('[data-dashboard-slot="metrics"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-slot="primary"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-support-slot="0"]')),
-    stableBox(readyCanvas.locator('[data-dashboard-support-slot="1"]')),
-  ]);
-  for (let index = 0; index < readySlotBoxes.length; index += 1) {
-    expectStableBox(readySlotBoxes[index]!, pendingSlotBoxes[index]!);
-  }
+  await expect(readyCanvas.locator('.report-kpi-grid')).toBeVisible();
+  await expect(readyCanvas.locator('.report-data-dashboard--atomic-kpi')).toHaveCount(0);
+  await expect(readyCanvas.locator('[data-dashboard-support-empty]')).toHaveCount(0);
 });
 
 test('keeps the mocked progressive report static under reduced motion at large-screen size', async ({ page }, testInfo) => {
