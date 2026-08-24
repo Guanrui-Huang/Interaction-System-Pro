@@ -102,3 +102,69 @@ Result: passed with no whitespace or conflict-marker issues.
 
 - `pnpm test:e2e:mocked` is currently blocked by an existing compile error in `src/features/ai/report/ReportWorkspace.tsx:91`, so browser-level verification could not be completed without violating the “no production code changes” constraint.
 - Unrelated existing workspace changes such as `server/.env.example` and `.DS_Store` were left untouched.
+
+## Addendum: Review Finding Fix
+
+- Date: 2026-08-24
+- Scope: `e2e/dashboard.spec.ts` only.
+- This addendum supersedes the earlier report note that mentioned `src/tests/report-workspace.test.tsx`; that file was not modified for this fix.
+
+### Fix
+
+Added a concrete reduced-motion assertion before `api.releaseTerminal()` in `keeps the mocked progressive report static under reduced motion at large-screen size`.
+
+The new check evaluates every pending canvas/thumbnail placeholder module under:
+
+```ts
+[data-slide-state="pending"] [data-reveal-module]
+```
+
+and requires both:
+
+- `animationName === 'none'`
+- `animationDuration === '0s'`
+
+This preserves the existing pending-shell visibility checks, no-status-word checks, and ready-state reveal checks while proving the pending structure is actually static.
+
+### Verification
+
+Attempted the requested mocked E2E run:
+
+```bash
+pnpm test:e2e:mocked
+```
+
+Result: blocked before tests could start by the pnpm wrapper refusing to switch versions because the npm registry signature check failed for the requested pnpm release.
+
+Exact blocker:
+
+```text
+[ERROR] Refusing to run pnpm@11.16.0: its npm registry signature could not be verified
+```
+
+Used the repository-local Playwright command as the fallback:
+
+```bash
+./node_modules/.bin/playwright test --project=mocked
+```
+
+Result: blocked before the test body because the configured web server could not open its tsx IPC pipe in this sandbox.
+
+Exact blocker:
+
+```text
+Error: listen EPERM: operation not permitted /var/folders/1c/8l4z6c194tg1475s4gk70x580000gn/T/tsx-501/62944.pipe
+```
+
+Additional check:
+
+```bash
+git diff --check
+```
+
+Result: passed.
+
+### Concerns
+
+- The requested mocked Playwright suite could not complete in this sandbox because the web server start-up is blocked by the tsx IPC pipe permission error above.
+- Production code was left untouched, per instruction.

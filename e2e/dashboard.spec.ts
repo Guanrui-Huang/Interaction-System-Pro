@@ -1031,6 +1031,21 @@ test('keeps the mocked progressive report static under reduced motion at large-s
   await expect(page.getByText('等待生成', { exact: true })).toHaveCount(0);
   await expect(page.getByText('生成中', { exact: true })).toHaveCount(0);
 
+  const pendingModules = page.locator('[data-slide-state="pending"] [data-reveal-module]');
+  const pendingModuleStyles = await pendingModules.evaluateAll((modules) => (
+    modules.map((module) => {
+      const style = getComputedStyle(module as HTMLElement);
+      return {
+        animationName: style.animationName,
+        animationDuration: style.animationDuration,
+      };
+    })
+  ));
+  expect(pendingModuleStyles.length).toBeGreaterThan(0);
+  expect(pendingModuleStyles.every(({ animationName, animationDuration }) => (
+    animationName === 'none' && animationDuration === '0s'
+  ))).toBe(true);
+
   api.releaseTerminal();
 
   const activeCanvas = page.locator('[data-slide-mode="canvas"]:not([data-slide-state="pending"])');
