@@ -527,8 +527,10 @@ it('keeps pending and ready atomic kpi-grid slides on the dashboard geometry hea
   expect(readyCanvas?.querySelector('.report-slide__heading h2')).toHaveTextContent('关键指标总览');
   expect(readyCanvas?.querySelector('.report-slide__takeaway')).toHaveTextContent('关键指标总览保持稳定。');
   expect(readyCanvas?.querySelector('.report-kpi-grid')).not.toBeNull();
-  expect(readyCanvas?.querySelector('.report-data-dashboard--atomic-kpi')).not.toBeNull();
-  expect(readyCanvas?.querySelector('[data-dashboard-slot="primary"] .report-kpi-grid')).not.toBeNull();
+  expect(readyCanvas?.querySelector('.report-data-dashboard--atomic-kpi')).toBeNull();
+  expect(readyCanvas?.querySelector('[data-dashboard-slot="metrics"]')).toBeNull();
+  expect(readyCanvas?.querySelector('[data-dashboard-slot="support"]')).toBeNull();
+  expect(readyCanvas?.querySelector('[data-dashboard-support-empty]')).toBeNull();
   expect(
     Array.from(readyCanvas!.classList).filter((className) => className.startsWith('report-canvas-geometry-shell')),
   ).toEqual(

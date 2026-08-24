@@ -91,7 +91,7 @@ it('restores final zero, one, and two-support dashboard layouts while pending ge
 
 it('clips pending module surfaces so blur stays inside each slot', () => {
   expect(css).toMatch(/\.report-pending-slide__metric,\s*\.report-pending-slide__panel\s*\{[^}]*overflow:\s*clip;/su);
-  expect(css).toMatch(/\.report-data-dashboard--atomic-kpi\s*\{[^}]*grid-template-areas:\s*"metrics metrics"\s*"primary support";/su);
+  expect(css).not.toMatch(/\.report-data-dashboard--atomic-kpi\s*\{/u);
   expect(css).toMatch(/\.report-pending-slide__metric-surface,\s*\.report-pending-slide__panel-surface,\s*\.report-pending-slide__blur-surface\s*\{[^}]*filter:\s*blur\(8px\);/su);
   expect(css).not.toMatch(/\.report-pending-slide \[data-pending-module\],\s*\.report-pending-slide__metrics,\s*\.report-pending-slide__metric,\s*\.report-pending-slide__takeaway,\s*\.report-pending-slide__title-placeholder\s*\{[^}]*filter:/su);
 });
