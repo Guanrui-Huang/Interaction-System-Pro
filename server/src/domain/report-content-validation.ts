@@ -139,6 +139,20 @@ function fail(code: ReportContentValidationError['code']): never {
   throw new ReportContentValidationError(code);
 }
 
+const TEMPLATE_NARRATION_OPENING_PATTERN =
+  /本页(?:查看|展示|分析|覆盖)[^。！？；]*(?:共|合计)\s*\d+\s*个样本/gu;
+
+function assertNarrationOpeningPolicy(
+  narration: ModelSlideDraft['narration'],
+  order: number,
+): void {
+  for (const [index, segment] of narration.entries()) {
+    const count = segment.text.match(TEMPLATE_NARRATION_OPENING_PATTERN)?.length ?? 0;
+    if (count === 0) continue;
+    if (order !== 0 || index !== 0 || count > 1) fail('REPORT_SLIDE_DRAFT_INVALID');
+  }
+}
+
 function distinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
@@ -1630,6 +1644,7 @@ export function validateModelSlideDraft(input: {
     || draft.evidenceKeys.some((key, index) => key !== outline.evidenceKeys[index])
     || !distinct(draft.evidenceKeys)
   ) fail('REPORT_SLIDE_DRAFT_INVALID');
+  assertNarrationOpeningPolicy(draft.narration, outline.order);
   assertVisualEvidenceCompatibility(draft.visualKind, draft.evidenceKeys, bundle, 'REPORT_EVIDENCE_INVALID');
   const evidencePolicy = deriveEvidencePolicy(draft.evidenceKeys, bundle);
   if (evidencePolicy !== outline.evidencePolicy) fail('REPORT_EVIDENCE_INVALID');
