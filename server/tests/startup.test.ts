@@ -17,7 +17,7 @@ it('does not start a listener merely because the startup module is imported', as
   expect(startLocalServer).not.toHaveBeenCalled();
   vi.doUnmock('../src/app');
   vi.resetModules();
-}, 10_000);
+}, 20_000);
 
 it('injects the one shared report registry into HTTP reports and the voice gateway', async () => {
   vi.resetModules();

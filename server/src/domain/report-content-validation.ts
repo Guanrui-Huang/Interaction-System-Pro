@@ -139,6 +139,36 @@ function fail(code: ReportContentValidationError['code']): never {
   throw new ReportContentValidationError(code);
 }
 
+const TEMPLATE_NARRATION_OPENING_PATTERN =
+  /本页(?:查看|展示|分析|覆盖)[^。！？；]*(?:共|合计)\s*\d+\s*个样本/gu;
+
+const TEMPLATE_NARRATION_BOILERPLATE_PATTERNS = [
+  /本页(?:单位|数据|日期范围|时间范围|样本|统计|背景)[^。！？；]*(?:来自|来源于|取自|沿用|见|依据|说明)/u,
+  /(?:日期|时间)范围(?:为|是|：|:|从)[^。！？；]*/u,
+  /(?:样本(?:总数|数量|信息)|总样本数)(?:为|是|：|:|共|合计|有|与)[^。！？；]*/u,
+  /(?:日期|时间)范围[^。！？；]*(?:样本(?:总数|数量|信息)|个样本)|(?:样本(?:总数|数量|信息)|总样本数)[^。！？；]*(?:日期|时间)范围/u,
+  /(?:本页|本段|该)?(?:单位|数据|数值|得分|指标|结果|日期范围|时间范围|样本|证据)[^。！？；]*(?:来自|来源于|取自|均来自)[^。！？；]*(?:Excel|证据|证据快照)/u,
+] as const;
+
+function templateNarrationOpeningCount(text: string): number {
+  return text.split(/[。！？；]+/u).reduce((count, sentence) => {
+    const explicitOpenings = sentence.match(TEMPLATE_NARRATION_OPENING_PATTERN)?.length ?? 0;
+    const hasBoilerplate = TEMPLATE_NARRATION_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(sentence));
+    return count + Math.max(explicitOpenings, hasBoilerplate ? 1 : 0);
+  }, 0);
+}
+
+function assertNarrationOpeningPolicy(
+  narration: ModelSlideDraft['narration'],
+  order: number,
+): void {
+  for (const [index, segment] of narration.entries()) {
+    const count = templateNarrationOpeningCount(segment.text);
+    if (count === 0) continue;
+    if (order !== 0 || index !== 0 || count > 1) fail('REPORT_SLIDE_DRAFT_INVALID');
+  }
+}
+
 function distinct(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
@@ -1630,6 +1660,7 @@ export function validateModelSlideDraft(input: {
     || draft.evidenceKeys.some((key, index) => key !== outline.evidenceKeys[index])
     || !distinct(draft.evidenceKeys)
   ) fail('REPORT_SLIDE_DRAFT_INVALID');
+  assertNarrationOpeningPolicy(draft.narration, outline.order);
   assertVisualEvidenceCompatibility(draft.visualKind, draft.evidenceKeys, bundle, 'REPORT_EVIDENCE_INVALID');
   const evidencePolicy = deriveEvidencePolicy(draft.evidenceKeys, bundle);
   if (evidencePolicy !== outline.evidencePolicy) fail('REPORT_EVIDENCE_INVALID');

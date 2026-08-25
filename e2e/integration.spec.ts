@@ -307,6 +307,13 @@ test('builds distinct knowledge, mixed, identity and clarified reports from the 
   expect(new Set(mixed.slides[0]!.evidenceRefs.map(({ source }) => source))).toEqual(
     new Set(['model-knowledge', 'excel']),
   );
+  const mixedNarration = mixed.slides.flatMap(({ narration }) => narration.map(({ text }) => text));
+  const templateOpenings = mixedNarration.filter((text) => /本页查看[^。]*共\d+个样本/u.test(text));
+
+  expect(templateOpenings).toHaveLength(1);
+  expect(mixed.slides[0]!.narration[0]!.text).toMatch(/本页查看[^。]*共\d+个样本/u);
+  expect(mixed.slides.slice(1).flatMap(({ narration }) => narration.map(({ text }) => text)).join(''))
+    .not.toMatch(/本页查看|本页单位、日期范围与样本/u);
   expect(await completionDelta()).toEqual([
     'intent-planner', 'report-planner', 'slide-composer', 'slide-composer',
   ]);

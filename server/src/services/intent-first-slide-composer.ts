@@ -112,11 +112,26 @@ const CLAIM_EVIDENCE_RULES = [
   '只可使用 referencedEvidence 直接列出的 series 日值、aggregate、correlation、thresholdBreaches 和 alert；不得自行按周、按月或按季度重算派生数值。无法用直接证据纠正的 claim 必须删除，并同步移除 takeawayClaimIds、narration 文字与 claimIds 中的引用。',
 ] as const;
 
+function narrationRules(order: number): readonly string[] {
+  return order === 0
+    ? [
+        '这是整份汇报的第一页。仅 narration[0] 可以说明一次数据时间范围与样本数；若本页没有现场数据，不得编造开场。',
+        '第一页后续 narration 段不得重复页面背景、时间范围、样本总数或证据来源套话，必须直接进入指标分析。',
+        '同页各段必须互补，分别讲指标现状、变化、风险或建议。',
+      ]
+    : [
+        '这是整份汇报的后续页。后续页所有 narration 段必须直接进入指标分析。',
+        '不得使用“本页查看/本页展示/本页分析/本页覆盖……共 N 个样本”等页面介绍句，不得重复时间范围、样本总数或证据来源套话。',
+        '同页各段必须互补，分别讲指标现状、变化、风险或建议。',
+      ];
+}
+
 function buildPrompt(input: SlideComposerInput): string {
   return [
     '你是证据约束的单页报告撰稿器。只输出一个严格 JSON 对象，不输出解释或可执行代码。',
     `outline: ${JSON.stringify({
       title: input.outline.title,
+      order: input.outline.order,
       purpose: input.outline.purpose,
       role: input.outline.role,
       layout: input.outline.layout,
@@ -132,6 +147,7 @@ function buildPrompt(input: SlideComposerInput): string {
     '现场日期只能原样使用 referencedEvidence 中的 YYYY-MM-DD 起止日期；不得改写为中文日期。所有现场数字和单位必须与引用证据完全一致，数字不得使用千位分隔符。',
     '每条 onsite-fact 必须在自己的 evidenceKeys 中引用 Excel 证据；user-provided 只能引用 user-correction 并明确写明用户提供且未经现场数据核验；knowledge 不得声称现场数值；hypothesis 必须明确表达不确定性。',
     ...CLAIM_EVIDENCE_RULES,
+    ...narrationRules(input.outline.order),
     '只返回文本、claim 引用和知识项；不得返回 id、order、evidencePolicy、图表数值对象、样式或额外字段。',
   ].join('\n');
 }
@@ -147,10 +163,12 @@ function buildRepairPrompt(input: {
     `allowedShape: ${outputShape(input.composerInput)}`,
     `outline: ${JSON.stringify({
       visualKind: input.composerInput.outline.visualKind,
+      order: input.composerInput.outline.order,
       evidenceKeys: input.composerInput.outline.evidenceKeys,
     })}`,
     `referencedEvidence: ${JSON.stringify(referencedEvidence(input.composerInput))}`,
     ...CLAIM_EVIDENCE_RULES,
+    ...narrationRules(input.composerInput.outline.order),
     `issues: ${JSON.stringify(input.issues.map((issue) => redactAnalysisText(issue, input.sensitiveValues)))}`,
     `originalOutput: ${redactAnalysisText(input.content, input.sensitiveValues)}`,
   ].join('\n');

@@ -309,10 +309,10 @@ function intentResponse(question: string): unknown {
 
 type ModelOutline = Pick<
   SlideOutline,
-  'title' | 'purpose' | 'role' | 'layout' | 'visualKind' | 'evidenceKeys'
+  'order' | 'title' | 'purpose' | 'role' | 'layout' | 'visualKind' | 'evidenceKeys'
 >;
 
-function reportPlanResponse(question: string): { slides: ModelOutline[] } {
+function reportPlanResponse(question: string): { slides: Array<Omit<ModelOutline, 'order'>> } {
   if (question === '污水脱氮是什么？') {
     return { slides: [{
       title: '污水脱氮的核心机制',
@@ -404,7 +404,22 @@ function parseComposerOutline(prompt: string): ModelOutline {
   return JSON.parse(line.slice('outline: '.length)) as ModelOutline;
 }
 
-function slideDraftResponse(outline: ModelOutline): unknown {
+type ComposerEvidence = {
+  analysis?: {
+    scope: {
+      dateRange: { from: string; to: string };
+      sampleCount: number;
+    };
+  };
+};
+
+function parseComposerEvidence(prompt: string): ComposerEvidence {
+  const line = prompt.split('\n').find((candidate) => candidate.startsWith('referencedEvidence: '));
+  if (!line) throw new Error('missing composer evidence');
+  return JSON.parse(line.slice('referencedEvidence: '.length)) as ComposerEvidence;
+}
+
+function slideDraftResponse(outline: ModelOutline, evidence: ComposerEvidence): unknown {
   const identity = outline.evidenceKeys.length === 1 && outline.evidenceKeys[0] === 'assistant-profile';
   const knowledgeKeys = outline.evidenceKeys.filter((key) => key.startsWith('knowledge:'));
   const onsiteKeys = outline.evidenceKeys.filter((key) => !key.startsWith('knowledge:') && key !== 'assistant-profile');
@@ -432,6 +447,10 @@ function slideDraftResponse(outline: ModelOutline): unknown {
         }] : []),
       ];
   const claimIds = claims.map(({ id }) => id);
+  const scope = evidence.analysis?.scope;
+  const reportOpening = outline.order === 0 && onsiteKeys.length > 0 && scope
+    ? `本页查看${scope.dateRange.from}至${scope.dateRange.to}的相关指标，共${scope.sampleCount}个样本。`
+    : '';
   const takeaway = identity
     ? '公开模型名称为 DeepSeek v4-flash。'
     : knowledgeKeys.length && onsiteKeys.length
@@ -450,10 +469,13 @@ function slideDraftResponse(outline: ModelOutline): unknown {
           { text: '我可以解释运营知识，并基于受限证据分析现场数据。', claimIds },
         ]
       : [
-          { text: `${outline.title}从问题意图出发展开讲解。`, claimIds },
-          { text: onsiteKeys.length
-            ? '本页单位、日期范围与样本均来自 Excel 证据。'
-            : '本页内容来自模型知识，不声称现场数值。', claimIds },
+          { text: `${reportOpening}${outline.title}从问题意图出发展开讲解。`, claimIds },
+          {
+            text: onsiteKeys.length
+              ? `${outline.purpose}，下面直接说明相关指标结论。`
+              : '本页内容来自模型知识，不声称现场数值。',
+            claimIds,
+          },
         ],
     ...(identity ? {
       knowledgeItems: [
@@ -507,7 +529,7 @@ const mockReportCompletion = async ({ prompt }: DeepSeekCompletionRequest): Prom
     ...(state.slideAttemptOutcomes[attemptKey] ?? []),
     'ready',
   ];
-  return JSON.stringify(slideDraftResponse(outline));
+  return JSON.stringify(slideDraftResponse(outline, parseComposerEvidence(prompt)));
 };
 
 function followUpQuestion(prompt: string): string {

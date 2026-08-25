@@ -175,7 +175,7 @@ function onsiteDraft(overrides: Record<string, unknown> = {}) {
     claims: [{ id: 'claim-tn', text: '总氮最新值为 2.4 mg/L。', kind: 'onsite-fact', evidenceKeys: ['tn'] }],
     narration: [
       { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
-      { text: '该数值来自本页绑定的现场证据。', claimIds: ['claim-tn'] },
+      { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
     ],
     ...overrides,
   };
@@ -198,6 +198,92 @@ function provider(response: unknown) {
 }
 
 describe('composeSlide', () => {
+  const pageContext = '本页查看2026-08-01至2026-08-31的总氮（TN），共31个样本。';
+
+  it('allows one page-context opening only in the first segment of page zero', async () => {
+    const draft = onsiteDraft({ narration: [{ text: `${pageContext}总氮最新值为 2.4 mg/L。`, claimIds: ['claim-tn'] }, { text: '总氮仍低于 3 mg/L 限值。', claimIds: ['claim-tn'] }] });
+    const dependency = provider(draft);
+    await expect(composeSlide({ outline: outline(), evidence: dataEvidence }, dependency)).resolves.toMatchObject({ narration: [{ text: expect.stringContaining(pageContext) }, { text: expect.not.stringContaining('本页查看') }] });
+    const prompt = dependency.requestCompletion.mock.calls[0]![0].prompt;
+    expect(prompt).toContain('"order":0');
+    expect(prompt).toContain('仅 narration[0] 可以说明一次数据时间范围与样本数');
+  });
+
+  it('repairs a repeated page-context opening on page zero', async () => {
+    const repeated = onsiteDraft({ narration: [{ text: `${pageContext}总氮最新值为 2.4 mg/L。`, claimIds: ['claim-tn'] }, { text: `${pageContext}总氮平均值为 2.3 mg/L。`, claimIds: ['claim-tn'] }] });
+    const dependency = providerSequence(repeated, onsiteDraft());
+    await expect(composeSlide({ outline: outline(), evidence: dataEvidence }, dependency)).resolves.toMatchObject({ id: 'slide-0' });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+    expect(dependency.requestCompletion.mock.calls[1]![0].prompt).toContain('第一页后续 narration 段不得重复页面背景');
+  });
+
+  it('repairs two distinct background openings in the first segment of page zero', async () => {
+    const repeated = onsiteDraft({
+      narration: [
+        {
+          text: '本页展示总氮趋势，共31个样本。本页单位、日期范围与样本均来自 Excel 证据。',
+          claimIds: ['claim-tn'],
+        },
+        { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
+      ],
+    });
+    const dependency = providerSequence(repeated, onsiteDraft());
+
+    await expect(composeSlide({ outline: outline(), evidence: dataEvidence }, dependency))
+      .resolves.toMatchObject({ id: 'slide-0' });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+  });
+
+  it('repairs any template page-context opening on a later page', async () => {
+    const misplaced = onsiteDraft({ narration: [{ text: `${pageContext}总氮最新值为 2.4 mg/L。`, claimIds: ['claim-tn'] }, { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] }] });
+    const dependency = providerSequence(misplaced, onsiteDraft());
+    await expect(composeSlide({ outline: outline({ id: 'slide-1', order: 1 }), evidence: dataEvidence }, dependency)).resolves.toMatchObject({ id: 'slide-1', order: 1 });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+    expect(dependency.requestCompletion.mock.calls[0]![0].prompt).toContain('"order":1');
+    expect(dependency.requestCompletion.mock.calls[1]![0].prompt).toContain('后续页所有 narration 段必须直接进入指标分析');
+  });
+
+  it('allows an analytically meaningful sample-size caveat on a later page', async () => {
+    const caveat = onsiteDraft({ narration: [{ text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] }, { text: '本次判断基于31个样本，样本量有限，结论需谨慎。', claimIds: ['claim-tn'] }] });
+    await expect(composeSlide({ outline: outline({ id: 'slide-1', order: 1 }), evidence: dataEvidence }, provider(caveat))).resolves.toMatchObject({ narration: [{ text: '总氮最新值为 2.4 mg/L。' }, { text: expect.stringContaining('31个样本') }] });
+  });
+
+
+  it.each([
+    {
+      label: 'legacy evidence-source boilerplate on a later page',
+      order: 1,
+      narration: [
+        { text: '本页单位、日期范围与样本均来自 Excel 证据。总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
+      ],
+    },
+    {
+      label: 'date and sample metadata in a non-opening segment',
+      order: 0,
+      narration: [
+        { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '本页数据日期范围、样本数量与单位沿用前述说明。', claimIds: ['claim-tn'] },
+      ],
+    },
+    {
+      label: 'evidence-source boilerplate in a later segment',
+      order: 1,
+      narration: [
+        { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '本段数据来源于 Excel 证据。', claimIds: ['claim-tn'] },
+      ],
+    },
+  ])('repairs $label', async ({ order, narration }) => {
+    const dependency = providerSequence(onsiteDraft({ narration }), onsiteDraft());
+
+    await expect(composeSlide({
+      outline: outline({ id: `slide-${order}`, order }),
+      evidence: dataEvidence,
+    }, dependency)).resolves.toMatchObject({ id: `slide-${order}`, order });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+  });
+
   it('binds claim values, metrics, visuals and immutable snapshot references server-side', async () => {
     const slide = await composeSlide({ outline: outline(), evidence: dataEvidence }, provider(onsiteDraft()));
 
@@ -401,7 +487,7 @@ describe('composeSlide', () => {
       ],
       narration: [
         { text: '当前水量波动得分为 80 分。', claimIds: ['claim-score'] },
-        { text: '该得分来自本页绑定的现场证据。', claimIds: ['claim-score'] },
+        { text: '当前水量波动得分处于 80 分水平。', claimIds: ['claim-score'] },
       ],
     }));
 
@@ -1508,7 +1594,7 @@ describe('composeSlide', () => {
       evidenceKeys: ['complianceRate'],
       narration: [
         { text: '水质达标率最新值为 99.8%。', claimIds: ['claim-rate'] },
-        { text: '该数值来自现场证据。', claimIds: ['claim-rate'] },
+        { text: '水质达标率当前为 99.8%。', claimIds: ['claim-rate'] },
       ],
     });
 

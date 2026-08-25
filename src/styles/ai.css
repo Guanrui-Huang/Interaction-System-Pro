@@ -511,7 +511,8 @@
 .report-chart__axis-label { fill: var(--chart-axis); font: 12px "JetBrains Mono", monospace; }
 .report-chart__line { fill: none; stroke-width: 3; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 4px rgb(44 228 245 / 42%)); }
 .report-chart__point { fill: #dfffff; stroke: var(--chart-trend-start); stroke-width: 2; }
-.report-chart__bar { opacity: .76; filter: drop-shadow(0 0 5px rgb(35 239 177 / 28%)); }
+.report-chart__bar { opacity: .96; }
+.report-chart__bar-glow { opacity: .42; pointer-events: none; }
 .report-chart__value { fill: #d9f8f5; font: 13px "JetBrains Mono", monospace; }
 .report-trend__legend { display: flex; flex-wrap: wrap; gap: .35rem .85rem; margin: 0 0 .25rem; padding: 0; color: #c9e8ed; font-size: .7rem; list-style: none; }
 .report-trend__legend li { display: inline-flex; align-items: center; gap: .32rem; min-width: 0; }

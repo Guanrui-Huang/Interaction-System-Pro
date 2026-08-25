@@ -169,6 +169,36 @@ function correctionSourceEvidence(snapshotId: string): ReportEvidenceBundle {
   };
 }
 
+function multiMetricFallbackEvidence(snapshotId: string): ReportEvidenceBundle {
+  return {
+    snapshotId,
+    knowledge: [],
+    analysis: {
+      scope: {
+        modules: ['energy'],
+        metrics: ['totalKwh', 'kwhPerM3'],
+        dateRange: { from: '2026-08-01', to: '2026-08-12' },
+        sampleCount: 2,
+        granularity: 'daily',
+      },
+      definitions: [
+        { key: 'totalKwh', label: '总电耗', unit: 'kWh/d' },
+        { key: 'kwhPerM3', label: '吨水电耗', unit: 'kWh/m³' },
+      ],
+      series: [
+        { date: '2026-08-01', values: { totalKwh: 480, kwhPerM3: 0.45 } },
+        { date: '2026-08-12', values: { totalKwh: 500, kwhPerM3: 0.43 } },
+      ],
+      aggregates: {
+        totalKwh: { min: 480, max: 500, average: 490, latest: 500, changeRate: 0.0417 },
+        kwhPerM3: { min: 0.43, max: 0.45, average: 0.44, latest: 0.43, changeRate: -0.0444 },
+      },
+      thresholdBreaches: [],
+      correlations: [],
+      alerts: [],
+    },
+  };
+}
 function generatorWith(overrides: {
   registry?: ReportJobRegistry;
   planReportIntent?: (...args: any[]) => Promise<any>;
@@ -531,6 +561,7 @@ describe('ReportGenerator intent-first lifecycle', () => {
     expect(fallback.takeaway).toContain('总电耗最新值为500 kWh/d');
     expect(narration).toContain('2026年8月1日至2026年8月12日');
     expect(narration).toContain('共2个样本');
+    expect(fallback.narration[0]!.text).toContain('总电耗最新值为500 kWh/d');
     expect(narration).toContain('平均值为490 kWh/d');
     expect(narration).toContain('最低值为480 kWh/d');
     expect(narration).toContain('峰值为500 kWh/d');
@@ -540,6 +571,32 @@ describe('ReportGenerator intent-first lifecycle', () => {
     expect(fallback.narration).toHaveLength(3);
   });
 
+  it('uses the data context once on page zero and never on later fallback pages', () => {
+    const metricEvidence = multiMetricFallbackEvidence('evidence:multi-fallback');
+    const base: SlideOutline = {
+      ...outline('metric-page', 0),
+      evidencePolicy: 'data',
+      visualKind: 'kpi-grid',
+      evidenceKeys: ['totalKwh', 'kwhPerM3'],
+    };
+
+    const firstPage = composeEvidenceFallbackSlide(base, metricEvidence);
+    const laterPage = composeEvidenceFallbackSlide(
+      { ...base, id: 'metric-page-2', order: 1 },
+      metricEvidence,
+    );
+    const firstNarration = firstPage.narration.map(({ text }) => text).join('');
+    const laterNarration = laterPage.narration.map(({ text }) => text).join('');
+
+    expect(firstNarration.match(/本页查看/gu)).toHaveLength(1);
+    expect(firstNarration.match(/共2个样本/gu)).toHaveLength(1);
+    expect(firstPage.narration[0]!.text).toContain('本页查看');
+    expect(firstPage.narration.slice(1).map(({ text }) => text).join('')).not.toContain('本页查看');
+    expect(laterNarration).not.toContain('本页查看');
+    expect(laterNarration).not.toContain('共2个样本');
+    expect(firstPage.claims).toHaveLength(2);
+    expect(firstPage.claims.every(({ text }) => text.includes('共2个样本'))).toBe(true);
+  });
   it('allows one provider-response retry per model stage and no retry for evidence validation', async () => {
     let intentAttempts = 0;
     let plannerAttempts = 0;

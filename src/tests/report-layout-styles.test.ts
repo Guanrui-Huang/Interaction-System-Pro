@@ -172,6 +172,13 @@ it('raises comparison bar values and labels to the large-screen scale', () => {
   expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-health-ring__name\s*\{[^}]*font-size:\s*14px;/su);
 });
 
+it('uses the selected clear-glow intensity for comparison bars', () => {
+  expect(css).toMatch(/\.report-chart__bar\s*\{[^}]*opacity:\s*\.96;[^}]*\}/su);
+  expect(css).not.toMatch(/\.report-chart__bar\s*\{[^}]*drop-shadow\([^}]*\}/su);
+  expect(css).toMatch(
+    /\.report-chart__bar-glow\s*\{[^}]*opacity:\s*\.42;[^}]*pointer-events:\s*none;[^}]*\}/su,
+  );
+});
 it('raises trend and scatter auxiliary labels on the desktop canvas without affecting thumbnails', () => {
   expect(css).toMatch(/\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--trend\s+\.report-chart__axis-label,\s*\.report-canvas-geometry-shell--dashboard\.report-slide--canvas\s+\.report-chart--scatter\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);
   expect(css).not.toMatch(/\.report-visual-renderer--thumbnail\s+\.report-chart--trend\s+\.report-chart__axis-label\s*\{[^}]*font-size:\s*16px;/su);

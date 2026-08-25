@@ -5,6 +5,27 @@ export const DEFAULT_SUBTITLE_UNITS = 36;
 const SENTENCE_BOUNDARIES = new Set(['。', '！', '？', '；', '.', '!', '?', ';']);
 const PHRASE_BOUNDARIES = new Set(['，', '、', '：', ',', ':', ' ']);
 
+type TextRange = { start: number; end: number };
+
+const MEASUREMENT_ATOM_PATTERN =
+  /[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[ \t]*(?:个百分点|个样本|kgCO₂e\/d|kWh\/m³|kWh\/d|mg\/L|kg\/d|m³\/d|元\/d|m³|万元|亿元|kWh|kg|mg|元|分|吨|个|次|天|日|%|‰|℃))?/gu;
+
+function codePointLength(text: string): number {
+  return [...text].length;
+}
+
+function measurementAtomRanges(text: string): TextRange[] {
+  return [...text.matchAll(MEASUREMENT_ATOM_PATTERN)].map((match) => {
+    const utf16Start = match.index ?? 0;
+    const start = codePointLength(text.slice(0, utf16Start));
+    return { start, end: start + codePointLength(match[0]) };
+  });
+}
+
+function atomContainingCut(ranges: readonly TextRange[], cut: number): TextRange | undefined {
+  return ranges.find(({ start, end }) => start < cut && cut < end);
+}
+
 function displayUnits(text: string): number {
   return [...text].reduce((units, character) => units + (character.charCodeAt(0) <= 0x7f ? 0.5 : 1), 0);
 }
@@ -12,12 +33,14 @@ function displayUnits(text: string): number {
 function boundaryIndex(text: string, boundaries: Set<string>, maxUnits: number, first = false): number {
   let units = 0;
   let lastBoundary = -1;
+  const atoms = measurementAtomRanges(text);
 
   for (const [index, character] of [...text].entries()) {
     units += displayUnits(character);
-    if (boundaries.has(character) && units <= maxUnits) {
-      if (first) return index + 1;
-      lastBoundary = index + 1;
+    const cut = index + 1;
+    if (boundaries.has(character) && units <= maxUnits && !atomContainingCut(atoms, cut)) {
+      if (first) return cut;
+      lastBoundary = cut;
     }
     if (units > maxUnits) break;
   }
@@ -36,9 +59,11 @@ function hardCutIndex(text: string, maxUnits: number): number {
     index += 1;
   }
 
-  return Math.max(1, index);
+  const proposed = Math.max(1, index);
+  const atom = atomContainingCut(measurementAtomRanges(text), proposed);
+  if (!atom) return proposed;
+  return atom.start > 0 ? atom.start : atom.end;
 }
-
 function splitAtPreferredBoundaries(text: string, maxUnits: number): string[] {
   const safeMaxUnits = Math.max(0.5, maxUnits);
   const chunks: string[] = [];
