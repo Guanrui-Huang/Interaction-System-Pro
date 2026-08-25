@@ -23,7 +23,11 @@ const KNOWLEDGE_VISUALS = new Set([
 type DirectMetricSummary = {
   claimText: string;
   headline: string;
-  narration: [string, string];
+  narration: {
+    context: string;
+    central: string;
+    range: string;
+  };
 };
 
 function naturalDate(value: string): string {
@@ -71,11 +75,16 @@ function directMetricSummary(
   return {
     claimText: `${context}${central}${range}`,
     headline: `${definition.label}最新值为${displayNumber(aggregate.latest)} ${unit}；期间峰值为${displayNumber(aggregate.max)} ${unit}${peak ? `，出现在${naturalDate(peak.date)}` : ''}。`,
-    narration: [
-      `${context}${central}`,
-      range,
-    ],
+    narration: { context, central, range },
   };
+}
+
+function narrationContext(
+  outline: SlideOutline,
+  summaryIndex: number,
+  summary: DirectMetricSummary,
+): string {
+  return outline.order === 0 && summaryIndex === 0 ? summary.narration.context : '';
 }
 
 function assistantIdentityCopy(evidence: ReportEvidenceBundle): string | undefined {
@@ -151,21 +160,31 @@ export function composeEvidenceFallbackSlide(
       : outline.evidencePolicy === 'mixed'
         ? '本页已按现场证据与知识证据生成，详细内容见可视化。'
         : '本页已按已验证的现场证据生成，详细数值见可视化。';
+  const metricNarration: ReportSlide['narration'] = richSummaries.length === 1
+    ? [
+        {
+          id: `${outline.id}-fallback-segment-1`,
+          text: `${narrationContext(outline, 0, richSummaries[0]!.summary)}${richSummaries[0]!.summary.narration.central}`,
+          speechId: `${outline.id}-fallback-speech-1`,
+          claimIds: [richSummaries[0]!.claimId],
+        },
+        {
+          id: `${outline.id}-fallback-segment-2`,
+          text: richSummaries[0]!.summary.narration.range,
+          speechId: `${outline.id}-fallback-speech-2`,
+          claimIds: [richSummaries[0]!.claimId],
+        },
+      ]
+    : richSummaries.slice(0, 3).map(({ summary, claimId }, index) => ({
+        id: `${outline.id}-fallback-segment-${index + 1}`,
+        text: `${narrationContext(outline, index, summary)}${summary.narration.central}${summary.narration.range}`,
+        speechId: `${outline.id}-fallback-speech-${index + 1}`,
+        claimIds: [claimId],
+      }));
+
   const narration: ReportSlide['narration'] = richSummaries.length
     ? [
-        ...(richSummaries.length === 1
-          ? richSummaries[0]!.summary.narration.map((text, index) => ({
-              id: `${outline.id}-fallback-segment-${index + 1}`,
-              text,
-              speechId: `${outline.id}-fallback-speech-${index + 1}`,
-              claimIds: [richSummaries[0]!.claimId],
-            }))
-          : richSummaries.slice(0, 3).map(({ summary, claimId }, index) => ({
-              id: `${outline.id}-fallback-segment-${index + 1}`,
-              text: summary.claimText,
-              speechId: `${outline.id}-fallback-speech-${index + 1}`,
-              claimIds: [claimId],
-            }))),
+        ...metricNarration,
         {
           id: `${outline.id}-fallback-segment-${richSummaries.length === 1 ? 3 : Math.min(richSummaries.length, 3) + 1}`,
           text: '本页可以确认已绑定序列中的数值和时间，但不能仅凭这组数据判断波动原因。',
