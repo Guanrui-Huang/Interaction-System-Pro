@@ -56,3 +56,32 @@ it('maps normalized playback progress to exactly one visible cue', () => {
   expect(cueTextAtProgress(cues, 0.5)).toBe('第二句。');
   expect(cueTextAtProgress(cues, 1)).toBe('第三句。');
 });
+
+it.each([
+  ['decimal measurement', '2.68 mg/L'],
+  ['percentage', '99.80%'],
+  ['percentage-point change', '0.42 个百分点'],
+  ['negative energy value', '-0.125 kWh/m³'],
+  ['thousands-separated amount', '1,300.50 万元'],
+])('keeps a complete %s in one subtitle cue', (_label, measurement) => {
+  const text = `前文说明，${measurement}，后文继续。`;
+  const cues = splitSubtitleCues(text, 4);
+
+  expect(cues.some(({ text: cue }) => cue.includes(measurement))).toBe(true);
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
+});
+
+it('moves a measurement atom to the next cue instead of hard-cutting it', () => {
+  const text = '前文说明，1,300.50 万元，后文。';
+  const cues = splitSubtitleCues(text, 4);
+
+  expect(cues.map(({ text: cue }) => cue)).toContain('1,300.50 万元');
+  expect(displayUnits('1,300.50 万元')).toBeGreaterThan(4);
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
+});
+
+it('still treats a real ASCII full stop as a sentence boundary', () => {
+  const cues = splitSubtitleCues('结论完整.下一句继续.', 36);
+
+  expect(cues.map(({ text }) => text)).toEqual(['结论完整.', '下一句继续.']);
+});
