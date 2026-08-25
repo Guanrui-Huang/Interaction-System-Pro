@@ -217,6 +217,23 @@ describe('composeSlide', () => {
     expect(dependency.requestCompletion.mock.calls[1]![0].prompt).toContain('第一页后续 narration 段不得重复页面背景');
   });
 
+  it('repairs two distinct background openings in the first segment of page zero', async () => {
+    const repeated = onsiteDraft({
+      narration: [
+        {
+          text: '本页展示总氮趋势，共31个样本。本页单位、日期范围与样本均来自 Excel 证据。',
+          claimIds: ['claim-tn'],
+        },
+        { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
+      ],
+    });
+    const dependency = providerSequence(repeated, onsiteDraft());
+
+    await expect(composeSlide({ outline: outline(), evidence: dataEvidence }, dependency))
+      .resolves.toMatchObject({ id: 'slide-0' });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+  });
+
   it('repairs any template page-context opening on a later page', async () => {
     const misplaced = onsiteDraft({ narration: [{ text: `${pageContext}总氮最新值为 2.4 mg/L。`, claimIds: ['claim-tn'] }, { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] }] });
     const dependency = providerSequence(misplaced, onsiteDraft());

@@ -151,12 +151,11 @@ const TEMPLATE_NARRATION_BOILERPLATE_PATTERNS = [
 ] as const;
 
 function templateNarrationOpeningCount(text: string): number {
-  const explicitOpenings = text.match(TEMPLATE_NARRATION_OPENING_PATTERN)?.length ?? 0;
-  const boilerplateSentences = text
-    .split(/[。！？；]+/u)
-    .filter((sentence) => TEMPLATE_NARRATION_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(sentence)))
-    .length;
-  return Math.max(explicitOpenings, boilerplateSentences);
+  return text.split(/[。！？；]+/u).reduce((count, sentence) => {
+    const explicitOpenings = sentence.match(TEMPLATE_NARRATION_OPENING_PATTERN)?.length ?? 0;
+    const hasBoilerplate = TEMPLATE_NARRATION_BOILERPLATE_PATTERNS.some((pattern) => pattern.test(sentence));
+    return count + Math.max(explicitOpenings, hasBoilerplate ? 1 : 0);
+  }, 0);
 }
 
 function assertNarrationOpeningPolicy(
