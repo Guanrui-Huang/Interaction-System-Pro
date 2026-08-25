@@ -561,6 +561,7 @@ describe('ReportGenerator intent-first lifecycle', () => {
     expect(fallback.takeaway).toContain('总电耗最新值为500 kWh/d');
     expect(narration).toContain('2026年8月1日至2026年8月12日');
     expect(narration).toContain('共2个样本');
+    expect(fallback.narration[0]!.text).toContain('总电耗最新值为500 kWh/d');
     expect(narration).toContain('平均值为490 kWh/d');
     expect(narration).toContain('最低值为480 kWh/d');
     expect(narration).toContain('峰值为500 kWh/d');

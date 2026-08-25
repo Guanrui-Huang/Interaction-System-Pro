@@ -69,8 +69,8 @@ function directMetricSummary(
   const unit = definition.unit;
   const peak = points.find(({ value }) => value === aggregate.max);
   const context = `本页查看${naturalDate(from)}至${naturalDate(to)}的${definition.label}，共${sampleCount}个样本。`;
-  const central = `最新值为${displayNumber(aggregate.latest)} ${unit}，平均值为${displayNumber(aggregate.average)} ${unit}。`;
-  const range = `期间最低值为${displayNumber(aggregate.min)} ${unit}，峰值为${displayNumber(aggregate.max)} ${unit}${peak ? `，峰值出现在${naturalDate(peak.date)}` : ''}。${changeCopy(aggregate.changeRate)}`;
+  const central = `${definition.label}最新值为${displayNumber(aggregate.latest)} ${unit}，平均值为${displayNumber(aggregate.average)} ${unit}。`;
+  const range = `${definition.label}期间最低值为${displayNumber(aggregate.min)} ${unit}，峰值为${displayNumber(aggregate.max)} ${unit}${peak ? `，峰值出现在${naturalDate(peak.date)}` : ''}。${changeCopy(aggregate.changeRate)}`;
 
   return {
     claimText: `${context}${central}${range}`,
