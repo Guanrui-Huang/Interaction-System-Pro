@@ -220,6 +220,34 @@ it('renders wide adaptive bars with stable theme diagnostics', () => {
   expect(Number(bars[0]?.getAttribute('width'))).toBeGreaterThan(40);
 });
 
+it('renders one theme-colored glow behind each comparison bar', () => {
+  const items = [
+    metric('qualityScore', '出水水质得分', 96, '分'),
+    metric('energyScore', '电耗得分', 90, '分'),
+  ];
+  const { container } = render(
+    <VisualRenderer visual={{ kind: 'comparison-bars', items }} mode="canvas" />,
+  );
+  const bars = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar'));
+  const glows = Array.from(container.querySelectorAll<SVGRectElement>('.report-chart__bar-glow'));
+  const filter = container.querySelector<SVGFilterElement>('filter[id^="report-comparison-glow-"]');
+  const brightStops = Array.from(container.querySelectorAll<SVGStopElement>('linearGradient stop[offset="100%"]'))
+    .map((stop) => stop.getAttribute('stop-color'));
+
+  expect(filter).not.toBeNull();
+  expect(filter?.querySelector('feGaussianBlur')).toHaveAttribute('stdDeviation', '4.5');
+  expect(glows).toHaveLength(bars.length);
+  expect(glows.map((glow) => glow.getAttribute('fill'))).toEqual(brightStops);
+  expect(glows.every((glow) => glow.getAttribute('filter') === `url(#${filter!.id})`)).toBe(true);
+  expect(glows.every((glow) => glow.getAttribute('aria-hidden') === 'true')).toBe(true);
+
+  for (const [index, glow] of glows.entries()) {
+    const bar = bars[index]!;
+    expect(['x', 'y', 'width', 'height'].map((name) => glow.getAttribute(name))).toEqual(
+      ['x', 'y', 'width', 'height'].map((name) => bar.getAttribute(name)),
+    );
+  }
+});
 it('assigns different bar themes to separate carbon metrics in the same chart', () => {
   const { container } = render(<VisualRenderer visual={{
     kind: 'comparison-bars',
