@@ -8,7 +8,7 @@ const PHRASE_BOUNDARIES = new Set(['，', '、', '：', ',', ':', ' ']);
 type TextRange = { start: number; end: number };
 
 const MEASUREMENT_ATOM_PATTERN =
-  /[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[ \t]*(?:个百分点|个样本|kWh\/m³|kWh\/d|mg\/L|kg\/d|m³|万元|亿元|kWh|kg|mg|元|分|吨|个|次|天|日|%|‰|℃))?/gu;
+  /[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?:[ \t]*(?:个百分点|个样本|kgCO₂e\/d|kWh\/m³|kWh\/d|mg\/L|kg\/d|m³\/d|元\/d|m³|万元|亿元|kWh|kg|mg|元|分|吨|个|次|天|日|%|‰|℃))?/gu;
 
 function codePointLength(text: string): number {
   return [...text].length;

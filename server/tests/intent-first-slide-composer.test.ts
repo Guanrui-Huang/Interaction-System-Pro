@@ -175,7 +175,7 @@ function onsiteDraft(overrides: Record<string, unknown> = {}) {
     claims: [{ id: 'claim-tn', text: '总氮最新值为 2.4 mg/L。', kind: 'onsite-fact', evidenceKeys: ['tn'] }],
     narration: [
       { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
-      { text: '该数值来自本页绑定的现场证据。', claimIds: ['claim-tn'] },
+      { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
     ],
     ...overrides,
   };
@@ -231,6 +231,41 @@ describe('composeSlide', () => {
     await expect(composeSlide({ outline: outline({ id: 'slide-1', order: 1 }), evidence: dataEvidence }, provider(caveat))).resolves.toMatchObject({ narration: [{ text: '总氮最新值为 2.4 mg/L。' }, { text: expect.stringContaining('31个样本') }] });
   });
 
+
+  it.each([
+    {
+      label: 'legacy evidence-source boilerplate on a later page',
+      order: 1,
+      narration: [
+        { text: '本页单位、日期范围与样本均来自 Excel 证据。总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '总氮平均值为 2.3 mg/L。', claimIds: ['claim-tn'] },
+      ],
+    },
+    {
+      label: 'date and sample metadata in a non-opening segment',
+      order: 0,
+      narration: [
+        { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '本页数据日期范围、样本数量与单位沿用前述说明。', claimIds: ['claim-tn'] },
+      ],
+    },
+    {
+      label: 'evidence-source boilerplate in a later segment',
+      order: 1,
+      narration: [
+        { text: '总氮最新值为 2.4 mg/L。', claimIds: ['claim-tn'] },
+        { text: '本段数据来源于 Excel 证据。', claimIds: ['claim-tn'] },
+      ],
+    },
+  ])('repairs $label', async ({ order, narration }) => {
+    const dependency = providerSequence(onsiteDraft({ narration }), onsiteDraft());
+
+    await expect(composeSlide({
+      outline: outline({ id: `slide-${order}`, order }),
+      evidence: dataEvidence,
+    }, dependency)).resolves.toMatchObject({ id: `slide-${order}`, order });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
+  });
 
   it('binds claim values, metrics, visuals and immutable snapshot references server-side', async () => {
     const slide = await composeSlide({ outline: outline(), evidence: dataEvidence }, provider(onsiteDraft()));
@@ -435,7 +470,7 @@ describe('composeSlide', () => {
       ],
       narration: [
         { text: '当前水量波动得分为 80 分。', claimIds: ['claim-score'] },
-        { text: '该得分来自本页绑定的现场证据。', claimIds: ['claim-score'] },
+        { text: '当前水量波动得分处于 80 分水平。', claimIds: ['claim-score'] },
       ],
     }));
 
@@ -1542,7 +1577,7 @@ describe('composeSlide', () => {
       evidenceKeys: ['complianceRate'],
       narration: [
         { text: '水质达标率最新值为 99.8%。', claimIds: ['claim-rate'] },
-        { text: '该数值来自现场证据。', claimIds: ['claim-rate'] },
+        { text: '水质达标率当前为 99.8%。', claimIds: ['claim-rate'] },
       ],
     });
 

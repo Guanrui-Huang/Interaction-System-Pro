@@ -80,6 +80,23 @@ it('moves a measurement atom to the next cue instead of hard-cutting it', () => 
   expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
 });
 
+it.each([
+  ['daily flow', '123.45 m³/d'],
+  ['compliance rate', '123.45%'],
+  ['score', '123.45 分'],
+  ['water quality', '123.45 mg/L'],
+  ['daily electricity', '123.45 kWh/d'],
+  ['electricity intensity', '123.45 kWh/m³'],
+  ['daily savings', '123.45 元/d'],
+  ['daily carbon source', '123.45 kg/d'],
+  ['daily carbon dioxide equivalent', '123.45 kgCO₂e/d'],
+])('keeps the complete production unit for %s in one subtitle cue', (_label, measurement) => {
+  const text = `前文说明，${measurement}，后文继续。`;
+  const cues = splitSubtitleCues(text, 4);
+
+  expect(cues.some(({ text: cue }) => cue.includes(measurement))).toBe(true);
+  expect(cues.map(({ text: cue }) => cue).join('')).toBe(text);
+});
 it('still treats a real ASCII full stop as a sentence boundary', () => {
   const cues = splitSubtitleCues('结论完整.下一句继续.', 36);
 
