@@ -1,0 +1,11 @@
+{
+  "metrics": [
+    {
+      "key": "tn",
+      "limit": 3
+    }
+  ],
+  "evidenceTable": [
+    ["总氮（TN）", "2.68", "mg/L", 3]
+  ]
+}
