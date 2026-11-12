@@ -36,6 +36,10 @@ pnpm run serve:built
 pnpm run serve:e2e
 ```
 
+## 语音唤醒
+
+进入看板并允许使用麦克风后，说 **Hi Karen** 或 **嗨，凯伦** 唤醒 AI 运营助手。唤醒词由项目内的中英双语模型在本地检测。[Sherpa-ONNX 模型来源](https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2) · [模型许可证](models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20/LICENSE)
+
 ## 测试
 
 ```powershell

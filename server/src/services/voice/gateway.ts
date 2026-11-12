@@ -7,11 +7,14 @@ import {
   VOICE_MAX_AUDIO_TOTAL_BYTES,
   VOICE_MAX_SYNTHESIS_SEGMENTS,
   VOICE_OPAQUE_ID_MAX_CHARS,
+  VOICE_PROMPT_QUESTION_MAX_CHARS,
   VOICE_ERROR_MESSAGES,
+  type AssistantPromptId,
   type VoiceErrorCode,
 } from '../../../../shared/voice';
 import type { AliyunNlsConfigResult } from './config';
 import type { QwenOmniConfigResult } from './omni-config';
+import type { KeywordSpotterHandle, KeywordSpotterStream } from './keyword-spotter';
 import {
   createAliyunRecognitionSdk,
   createAliyunSynthesisSdk,
@@ -38,6 +41,7 @@ import {
 
 const RECOGNITION_PATH = '/api/voice/recognize';
 const SYNTHESIS_PATH = '/api/voice/synthesize';
+const KEYWORD_PATH = '/api/voice/keyword';
 const MAX_PAYLOAD_BYTES = 64 * 1024;
 const MAX_RECORDING_MS = 60_000;
 const DEFAULT_TIMEOUTS: VoiceGatewayTimeouts = {
@@ -53,12 +57,33 @@ const recognitionStartSchema = z.object({
   sampleRate: z.literal(16_000),
 }).strict();
 const recognitionStopSchema = z.object({ type: z.literal('stop') }).strict();
-const synthesisStartSchema = z.object({
-  type: z.literal('synthesize'),
-  reportId: z.string().trim().min(1).max(VOICE_OPAQUE_ID_MAX_CHARS),
-  speechId: z.string().trim().min(1).max(VOICE_OPAQUE_ID_MAX_CHARS),
+const keywordStartSchema = z.object({
+  type: z.literal('start'),
+  format: z.literal('pcm'),
+  sampleRate: z.literal(16_000),
 }).strict();
+const synthesisStartSchema = z.union([
+  z.object({
+    type: z.literal('synthesize'),
+    reportId: z.string().trim().min(1).max(VOICE_OPAQUE_ID_MAX_CHARS),
+    speechId: z.string().trim().min(1).max(VOICE_OPAQUE_ID_MAX_CHARS),
+  }).strict(),
+  z.object({
+    type: z.literal('prompt'),
+    prompt: z.literal('wake'),
+  }).strict(),
+  z.object({
+    type: z.literal('prompt'),
+    prompt: z.literal('analysis-started'),
+    question: z.string().trim().min(1).max(VOICE_PROMPT_QUESTION_MAX_CHARS),
+  }).strict(),
+]);
 const synthesisCancelSchema = z.object({ type: z.literal('cancel') }).strict();
+
+const ASSISTANT_PROMPTS: Record<AssistantPromptId, string> = {
+  wake: '诶，我在，请问有什么吩咐',
+  'analysis-started': '',
+};
 
 export type VoiceGatewayTimeouts = {
   tokenMs: number;
@@ -78,6 +103,7 @@ export type VoiceGatewayDependencies = {
   synthesisConfig?: QwenOmniConfigResult;
   speechAnswers: SpeechAnswerRegistry;
   reportRegistry: ReportJobRegistry;
+  keywordSpotter?: KeywordSpotterHandle;
   tokenManager?: AliyunNlsTokenManager;
   createRecognitionSdk: typeof createAliyunRecognitionSdk;
   createRealtimeRecognitionSession?: typeof createQwenOmniRecognitionSession;
@@ -563,11 +589,21 @@ function attachSynthesisSocket(
     socket.removeListener('error', cleanup);
   };
 
-  const runSynthesis = async (reportId: string, speechId: string) => {
-    const reportSignal = dependencies.reportRegistry.beginActivity(reportId, 'narration');
-    if (reportSignal) narrationLease = { reportId, signal: reportSignal };
-    const answer = reportSignal ? dependencies.speechAnswers.get(reportId, speechId) : undefined;
-    if (!reportSignal || answer === undefined) {
+  const runSynthesis = async (request: z.infer<typeof synthesisStartSchema>) => {
+    const reportSignal = request.type === 'synthesize'
+      ? dependencies.reportRegistry.beginActivity(request.reportId, 'narration')
+      : undefined;
+    if (reportSignal && request.type === 'synthesize') {
+      narrationLease = { reportId: request.reportId, signal: reportSignal };
+    }
+    const answer = request.type === 'prompt'
+      ? request.prompt === 'wake'
+        ? ASSISTANT_PROMPTS.wake
+        : `好滴，现在我来分析：${request.question.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, VOICE_PROMPT_QUESTION_MAX_CHARS)}`
+      : reportSignal
+        ? dependencies.speechAnswers.get(request.reportId, request.speechId)
+        : undefined;
+    if (answer === undefined) {
       releaseNarrationLease();
       sendError(socket, 'VOICE_ANSWER_NOT_FOUND');
       state = 'awaiting-request';
@@ -599,7 +635,7 @@ function attachSynthesisSocket(
       releaseNarrationLease();
       closeSocket(socket);
     };
-    reportSignal.addEventListener('abort', abortForReport, { once: true });
+    reportSignal?.addEventListener('abort', abortForReport, { once: true });
     try {
       const token = legacySpeechConfigured
         ? await withTimeout(tokenManager!.getToken(false), timeouts.tokenMs)
@@ -704,7 +740,7 @@ function attachSynthesisSocket(
         closeSocket(socket, 1011);
       }
     } finally {
-      reportSignal.removeEventListener('abort', abortForReport);
+      reportSignal?.removeEventListener('abort', abortForReport);
       releaseNarrationLease();
     }
   };
@@ -720,7 +756,7 @@ function attachSynthesisSocket(
       const parsed = synthesisStartSchema.safeParse(message);
       if (parsed.success) {
         state = 'synthesizing';
-        void runSynthesis(parsed.data.reportId, parsed.data.speechId);
+        void runSynthesis(parsed.data);
         return;
       }
     }
@@ -728,6 +764,97 @@ function attachSynthesisSocket(
       abortController?.abort();
       releaseNarrationLease();
       closeSocket(socket);
+      return;
+    }
+    sendError(socket, 'VOICE_INVALID_AUDIO');
+  };
+
+  socket.on('message', onMessage);
+  socket.once('close', cleanup);
+  socket.once('error', cleanup);
+  return cleanup;
+}
+
+function pcmBufferToFloatSamples(buffer: Buffer): Float32Array {
+  const samples = new Float32Array(Math.floor(buffer.length / 2));
+  for (let i = 0; i < samples.length; i += 1) {
+    samples[i] = buffer.readInt16LE(i * 2) / 32_768;
+  }
+  return samples;
+}
+
+function attachKeywordSocket(
+  socket: WebSocket,
+  dependencies: VoiceGatewayDependencies,
+): () => void {
+  type State = 'awaiting-start' | 'ready' | 'closed';
+
+  let state: State = 'awaiting-start';
+  let cleaned = false;
+  let stream: KeywordSpotterStream | undefined;
+  const spotter = dependencies.keywordSpotter;
+
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    state = 'closed';
+    stream = undefined;
+    socket.removeAllListeners('message');
+    socket.removeListener('close', cleanup);
+    socket.removeListener('error', cleanup);
+  };
+
+  const failKeyword = (code: VoiceErrorCode) => {
+    if (cleaned) return;
+    cleanup();
+    sendError(socket, code);
+    closeSocket(socket, 1011);
+  };
+
+  const startKeywordListening = () => {
+    if (!spotter) {
+      failKeyword('VOICE_WAKE_UNAVAILABLE');
+      return;
+    }
+    try {
+      stream = spotter.createStream();
+    } catch {
+      failKeyword('VOICE_WAKE_UNAVAILABLE');
+      return;
+    }
+    state = 'ready';
+    sendJson(socket, { type: 'ready' });
+  };
+
+  const onMessage = (data: RawData, isBinary: boolean) => {
+    if (state === 'closed') return;
+    if (isBinary) {
+      if (state !== 'ready' || !spotter || !stream) {
+        sendError(socket, 'VOICE_INVALID_AUDIO');
+        return;
+      }
+      try {
+        stream.acceptWaveform({
+          samples: pcmBufferToFloatSamples(Buffer.from(data as ArrayBuffer)),
+          sampleRate: 16_000,
+        });
+        while (spotter.isReady(stream)) {
+          spotter.decode(stream);
+          const result = spotter.getResult(stream);
+          if (result.keyword) {
+            sendJson(socket, { type: 'wake', keyword: result.keyword });
+            spotter.reset(stream);
+          }
+        }
+      } catch {
+        failKeyword('VOICE_WAKE_UNAVAILABLE');
+      }
+      return;
+    }
+
+    const message = parseJson(data);
+    if (state === 'awaiting-start' && keywordStartSchema.safeParse(message).success) {
+      startKeywordListening();
       return;
     }
     sendError(socket, 'VOICE_INVALID_AUDIO');
@@ -761,6 +888,8 @@ export function attachVoiceWebSocketGateway(
     let cleanup: () => void;
     if (request.url === RECOGNITION_PATH) {
       cleanup = attachRecognitionSocket(socket, dependencies, tokenManager);
+    } else if (request.url === KEYWORD_PATH) {
+      cleanup = attachKeywordSocket(socket, dependencies);
     } else {
       cleanup = attachSynthesisSocket(socket, dependencies, tokenManager);
     }
@@ -774,7 +903,7 @@ export function attachVoiceWebSocketGateway(
     head: Buffer,
   ) => {
     const path = request.url;
-    if (path !== RECOGNITION_PATH && path !== SYNTHESIS_PATH) {
+    if (path !== RECOGNITION_PATH && path !== SYNTHESIS_PATH && path !== KEYWORD_PATH) {
       destroyUpgrade(socket);
       return;
     }

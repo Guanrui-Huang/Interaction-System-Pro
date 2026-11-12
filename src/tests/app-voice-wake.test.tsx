@@ -6,6 +6,7 @@ import { App } from '../app/App';
 
 const voiceHarness = vi.hoisted(() => ({
   wakeOnWake: undefined as ((keyword: string) => void) | undefined,
+  wakeErrorCode: null as 'VOICE_WAKE_TIMEOUT' | 'VOICE_PERMISSION_DENIED' | null,
   wakeStart: vi.fn(),
   wakeStop: vi.fn(async () => undefined),
   wakeCancel: vi.fn(async () => undefined),
@@ -22,7 +23,7 @@ const voiceHarness = vi.hoisted(() => ({
 vi.mock('../features/ai/voice/useWakeWord', () => ({
   useWakeWord: ({ onWake }: { onWake?: (keyword: string) => void } = {}) => {
     voiceHarness.wakeOnWake = onWake;
-    return { status: 'listening', errorCode: null, start: voiceHarness.wakeStart, stop: voiceHarness.wakeStop, cancel: voiceHarness.wakeCancel };
+    return { status: 'listening', errorCode: voiceHarness.wakeErrorCode, start: voiceHarness.wakeStart, stop: voiceHarness.wakeStop, cancel: voiceHarness.wakeCancel };
   },
 }));
 
@@ -72,6 +73,7 @@ function stubDashboardFetch(): void {
 beforeEach(() => {
   vi.clearAllMocks();
   voiceHarness.wakeOnWake = undefined;
+  voiceHarness.wakeErrorCode = null;
   voiceHarness.recognitionOptions = undefined;
   voiceHarness.voiceOutputActive = false;
   stubDashboardFetch();
@@ -148,6 +150,22 @@ it('suspends wake listening while assistant output is active and resumes after i
   voiceHarness.voiceOutputActive = false;
   rerender(<App />);
   expect(voiceHarness.wakeStart).toHaveBeenCalledOnce();
+});
+
+it('starts a fresh wake session after the active listener reaches its time limit', async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(<App />);
+  await user.click(screen.getByRole('button', { name: '进入智慧中枢' }));
+  await screen.findByRole('heading', { name: '运行总览' });
+  expect(voiceHarness.wakeStart).toHaveBeenCalledOnce();
+
+  voiceHarness.wakeErrorCode = 'VOICE_WAKE_TIMEOUT';
+  rerender(<App />);
+  expect(voiceHarness.wakeStart).toHaveBeenCalledTimes(2);
+
+  voiceHarness.wakeErrorCode = 'VOICE_PERMISSION_DENIED';
+  rerender(<App />);
+  expect(voiceHarness.wakeStart).toHaveBeenCalledTimes(2);
 });
 
 it('starts recognition only after the wake acknowledgement completes', async () => {

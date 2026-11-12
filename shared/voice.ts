@@ -9,6 +9,8 @@ export const VOICE_ERROR_CODES = [
   'VOICE_NO_SPEECH',
   'VOICE_ANSWER_NOT_FOUND',
   'VOICE_LIMIT_EXCEEDED',
+  'VOICE_WAKE_UNAVAILABLE',
+  'VOICE_WAKE_TIMEOUT',
 ] as const;
 
 export type VoiceErrorCode = typeof VOICE_ERROR_CODES[number];
@@ -22,6 +24,10 @@ export const VOICE_MAX_SPEECH_ANSWER_CHARS = VOICE_TEXT_SEGMENT_MAX_CHARS
 export const VOICE_DEEPSEEK_MAX_OUTPUT_TOKENS = 8_192;
 export const VOICE_OPAQUE_ID_MAX_CHARS = 256;
 export const VOICE_ERROR_MESSAGE_MAX_CHARS = 1_024;
+export const VOICE_PROMPT_QUESTION_MAX_CHARS = 256;
+
+export const ASSISTANT_PROMPT_IDS = ['wake', 'analysis-started'] as const;
+export type AssistantPromptId = typeof ASSISTANT_PROMPT_IDS[number];
 
 export const VOICE_ERROR_MESSAGES: Record<VoiceErrorCode, string> = {
   VOICE_NOT_CONFIGURED: '未配置百炼语音服务，请在 server/.env 中填写百炼 API Key 和 Workspace ID。',
@@ -34,6 +40,8 @@ export const VOICE_ERROR_MESSAGES: Record<VoiceErrorCode, string> = {
   VOICE_NO_SPEECH: '没有识别到有效语音，请重试。',
   VOICE_ANSWER_NOT_FOUND: '语音答案已过期，请重新生成 AI 分析。',
   VOICE_LIMIT_EXCEEDED: '单次录音最长 60 秒，请缩短问题后重试。',
+  VOICE_WAKE_UNAVAILABLE: '唤醒词模型未加载，语音唤醒暂不可用，仍可点击麦克风提问。',
+  VOICE_WAKE_TIMEOUT: '语音唤醒监听时间过长，请重新开启。',
 };
 
 export type RecognitionClientMessage =
@@ -48,6 +56,8 @@ export type RecognitionServerMessage =
 
 export type SynthesisClientMessage =
   | { type: 'synthesize'; reportId: string; speechId: string }
+  | { type: 'prompt'; prompt: 'wake' }
+  | { type: 'prompt'; prompt: 'analysis-started'; question: string }
   | { type: 'cancel' };
 
 export type SynthesisServerMessage =
@@ -55,4 +65,11 @@ export type SynthesisServerMessage =
   | { type: 'segment-start'; index: number }
   | { type: 'segment-end'; index: number }
   | { type: 'completed' }
+  | { type: 'error'; code: VoiceErrorCode; message: string };
+
+export type KeywordClientMessage = { type: 'start'; format: 'pcm'; sampleRate: 16000 };
+
+export type KeywordServerMessage =
+  | { type: 'ready' }
+  | { type: 'wake'; keyword: string }
   | { type: 'error'; code: VoiceErrorCode; message: string };

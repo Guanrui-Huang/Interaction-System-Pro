@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { ReportJobRegistry } from './services/report-job-registry';
 import { getAliyunNlsConfig } from './services/voice/config';
 import { attachVoiceWebSocketGateway } from './services/voice/gateway';
+import { createKeywordSpotter } from './services/voice/keyword-spotter';
 import { getQwenOmniConfig } from './services/voice/omni-config';
 import { createQwenOmniRecognitionSession } from './services/voice/omni-realtime-session';
 import { synthesizeDashScopeSpeech } from './services/voice/dashscope-tts';
@@ -33,6 +34,7 @@ export function startApplication() {
   const reportGenerator = createDefaultReportGenerator(dataset, reportRegistry, speechAnswers);
   const voiceConfig = getAliyunNlsConfig();
   const recognitionConfig = getQwenOmniConfig();
+  const keywordSpotter = createKeywordSpotter();
   const tokenManager = voiceConfig.success
     ? new AliyunNlsTokenManager(voiceConfig.data, createPopTokenProvider())
     : undefined;
@@ -56,6 +58,7 @@ export function startApplication() {
           synthesisConfig: recognitionConfig,
           speechAnswers,
           reportRegistry,
+          keywordSpotter,
           tokenManager,
           createRecognitionSdk: createAliyunRecognitionSdk,
           createRealtimeRecognitionSession: createQwenOmniRecognitionSession,

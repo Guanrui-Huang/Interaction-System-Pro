@@ -60,6 +60,12 @@ export function App() {
   }, [entered, voiceOutputActive, wakeOverlay, wake.start, wake.stop]);
 
   useEffect(() => {
+    if (entered && !wakeOverlay && !voiceOutputActive && wake.errorCode === 'VOICE_WAKE_TIMEOUT') {
+      void wake.start();
+    }
+  }, [entered, voiceOutputActive, wakeOverlay, wake.errorCode, wake.start]);
+
+  useEffect(() => {
     if (!entered || view !== 'dashboard') return;
     const carousel = window.setInterval(() => {
       setActivePage((currentPage) => {
