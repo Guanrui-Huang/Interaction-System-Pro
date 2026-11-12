@@ -1,3 +1,4 @@
+import { stripBoundWphiRules } from './wphi-rule-evidence';
 import { z } from 'zod';
 import {
   ATOMIC_VISUAL_KINDS,
@@ -583,7 +584,7 @@ function metricFor(key: string, bundle: ReportEvidenceBundle): UnclaimedBoundMet
       value: aggregate.latest,
       ...(definition.limit === undefined ? {} : {
         limit: definition.limit,
-        status: aggregate.latest <= definition.limit ? '达标' : '关注',
+        status: (definition.direction==='higher'?aggregate.latest>=definition.limit:aggregate.latest<=definition.limit) ? '达标' : '关注',
       }),
     };
   }
@@ -1056,8 +1057,10 @@ function statusSubjectsForEvidence(
         metricKeys: [key],
         matches: (status) => {
           if (definition.limit === undefined) return false;
-          if (status === '达标') return aggregate.latest <= definition.limit;
-          if (status === '超标' || status === '不达标') return aggregate.latest > definition.limit;
+          const meets=definition.direction==='higher'?aggregate.latest>=definition.limit:aggregate.latest<=definition.limit;
+          if (status === '达标') return meets;
+          if (status === '超标') return definition.direction!=='higher'&&!meets;
+          if (status === '不达标') return !meets;
           return metricFor(key, bundle).status === '关注';
         },
       }];
@@ -1079,6 +1082,7 @@ function assertMetricSemanticsBoundToEvidence(
   bundle: ReportEvidenceBundle,
   validateStatus: boolean,
 ): void {
+  textValue = stripBoundWphiRules(textValue, bundle.analysis, keys);
   const allowedMetricKeys = metricKeysForClaimEvidence(keys, bundle);
   const named = namedMetricKeys(textValue);
   if (named.some((key) => !allowedMetricKeys.has(key))) fail('REPORT_EVIDENCE_INVALID');
@@ -1546,6 +1550,7 @@ function isEvidencedDeclineMagnitude(
 }
 
 function assertNumbersBoundToEvidence(textValue: string, keys: readonly string[], bundle: ReportEvidenceBundle): void {
+  textValue = stripBoundWphiRules(textValue, bundle.analysis, keys);
   if (hasNonAsciiDecimalDigit(textValue)) fail('REPORT_EVIDENCE_INVALID');
   assertPercentagesBoundToChangeRates(textValue, keys, bundle);
   assertPercentagePointsBoundToEvidence(textValue, keys, bundle);

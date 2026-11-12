@@ -3,6 +3,8 @@ import { ANALYSIS_METRICS, type AnalysisMetricKey } from './analysis-plan';
 export type MetricAliasCatalog = Readonly<Record<AnalysisMetricKey, readonly string[]>>;
 
 export const METRIC_ALIASES: MetricAliasCatalog = Object.freeze({
+  ...Object.fromEntries(Object.entries(ANALYSIS_METRICS).map(([key,def])=>[key,Object.freeze([def.label])])) as Record<AnalysisMetricKey, readonly string[]>,
+  tnOutWphi: Object.freeze(['WPHI出水总氮','健康评价出水总氮']),
   processedM3: Object.freeze(['处理水量', '处理量', '水量']),
   informationCount: Object.freeze(['信息采集量', '信息量']),
   complianceRate: Object.freeze(['水质达标率', '达标率']),

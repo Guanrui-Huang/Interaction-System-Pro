@@ -224,7 +224,7 @@ export const atomicVisualSpecSchema = z.discriminatedUnion('kind', [
       unit: text,
       snapshotId: text,
       claimIds: claimIdsSchema,
-    }).strict()).min(3).max(6),
+    }).strict()).min(3).max(7),
   }).strict(),
   z.object({
     kind: z.literal('scatter'),

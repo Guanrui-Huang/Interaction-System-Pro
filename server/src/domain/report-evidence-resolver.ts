@@ -30,6 +30,14 @@ function selectedAlertId(alert: { date: string; metric: string; level: string; r
 function snapshotId(input: Omit<ReportEvidenceBundle, 'snapshotId'>): string {
   const analysis = input.analysis;
   const exposedEvidence = {
+    analysisContent: analysis && {
+      ...analysis,
+      scope:{...analysis.scope,metrics:[...analysis.scope.metrics].sort(),modules:[...analysis.scope.modules].sort()},
+      definitions:[...analysis.definitions].sort((a,b)=>a.key.localeCompare(b.key)),
+      alerts:[...analysis.alerts].sort((a,b)=>selectedAlertId(a).localeCompare(selectedAlertId(b))),
+      thresholdBreaches:[...analysis.thresholdBreaches].sort((a,b)=>`${a.date}:${a.metric}`.localeCompare(`${b.date}:${b.metric}`)),
+      correlations:analysis.correlations.map(c=>({...c,left:[c.left,c.right].sort()[0],right:[c.left,c.right].sort()[1]})).sort((a,b)=>`${a.left}:${a.right}`.localeCompare(`${b.left}:${b.right}`)),
+    },
     topics: input.knowledge.map(({ topic }) => topic).sort((left, right) => left.localeCompare(right)),
     metricKeys: [...(analysis?.scope.metrics ?? [])].sort((left, right) => left.localeCompare(right)),
     dateRange: analysis?.scope.dateRange ?? null,
@@ -45,7 +53,8 @@ function snapshotId(input: Omit<ReportEvidenceBundle, 'snapshotId'>): string {
           publicModelName: input.assistantProfile.publicModelName ?? null,
         },
   };
-  const digest = createHash('sha256').update(JSON.stringify(exposedEvidence)).digest('hex');
+  const canonical=(value:unknown):unknown=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,canonical(v)])):value;
+  const digest = createHash('sha256').update(JSON.stringify(canonical(exposedEvidence))).digest('hex');
   return `evidence:${digest}`;
 }
 

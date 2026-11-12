@@ -1,5 +1,9 @@
 import { expect, it, vi } from 'vitest';
-import { connectReportEvents, ReportEventStreamError } from '../features/ai/report/report-event-stream';
+import {
+  connectReportEvents,
+  ReportEventStreamError,
+  ReportEventStreamInterruptedError,
+} from '../features/ai/report/report-event-stream';
 
 function responseFromChunks(chunks: Uint8Array[], onCancel = vi.fn()): Response {
   return new Response(new ReadableStream<Uint8Array>({
@@ -60,6 +64,18 @@ it('rejects an event whose SSE id does not match its validated sequence', async 
     onEvent: vi.fn(),
     fetch: vi.fn().mockResolvedValue(responseFromChunks([bytes])),
   })).rejects.toMatchObject({ name: 'ReportEventStreamError' });
+});
+
+it('classifies an SSE connection that ends mid-event as retryable', async () => {
+  const bytes = new TextEncoder().encode(
+    'id: 1\ndata: {"type":"slide.generating","sequence":1,"slideId":"slide-1","order":0',
+  );
+
+  await expect(connectReportEvents('report-1', 0, {
+    signal: new AbortController().signal,
+    onEvent: vi.fn(),
+    fetch: vi.fn().mockResolvedValue(responseFromChunks([bytes])),
+  })).rejects.toBeInstanceOf(ReportEventStreamInterruptedError);
 });
 
 it('cancels the stream reader when the connection is aborted', async () => {

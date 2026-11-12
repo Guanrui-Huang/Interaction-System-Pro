@@ -13,9 +13,11 @@ import {
   parseModelReportPlanStructure,
   reportEvidenceCatalog,
   validateModelReportPlan,
+  type ModelReportPlan,
 } from '../domain/report-content-validation';
 import type { ReportEvidenceBundle } from '../domain/report-evidence';
 import { paginateLargeScreenOutlines } from '../domain/report-layout-budget';
+import { CARBON_OPTIMIZATION_TOPIC, matchSuggestedReportQuestion } from '../domain/report-suggested-question';
 import {
   requestDeepSeekCompletion,
   type DeepSeekCompletionRequest,
@@ -55,6 +57,35 @@ const VISUAL_EVIDENCE_RULES = [
   '只在证据无法形成趋势、比较、评分、关联或告警图时选择 kpi-grid。不要返回 data-dashboard；组合图表由服务端根据不可变证据生成。',
 ] as const;
 
+function suggestedReportPlan(input: ReportPlanningInput): ModelReportPlan | undefined {
+  const question = matchSuggestedReportQuestion(input.question);
+  const keys = input.evidence.analysis?.scope.metrics;
+  if (!question || !keys?.length) return undefined;
+  const catalog = new Map(reportEvidenceCatalog(input.evidence).map(item => [item.key, item]));
+  if (keys.some(key => catalog.get(key)?.kind !== 'metric')) return undefined;
+  const visualKind = keys.every(key => (catalog.get(key)?.seriesPoints ?? 0) >= 2) ? 'trend-line' : 'kpi-grid';
+
+  if (question === 'total-nitrogen-trend' && keys.length === 1 && keys[0] === 'tn' && !input.evidence.knowledge.length) {
+    return { slides: [{
+      title: '近 30 日出水总氮变化', purpose: '结合曲线说明出水总氮的最新值、期间高低点和变化幅度',
+      role: 'answer', layout: 'visual-focus', visualKind, evidenceKeys: ['tn'],
+    }] };
+  }
+
+  const topic = input.evidence.knowledge.find(item => item.topic === CARBON_OPTIMIZATION_TOPIC);
+  if (question !== 'carbon-optimization' || !keys.includes('carbonSourceKg') || !topic) return undefined;
+  return { slides: [
+    {
+      title: '碳源投加现状与水质对比', purpose: '说明当前投加量、单位水量用量和出水总氮，结合近期记录及配置目标核对投加基线',
+      role: 'answer', layout: 'visual-focus', visualKind, evidenceKeys: [...keys],
+    },
+    {
+      title: '碳源投加优化建议', purpose: '给出核对基线和开展现场验证的步骤，说明现有数据不足以确定最优投加量，不建议具体增减剂量',
+      role: 'action', layout: 'action-path', visualKind: 'recommendation-path', evidenceKeys: [topic.key],
+    },
+  ] };
+}
+
 function buildPrompt(input: ReportPlanningInput, sensitiveValues: readonly string[]): string {
   const safeQuestion = redactAnalysisText(input.question, sensitiveValues);
   const catalog = reportEvidenceCatalog(input.evidence);
@@ -64,6 +95,7 @@ function buildPrompt(input: ReportPlanningInput, sensitiveValues: readonly strin
     `originPage: ${input.originPage}`,
     `immutableSnapshotId: ${input.evidence.snapshotId}`,
     `availableEvidence: ${JSON.stringify(catalog)}`,
+    ...(input.evidence.analysis?.wphi ? [`WPHI运行状态: ${JSON.stringify(input.evidence.analysis.wphi)}。七维得分雷达需包含本页全部可用的维度得分；综合指数不是第八维。停用或检修维度不展示分数。`] : []),
     `输出必须严格匹配：${outputShape()}`,
     '根据问题复杂度规划真实需要的 1–12 页；一页足以时只返回一页。',
     '每页 purpose 必须独立且不重复；evidenceKeys 只能使用 availableEvidence 中的 key。',
@@ -110,9 +142,9 @@ export async function planReport(
     responseFormat: { type: 'json_object' },
   });
 
-  const content = await request(buildPrompt(input, sensitiveValues));
-  const validated = await parseStructuredModelOutput({
-    content,
+  const suggested = suggestedReportPlan(input);
+  const validated = suggested ? validateModelReportPlan(suggested, input.evidence, sensitiveValues) : await parseStructuredModelOutput({
+    content: await request(buildPrompt(input, sensitiveValues)),
     parse: (candidate) => {
       assertSafeReportContent([candidate], sensitiveValues, 'REPORT_OUTLINE_INVALID');
       const plan = parseModelReportPlanStructure(candidate);

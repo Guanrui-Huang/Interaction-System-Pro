@@ -16,6 +16,13 @@ export class ReportEventStreamError extends Error {
   }
 }
 
+export class ReportEventStreamInterruptedError extends ReportEventStreamError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReportEventStreamInterruptedError';
+  }
+}
+
 function abortError(): DOMException {
   return new DOMException('The report event connection was aborted.', 'AbortError');
 }
@@ -118,7 +125,7 @@ export async function connectReportEvents(
     consumeText(decoder.decode());
     if (aborted || options.signal.aborted) throw abortError();
     if (lineBuffer !== '' || ids.length > 0 || data.length > 0 || otherFields > 0) {
-      throw new ReportEventStreamError('The report event stream ended mid-event.');
+      throw new ReportEventStreamInterruptedError('The report event stream ended mid-event.');
     }
   } finally {
     options.signal.removeEventListener('abort', cancelReader);

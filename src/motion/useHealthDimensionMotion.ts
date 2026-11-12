@@ -7,11 +7,16 @@ gsap.registerPlugin(useGSAP);
 export function useHealthDimensionMotion(
   root: RefObject<HTMLElement | null>,
   scores: readonly number[],
+  digits = 0,
 ): void {
   useGSAP(() => {
     if (!root.current) return;
 
     const meters = Array.from(root.current?.querySelectorAll<HTMLElement>('[data-health-dimension-meter]') ?? []);
+    if (!meters.length) {
+      root.current.setAttribute('data-health-dimension-motion-complete', 'true');
+      return;
+    }
     const fills = meters.map((meter) => meter.querySelector<HTMLElement>('[data-dimension-fill]')).filter((fill): fill is HTMLElement => fill !== null);
     const tips = meters.map((meter) => meter.querySelector<HTMLElement>('[data-dimension-tip]')).filter((tip): tip is HTMLElement => tip !== null);
     const scoreNodes = Array.from(root.current?.querySelectorAll<HTMLElement>('[data-dimension-score]') ?? []);
@@ -32,7 +37,7 @@ export function useHealthDimensionMotion(
     };
     const renderFinal = () => {
       clearMotionStyles();
-      scoreNodes.forEach((node, index) => { node.textContent = String(Math.round(endScores[index] ?? 0)); });
+      scoreNodes.forEach((node, index) => { node.textContent = (endScores[index] ?? 0).toFixed(digits); });
     };
     const markComplete = () => root.current?.setAttribute('data-health-dimension-motion-complete', 'true');
 
@@ -52,7 +57,7 @@ export function useHealthDimensionMotion(
       // Read every layout-dependent value before GSAP writes a transform.
       const endpointOffsets = meters.map((meter, index) => meter.clientWidth * endScores[index]! / 100);
       const states = endScores.map(() => ({ value: 0 }));
-      scoreNodes.forEach((node) => { node.textContent = '0'; });
+      scoreNodes.forEach((node) => { node.textContent = (0).toFixed(digits); });
       fills.forEach((fill) => { fill.style.willChange = 'transform'; });
       tips.forEach((tip) => { tip.style.willChange = 'transform'; });
       const complete = () => {
@@ -68,7 +73,7 @@ export function useHealthDimensionMotion(
           value: (index: number) => endScores[index]!,
           duration: 0.62,
           stagger: 0.07,
-          onUpdate: () => states.forEach((state, index) => { scoreNodes[index]!.textContent = String(Math.round(state.value)); }),
+          onUpdate: () => scoreNodes.forEach((node, index) => { node.textContent = (states[index]?.value ?? 0).toFixed(digits); }),
         }, 0)
         .to(tips, { scale: 1.45, duration: 0.12, stagger: 0.07, yoyo: true, repeat: 1 }, '>-0.04')
         .eventCallback('onComplete', complete);
@@ -82,5 +87,5 @@ export function useHealthDimensionMotion(
       mm.revert();
       clearMotionStyles();
     };
-  }, { scope: root, dependencies: [scores.join(',')], revertOnUpdate: true });
+  }, { scope: root, dependencies: [scores.join(','), digits], revertOnUpdate: true });
 }

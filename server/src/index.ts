@@ -44,6 +44,7 @@ export function startApplication() {
   const server = startLocalServer(
     createServer({
       dataset,
+      wphiStatePath: resolve('data/wphi-settings.json'),
       reportRegistry,
       reportGenerator,
       speechAnswerRegistry: speechAnswers,

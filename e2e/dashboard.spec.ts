@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page, type Route, type TestInfo } from 'playwright/test';
 import { ATOMIC_VISUAL_KINDS, type ConversationTurn, type CreateReportResponse, type FollowUpResponse, type ReportEvent, type ReportJobSnapshot, type ReportSlide, type SlideOutline } from '../shared/report';
-import type { AnalysisMetricKey } from '../server/src/domain/analysis-plan';
+import { ANALYSIS_METRICS, type AnalysisMetricKey } from '../server/src/domain/analysis-plan';
 import { createDashboardFixtures, type DashboardFixtures } from './dashboard-fixtures';
 
 const REPORT_ID = 'report-mocked-dynamic';
@@ -47,6 +47,8 @@ function metric(
       case 'energyScore':
       case 'carbonSourceScore':
         return 'health';
+      default:
+        return ANALYSIS_METRICS[key].module;
     }
   })();
   return {

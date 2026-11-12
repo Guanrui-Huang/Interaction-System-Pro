@@ -1,3 +1,5 @@
+import type { WphiConfig, WphiReading, WphiSnapshot, WphiGrade } from './wphi';
+
 export type MetricDefinition = {
   label: string;
   unit: string;
@@ -61,6 +63,7 @@ export const HEALTH_GRADE_THRESHOLDS = {
 } as const;
 
 export type DailyReading = {
+  wphi?: WphiSnapshot;
   date: string;
   processedM3: number;
   informationCount: number;
@@ -95,15 +98,17 @@ export type AlertRecord = {
 
 export type HealthWeights = typeof HEALTH_WEIGHTS;
 
-export type HealthGrade = '优' | '良' | '关注';
+export type HealthGrade = '优' | '良' | '关注' | WphiGrade | '评分暂停' | '未评分';
 
 export type HealthBreakdown = {
+  wphi?: WphiSnapshot;
   weights: HealthWeights;
-  score: number;
+  score: number | null;
   grade: HealthGrade;
 };
 
 export type DashboardDataset = {
+  wphi?: { config: WphiConfig; history: WphiReading[] };
   plantName: '智慧污水处理厂';
   daily: DailyReading[];
   alerts: AlertRecord[];

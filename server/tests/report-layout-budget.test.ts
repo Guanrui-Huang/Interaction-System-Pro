@@ -142,11 +142,11 @@ describe('paginateLargeScreenOutlines', () => {
     ], evidenceFor(comparisonKeys));
     expect(comparison.map(({ evidenceKeys }) => evidenceKeys.length)).toEqual([5, 4]);
 
-    const radarKeys = metricKeys.slice(0, 7);
+    const radarKeys = metricKeys.slice(0, 8);
     const radar = paginateLargeScreenOutlines([
       { ...outline, visualKind: 'radar', evidenceKeys: radarKeys },
     ], evidenceFor(radarKeys));
-    expect(radar.map(({ evidenceKeys }) => evidenceKeys.length)).toEqual([4, 3]);
+    expect(radar.map(({ evidenceKeys }) => evidenceKeys.length)).toEqual([4, 4]);
   });
 
   it('rejects omitted analyzed metrics when no compatible metric-report page can represent them', () => {

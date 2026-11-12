@@ -36,6 +36,7 @@ function ReportShell({ target, onExit }: { target: ReportTarget; onExit(): void 
 
 export function App() {
   const initialReportIdRef = useRef(reportIdFromUrl());
+  const [wphiEditing, setWphiEditing] = useState(false);
   const [entered, setEntered] = useState(Boolean(initialReportIdRef.current));
   const [activePage, setActivePage] = useState<NavigationPage>('overview');
   const [view, setView] = useState<AppView>(initialReportIdRef.current ? 'report' : 'dashboard');
@@ -66,7 +67,7 @@ export function App() {
   }, [entered, voiceOutputActive, wakeOverlay, wake.errorCode, wake.start]);
 
   useEffect(() => {
-    if (!entered || view !== 'dashboard') return;
+    if (!entered || view !== 'dashboard' || wphiEditing) return;
     const carousel = window.setInterval(() => {
       setActivePage((currentPage) => {
         const currentIndex = showcasePages.indexOf(currentPage);
@@ -74,7 +75,7 @@ export function App() {
       });
     }, 10_000);
     return () => window.clearInterval(carousel);
-  }, [activePage, entered, view]);
+  }, [activePage, entered, view, wphiEditing]);
 
   useEffect(() => {
     if (view === 'dashboard' && shouldRestoreTriggerFocus.current) {
@@ -107,8 +108,8 @@ export function App() {
     page = <AiPage originPage={activePage} onClose={closeAssistant} onStartReport={startReport} />;
   } else {
     const content = {
-      overview: <OverviewPage />,
-      health: <HealthPage />,
+      overview: <OverviewPage onEditingChange={setWphiEditing} />,
+      health: <HealthPage onEditingChange={setWphiEditing} />,
       'water-quality': <WaterQualityPage />,
       energy: <EnergyPage />,
     }[activePage];

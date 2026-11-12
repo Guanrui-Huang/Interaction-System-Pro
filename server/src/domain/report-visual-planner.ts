@@ -60,7 +60,8 @@ export function planDataDashboardVisual(
     if (group.length >= 2) plans.push({ kind: 'comparison-bars', evidenceKeys: group.map(({ key }) => key) });
   }
   const scores = metrics.filter(({ scoreLike }) => scoreLike);
-  if (scores.length >= 3) plans.push({ kind: 'radar', evidenceKeys: scores.slice(0, 6).map(({ key }) => key) });
+  const wphiScores=scores.filter(({key})=>/^(effluentSafety|removalEfficiency|effluentStability|shockResistance|systemStability|blowerEnergy|carbonConsumption)Score$/.test(key));
+  if (scores.length >= 3) plans.push({ kind: 'radar', evidenceKeys: (wphiScores.length>=3?wphiScores:scores.slice(0,6)).map(({ key }) => key) });
   if (scores[0]) plans.push({ kind: 'health-ring', evidenceKeys: [scores[0].key] });
   const hasComparablePair = plans.some((plan) => (
     plan.kind === 'comparison-bars'

@@ -17,8 +17,8 @@ const dateAt = (index: number): string => {
   return date.toISOString().slice(0, 10);
 };
 
-export function createDailyReadings(): DailyReading[] {
-  const readings = Array.from({ length: DEMO_SOURCE_DAY_COUNT }, (_, index) => {
+export function createDailyReadings(sourceDayCount = DEMO_SOURCE_DAY_COUNT): DailyReading[] {
+  const readings = Array.from({ length: sourceDayCount }, (_, index) => {
     const phase = index / 20;
     const processedM3 = Math.round(27_600 + Math.sin(phase / 2) * 1_200 + Math.cos(phase) * 350);
     const tn = round(2.15 + Math.sin(phase) * 0.32 + (index % 29 === 0 ? 0.66 : 0));

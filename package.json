@@ -19,7 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:mocked": "playwright test --project=mocked",
     "test:e2e:integration": "playwright test --project=integration",
-    "generate:data": "tsx scripts/generate-demo-workbook.ts"
+    "generate:data": "tsx scripts/generate-demo-workbook.ts",
+    "generate:wphi": "tsx scripts/generate-wphi-workbook.ts"
   },
   "dependencies": {
     "@alicloud/pop-core": "^1.8.0",

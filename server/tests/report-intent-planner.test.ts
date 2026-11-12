@@ -1,7 +1,8 @@
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { ANALYSIS_METRICS, type AnalysisPlan } from '../src/domain/analysis-plan';
+import { availableAnalysisMetrics, type AnalysisPlan } from '../src/domain/analysis-plan';
 import { loadWorkbook } from '../src/data/workbook';
+import { createWphiDataset } from '../src/domain/wphi-demo';
 import {
   REPORT_INTENT_PLANNER_TIMEOUT_MS,
   ReportIntentPlanningError,
@@ -90,6 +91,44 @@ function provider(value: unknown) {
 }
 
 describe('planReportIntent', () => {
+  it('anchors the built-in total nitrogen trend to exactly 30 calendar days through the latest record', async () => {
+    const wrongYear = JSON.stringify({ ...dataJson, analysisPlan: {
+      ...analysisPlan, dateRange: { from: '2025-07-11', to: '2025-08-09' },
+    } });
+    const dependency = providerSequence(wrongYear, wrongYear);
+
+    await expect(planReportIntent({ ...input('分析近 30 日总氮变化趋势'), conversation: [] }, dependency)).resolves.toMatchObject({
+      kind: 'report',
+      analysisPlan: { metrics: ['tn'], dateRange: { from: '2026-07-11', to: '2026-08-09' } },
+    });
+    expect(dependency.requestCompletion).not.toHaveBeenCalled();
+  });
+
+  it('binds the carbon optimization shortcut to recent dosing, flow and water quality even if the provider cannot plan', async () => {
+    const dependency = providerSequence('{bad json', '{bad json');
+
+    await expect(planReportIntent({ ...input('计算当前碳源投加优化建议'), dataset: createWphiDataset(), conversation: [] }, dependency)).resolves.toMatchObject({
+      kind: 'report',
+      intents: [{ kind: 'recommendation', evidencePolicy: 'mixed' }],
+      analysisPlan: {
+        metrics: ['carbonSourceKg', 'carbonKgPerM3', 'processedM3', 'tn'],
+        dateRange: { from: '2026-07-11', to: '2026-08-09' },
+      },
+    });
+    expect(dependency.requestCompletion).not.toHaveBeenCalled();
+  });
+
+  it('uses the explicit relative window for other metric questions when the model invents a calendar date', async () => {
+    const dependency = provider({ ...dataJson, analysisPlan: {
+      ...analysisPlan, metrics: ['ammonia'], dateRange: { from: '2026-10-05', to: '2026-10-11' },
+    } });
+
+    await expect(planReportIntent(input('看一下近 7 天氨氮趋势'), dependency)).resolves.toMatchObject({
+      analysisPlan: { metrics: ['ammonia'], dateRange: { from: '2026-08-03', to: '2026-08-09' } },
+    });
+    expect(dependency.requestCompletion).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ['pure knowledge', '污水脱氮是什么？', knowledgeJson, { kind: 'report', knowledgeTopics: ['污水脱氮'], assistantProfile: false }],
     ['data', '最近总氮是否达标？', dataJson, { kind: 'report', analysisPlan: { metrics: ['tn'] } }],
@@ -135,7 +174,7 @@ describe('planReportIntent', () => {
     expect(dependency.requestCompletion).toHaveBeenCalledTimes(2);
 
     const [first, repair] = dependency.requestCompletion.mock.calls.map(([request]) => request as DeepSeekCompletionRequest);
-    for (const metric of Object.keys(ANALYSIS_METRICS)) {
+    for (const metric of availableAnalysisMetrics(dataset)) {
       expect(first.prompt).toContain(`"key":"${metric}"`);
       expect(repair.prompt).toContain(`"key":"${metric}"`);
     }

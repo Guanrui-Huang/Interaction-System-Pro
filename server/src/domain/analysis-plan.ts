@@ -1,3 +1,4 @@
+import { WPHI_DIMENSIONS, type WphiDimensionKey, type WphiMetrics } from '../../../shared/wphi';
 import { z } from 'zod';
 import {
   ANALYSIS_MODULES,
@@ -15,7 +16,7 @@ export const ANALYSIS_METHODS = ['trend', 'comparison', 'anomaly', 'correlation'
 
 export type AnalysisMethod = typeof ANALYSIS_METHODS[number];
 
-export type AnalysisMetricKey = Exclude<keyof DailyReading, 'date'> | 'healthScore';
+export type AnalysisMetricKey = Exclude<keyof DailyReading, 'date' | 'wphi'> | 'healthScore' | 'tnOutWphi' | `${WphiDimensionKey}Score` | keyof WphiMetrics;
 
 export type AnalysisPlan = {
   modules: AnalysisModule[];
@@ -27,6 +28,7 @@ export type AnalysisPlan = {
 };
 
 type AnalysisMetricDefinition = {
+  direction?: 'higher' | 'lower';
   module: Exclude<AnalysisModule, 'alerts'>;
   label: string;
   unit: string;
@@ -34,7 +36,7 @@ type AnalysisMetricDefinition = {
   read: (row: DailyReading) => number;
 };
 
-function fieldMetric<K extends Exclude<keyof DailyReading, 'date'>>(
+function fieldMetric<K extends Exclude<keyof DailyReading, 'date' | 'wphi'>>(
   module: Exclude<AnalysisModule, 'alerts'>,
   key: K,
   label: string,
@@ -46,11 +48,14 @@ function fieldMetric<K extends Exclude<keyof DailyReading, 'date'>>(
     label,
     unit,
     ...(limit === undefined ? {} : { limit }),
-    read: (row) => row[key],
+    read: (row) => row.wphi && ['qualityScore','flowScore','energyScore','carbonSourceScore'].includes(key) ? NaN : row[key],
   };
 }
 
 export const ANALYSIS_METRICS: Record<AnalysisMetricKey, AnalysisMetricDefinition> = {
+  tnOutWphi: {module:'health',label:'WPHI出水总氮',unit:'mg/L',read:row=>row.wphi?row.tn:NaN},
+  ...Object.fromEntries(Object.entries(WPHI_DIMENSIONS).map(([key,label]) => [`${key}Score`, { module: 'health', label: `${label}得分`, unit: '分', read: (row: DailyReading) => { const d=row.wphi?.dimensions.find(d=>d.key===key); return d?.included ? d.score ?? NaN : NaN; } }])) as Record<`${WphiDimensionKey}Score`, AnalysisMetricDefinition>,
+  ...Object.fromEntries(Object.entries({tnIn:['进水总氮','mg/L'],tnRemoval:['总氮去除率','%'],tnCv:['近7天出水总氮CV','%'],tnMean7:['近7天平均出水总氮','mg/L'],blowerKwhPerM3:['吨水风机能耗','kWh/m³'],carbonKgPerM3:['吨水碳源用量','kg/m³'],abnormalDays:['近30天异常天数','天'],shockDays:['近30天进水冲击天数','天']}).map(([key,[label,unit]])=>[key,{module:'health',label,unit,read:(row:DailyReading)=>row.wphi?.metrics[key as keyof WphiMetrics] ?? NaN}])) as Record<keyof WphiMetrics, AnalysisMetricDefinition>,
   processedM3: fieldMetric('overview', 'processedM3', '处理水量', 'm³/d'),
   informationCount: fieldMetric('overview', 'informationCount', '信息采集量', '条/d'),
   complianceRate: fieldMetric('overview', 'complianceRate', '水质达标率', '%'),
@@ -58,7 +63,7 @@ export const ANALYSIS_METRICS: Record<AnalysisMetricKey, AnalysisMetricDefinitio
     module: 'health',
     label: '综合健康评分',
     unit: '分',
-    read: (row) => calculateReadingHealth(row).score,
+    read: (row) => calculateReadingHealth(row).score ?? NaN,
   },
   qualityScore: fieldMetric('health', 'qualityScore', '出水水质得分', '分'),
   flowScore: fieldMetric('health', 'flowScore', '水量波动得分', '分'),
@@ -79,6 +84,18 @@ export const ANALYSIS_METRICS: Record<AnalysisMetricKey, AnalysisMetricDefinitio
 };
 
 const ANALYSIS_METRIC_KEYS = Object.keys(ANALYSIS_METRICS) as [AnalysisMetricKey, ...AnalysisMetricKey[]];
+export function metricDefinitionFor(key:AnalysisMetricKey, row?:DailyReading):AnalysisMetricDefinition {
+  const definition=ANALYSIS_METRICS[key];
+  if(!row?.wphi) return definition;
+  const t=row.wphi.config.targets;
+  const targets:Partial<Record<AnalysisMetricKey,number>>={tnOutWphi:t.tnOut,tnRemoval:t.tnRemoval,tnCv:t.tnCv,blowerKwh:t.blowerTotal,blowerKwhPerM3:t.blowerPerM3,carbonSourceKg:t.carbonTotal,carbonKgPerM3:t.carbonPerM3};
+  return targets[key]===undefined?definition:{...definition,limit:targets[key],direction:key==='tnRemoval'?'higher':'lower'};
+}
+export function availableAnalysisMetrics(dataset:DashboardDataset):AnalysisMetricKey[] {
+  const latest=dataset.daily.at(-1);
+  return ANALYSIS_METRIC_KEYS.filter(key=>dataset.daily.some(row=>Number.isFinite(ANALYSIS_METRICS[key].read(row))))
+    .filter(key=>!latest?.wphi || !key.endsWith('Score') || Number.isFinite(ANALYSIS_METRICS[key].read(latest)));
+}
 export const isAnalysisIsoDate = isBusinessIsoDate;
 
 function hasUniqueItems(values: readonly string[]): boolean {
@@ -182,7 +199,7 @@ export function createDefaultAnalysisPlan(dataset: DashboardDataset): AnalysisPl
 
   return {
     modules: [...ANALYSIS_MODULES],
-    metrics: [...ANALYSIS_METRIC_KEYS],
+    metrics: availableAnalysisMetrics(dataset),
     dateRange: { from, to },
     methods: ANALYSIS_METHODS.filter((method) => method !== 'correlation'),
     includeAlerts: true,

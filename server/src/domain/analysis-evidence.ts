@@ -7,6 +7,7 @@ import {
 } from '../../../shared/dashboard';
 import {
   ANALYSIS_METRICS,
+  metricDefinitionFor,
   isAnalysisIsoDate,
   normalizeAnalysisPlan,
   type AnalysisMetricKey,
@@ -23,12 +24,13 @@ export type AnalysisAggregate = {
 
 export type AnalysisEvidence = {
   scope: AnalysisScope;
-  definitions: Array<{ key: AnalysisMetricKey; label: string; unit: string; limit?: number }>;
+  definitions: Array<{ key: AnalysisMetricKey; label: string; unit: string; limit?: number; direction?: 'higher' | 'lower' }>;
   series: Array<{ date: string; values: Partial<Record<AnalysisMetricKey, number>> }>;
   aggregates: Partial<Record<AnalysisMetricKey, AnalysisAggregate>>;
   thresholdBreaches: Array<{ date: string; metric: AnalysisMetricKey; value: number; limit: number }>;
   correlations: Array<{ left: AnalysisMetricKey; right: AnalysisMetricKey; coefficient: number; samples: number }>;
   alerts: AlertRecord[];
+  wphi?: { rule: string; snapshots: import('../../../shared/wphi').WphiSnapshot[] };
   healthWeights?: typeof HEALTH_WEIGHTS;
   caveat?: '统计关联不等于因果关系';
 };
@@ -369,9 +371,9 @@ function buildThresholdBreaches(
   const breaches: AnalysisEvidence['thresholdBreaches'] = [];
   for (const row of rows) {
     for (const metric of metrics) {
-      const limit = ANALYSIS_METRICS[metric].limit;
+      const {limit,direction} = metricDefinitionFor(metric,row);
       const value = finiteValue(row, metric);
-      if (limit !== undefined && value !== undefined && value > limit) {
+      if (limit !== undefined && value !== undefined && (direction==='higher'?value<limit:value>limit)) {
         const rounded = roundFinite(value);
         if (rounded !== undefined && Number.isFinite(limit)) {
           breaches.push({ date: row.date, metric, value: rounded, limit });
@@ -520,6 +522,10 @@ export function buildAnalysisEvidence({
     throw new AnalysisEvidenceError('NO_EVIDENCE', availableDateRange(dataset));
   }
 
+  const maintenance = dataset.wphi?.config.maintenance || dataset.daily.at(-1)?.wphi?.status === 'maintenance';
+  // Keep the requested scope for unavailable-metric reporting, but never bind a stale score.
+  const latest=rows.at(-1)!;
+  const exposedMetrics=normalizedPlan.metrics.filter(key=>!(key.endsWith('Score')&&(maintenance||latest.wphi&&!Number.isFinite(ANALYSIS_METRICS[key].read(latest)))));
   const granularity = granularityFor(rows.length);
   const correlationRequested = normalizedPlan.methods.includes('correlation');
   const evidence: AnalysisEvidence = {
@@ -530,16 +536,17 @@ export function buildAnalysisEvidence({
       sampleCount: rows.length,
       granularity,
     },
-    definitions: normalizedPlan.metrics.map((key) => {
-      const { label, unit, limit } = ANALYSIS_METRICS[key];
-      return { key, label, unit, ...(limit === undefined ? {} : { limit }) };
+    definitions: exposedMetrics.map((key) => {
+      const { label, unit,limit,direction } = metricDefinitionFor(key,latest);
+      return { key, label, unit, ...(limit === undefined ? {} : { limit }),...(direction?{direction}:{}) };
     }),
-    series: buildSeries(rows, normalizedPlan.metrics, granularity),
-    aggregates: buildAggregates(rows, normalizedPlan.metrics),
-    thresholdBreaches: buildThresholdBreaches(rows, normalizedPlan.metrics),
-    correlations: buildCorrelations(rows, normalizedPlan),
+    ...(latest.wphi ? {wphi:{rule:'综合得分为参与维度的算术平均；停用、检修、无冲击不计分。去除率越高越好。进水总氮为冲击基线。tn是水质阈值，tnOutWphi是WPHI运行目标，须区分。快照是所选期间末日状态；区间平均值见aggregates。',snapshots:structuredClone([{...latest.wphi,...(maintenance ? {status:'maintenance' as const,score:null,grade:null,dimensions:latest.wphi.dimensions.map(d=>({...d,score:null,grade:null,included:false,status:'maintenance' as const}))} : {})}])}} : {}),
+    series: buildSeries(rows, exposedMetrics, granularity),
+    aggregates: buildAggregates(rows, exposedMetrics),
+    thresholdBreaches: buildThresholdBreaches(rows, exposedMetrics),
+    correlations: buildCorrelations(rows, {...normalizedPlan,metrics:exposedMetrics}),
     alerts: buildAlerts(normalizedPlan, dataset, sensitiveValues),
-    ...(normalizedPlan.includeHealthWeights ? { healthWeights: { ...HEALTH_WEIGHTS } } : {}),
+    ...(normalizedPlan.includeHealthWeights && !dataset.wphi && !rows.some(row=>row.wphi) ? { healthWeights: { ...HEALTH_WEIGHTS } } : {}),
     ...(correlationRequested ? { caveat: CORRELATION_CAVEAT } : {}),
   };
   return deepFreeze(evidence);

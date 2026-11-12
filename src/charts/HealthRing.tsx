@@ -6,7 +6,7 @@ import { CHART_THEME } from './chart-theme';
 
 gsap.registerPlugin(useGSAP);
 
-export function HealthRing({ score, size = 238 }: { score: number; size?: number }) {
+export function HealthRing({ score, size = 238, digits = 0 }: { score: number; size?: number; digits?: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const instanceId = useId().replace(/:/g, '');
 
@@ -16,7 +16,7 @@ export function HealthRing({ score, size = 238 }: { score: number; size?: number
     const radius = 88;
     const ringArc = arc<{ endAngle: number }>().innerRadius(radius - 10).outerRadius(radius).cornerRadius(8).startAngle(-Math.PI / 2);
     svg.selectAll('*').remove();
-    svg.attr('viewBox', '0 0 240 240').attr('role', 'img').attr('aria-label', `健康指数 ${Math.round(score)}`);
+    svg.attr('viewBox', '0 0 240 240').attr('role', 'img').attr('aria-label', `健康指数 ${score.toFixed(digits)}`);
     const gradientId = `health-ring-gradient-${instanceId}`;
     const glowId = `health-ring-glow-${instanceId}`;
     const defs = svg.append('defs');
@@ -44,7 +44,7 @@ export function HealthRing({ score, size = 238 }: { score: number; size?: number
       const path = ringArc({ endAngle: -Math.PI / 2 + Math.PI * 2 * renderedScore / 100 }) ?? '';
       glowPath.attr('d', path);
       progressPath.attr('d', path);
-      scoreText.text(Math.round(renderedScore));
+      scoreText.text(renderedScore.toFixed(digits));
     };
     renderScore(finalScore);
 
@@ -63,7 +63,7 @@ export function HealthRing({ score, size = 238 }: { score: number; size?: number
       return () => timeline.kill();
     });
     return () => mm.revert();
-  }, { scope: svgRef, dependencies: [instanceId, score], revertOnUpdate: true });
+  }, { scope: svgRef, dependencies: [instanceId, score, digits], revertOnUpdate: true });
 
   return <svg ref={svgRef} className="d3-chart health-ring" style={{ width: size, height: size }} />;
 }

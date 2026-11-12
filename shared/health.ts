@@ -8,11 +8,12 @@ import {
 export type HealthScoreInput = Pick<
   DailyReading,
   'qualityScore' | 'flowScore' | 'energyScore' | 'carbonSourceScore'
->;
+> & Pick<DailyReading, 'wphi'>;
 
 export type ReadingHealth = { score: number; grade: HealthGrade };
 
 export function calculateReadingHealth(reading: HealthScoreInput): ReadingHealth {
+  if (reading.wphi) return { score: reading.wphi.score ?? Number.NaN, grade: reading.wphi.grade ?? (reading.wphi.status === 'maintenance' ? '评分暂停' : '未评分') };
   const score = Number(
     (
       reading.qualityScore * HEALTH_WEIGHTS.quality +

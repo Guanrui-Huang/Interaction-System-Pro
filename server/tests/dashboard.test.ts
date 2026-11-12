@@ -22,5 +22,10 @@ it('returns dashboard data without legacy presentation types', async () => {
   ]);
   expect(overview.status).toBe(200);
   expect(quality.body.metrics.tn.threshold).toBe(3);
-  expect(energy.body.trend).toHaveLength(366);
+  const first = energy.body.trend[0].date;
+  const latest = energy.body.trend.at(-1).date;
+  expect(first).toBe('2025-08-09');
+  expect(energy.body.trend).toHaveLength((Date.parse(latest) - Date.parse(first)) / 86_400_000 + 1);
+  expect(overview.body.metrics.operatingDays).toBe(energy.body.trend.length);
+  expect(quality.body.latest.date).toBe(latest);
 });

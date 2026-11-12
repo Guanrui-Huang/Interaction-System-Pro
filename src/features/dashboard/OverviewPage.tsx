@@ -1,3 +1,4 @@
+import { WphiDashboard } from './WphiDashboard';
 import { calculateReadingHealth } from '../../../shared/health';
 import { useRef } from 'react';
 import type { OverviewData } from '../../app/api';
@@ -11,9 +12,10 @@ import { useDashboardEntrance } from '../../motion/useDashboardEntrance';
 import { useHealthDimensionMotion } from '../../motion/useHealthDimensionMotion';
 import '../../styles/dashboard.css';
 
-export function OverviewPage() {
-  const query = useDashboardQuery<OverviewData>('overview');
+export function OverviewPage({ onEditingChange }: { onEditingChange?: (editing: boolean) => void } = {}) {
+  const query = useDashboardQuery<OverviewData>('overview', true);
   if (query.status !== 'success') return <DashboardQueryState status={query.status} loadingMessage="正在同步运行数据…" onRetry={query.retry} />;
+  if (query.data.health.wphi) return <WphiDashboard data={query.data} overviewMetrics={query.data.metrics} onRefresh={query.retry} onEditingChange={onEditingChange} />;
   return <OverviewDashboard data={query.data} />;
 }
 
@@ -39,7 +41,7 @@ function OverviewDashboard({ data }: { data: OverviewData }) {
         <GlassPanel data-motion-card className="metric-card"><div className="metric-card__top"><span>安全运行</span><b className="metric-status" aria-hidden="true">●</b></div><strong><span data-motion-number data-motion-value={data.metrics.operatingDays} data-motion-format="integer">{data.metrics.operatingDays}</span><small>天</small></strong><em>✓ 全链路设备在线运行</em></GlassPanel>
         <GlassPanel data-motion-card className="metric-card metric-card--mint"><div className="metric-card__top"><span>水质达标率</span><b aria-hidden="true">✓</b></div><strong><span data-motion-number data-motion-value={data.metrics.complianceRate} data-motion-format="one-decimal">{data.metrics.complianceRate.toFixed(1)}</span><small>%</small></strong><em><i className="pass-badge">达标</i> 高于目标 0.4%</em></GlassPanel>
       </aside>
-      <GlassPanel data-motion-card accent aria-label="系统健康指数" className="overview-health"><div className="overview-health__summary"><div className="panel-title-row"><div><p className="panel-label">SYSTEM HEALTH INDEX</p><h2>系统健康指数</h2></div><span className="date-chip">实时评估</span></div><div className="overview-health__visual"><HealthRing score={data.health.score} size={218} /><div className="ring-status"><span>优 · 运行稳态</span><small>四项维度加权评估</small></div></div></div><div className="overview-dimensions"><div className="overview-dimensions__heading"><span>DIMENSIONAL ANALYSIS</span><small>权重评分</small></div>{dimensions.map(([label, weight, score, icon]) => <div className="dimension-row" key={String(label)}><b aria-hidden="true">{icon}</b><div><span>{label}</span><small>{Number(weight) * 100}%</small></div><HealthDimensionMeter score={Number(score)} /><strong data-dimension-score>{Number(score).toFixed(0)}</strong></div>)}</div></GlassPanel>
+      <GlassPanel data-motion-card accent aria-label="系统健康指数" className="overview-health"><div className="overview-health__summary"><div className="panel-title-row"><div><p className="panel-label">SYSTEM HEALTH INDEX</p><h2>系统健康指数</h2></div><span className="date-chip">实时评估</span></div><div className="overview-health__visual"><HealthRing score={data.health.score ?? 0} size={218} /><div className="ring-status"><span>优 · 运行稳态</span><small>四项维度加权评估</small></div></div></div><div className="overview-dimensions"><div className="overview-dimensions__heading"><span>DIMENSIONAL ANALYSIS</span><small>权重评分</small></div>{dimensions.map(([label, weight, score, icon]) => <div className="dimension-row" key={String(label)}><b aria-hidden="true">{icon}</b><div><span>{label}</span><small>{Number(weight) * 100}%</small></div><HealthDimensionMeter score={Number(score)} /><strong data-dimension-score>{Number(score).toFixed(0)}</strong></div>)}</div></GlassPanel>
       <GlassPanel data-motion-card className="overview-trend"><div className="panel-title-row"><div><p className="panel-label">30-DAY HEALTH TRACE</p><h2>健康趋势</h2></div><div className="trend-toolbar"><span className="trend-legend"><i /> 综合健康评分</span><span className="date-chip">近30日</span></div></div><TrendArea layout="wide" ariaLabel="近30日健康趋势图" points={data.trend} metric={{ label: '健康指数', unit: '分', value: (point) => calculateReadingHealth(point).score }} /></GlassPanel>
     </div>
   </div>;

@@ -266,6 +266,37 @@ it('reconnects the event stream immediately after a clarification is accepted', 
   expect(result.current.phase).toBe('connected');
 });
 
+it('recovers from an SSE connection that ends mid-event without showing a malformed response', async () => {
+  let eventConnections = 0;
+  let restoreCount = 0;
+  const partial = new TextEncoder().encode(
+    'id: 1\ndata: {"type":"slide.generating","sequence":1,"slideId":"slide-1"',
+  );
+  const interrupted = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(partial);
+      controller.close();
+    },
+  }), { headers: { 'Content-Type': 'text/event-stream' } });
+
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('/events')) {
+      eventConnections += 1;
+      return eventConnections === 1 ? interrupted : openEventStream();
+    }
+    restoreCount += 1;
+    return jsonResponse(snapshotFixture(restoreCount > 1 ? 1 : 0));
+  }));
+
+  const { result } = renderHook(() => useReportSession({ reportId: REPORT_ID }));
+
+  await waitFor(() => expect(eventConnections).toBe(2), { timeout: 2_000 });
+  expect(restoreCount).toBeGreaterThanOrEqual(2);
+  expect(result.current.error).toBeNull();
+  expect(result.current.phase).toBe('connected');
+});
+
 it('starts one report per launch token under StrictMode', async () => {
   const snapshot = snapshotFixture();
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {

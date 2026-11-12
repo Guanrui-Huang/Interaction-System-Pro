@@ -16,7 +16,7 @@ import {
   toReportClientError,
   updateReportSession,
 } from './report-api';
-import { connectReportEvents, ReportEventStreamError } from './report-event-stream';
+import { connectReportEvents, ReportEventStreamError, ReportEventStreamInterruptedError } from './report-event-stream';
 
 export type ReportLaunch = CreateReportRequest & { token: string };
 export type ReportSessionPhase = 'idle' | 'creating' | 'restoring' | 'connecting' | 'connected' | 'reconnecting' | 'ready' | 'error' | 'exited';
@@ -312,7 +312,7 @@ export function useReportSession({ launch, reportId, onExit }: UseReportSessionO
           });
         } catch (caught) {
           if (controller.signal.aborted || isAbortError(caught)) return;
-          if (caught instanceof ReportEventStreamError) {
+          if (caught instanceof ReportEventStreamError && !(caught instanceof ReportEventStreamInterruptedError)) {
             setError(new ReportClientError('MALFORMED_RESPONSE'));
             setPhase('error');
             return;

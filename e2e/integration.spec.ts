@@ -165,7 +165,7 @@ test.beforeEach(async ({ request }) => {
 });
 
 test('keeps duplicate narration text bound to each concurrent synthesis request', async ({ page, request }) => {
-  const reportId = await createReport(request, question);
+  const reportId = await createReport(request, '并发语音文本校验');
   const ready = await waitForReadySnapshot(request, reportId);
   const narration = ready.slides.flatMap((slide) => slide.narration);
   const duplicatePair = narration.flatMap((segment, index) => (

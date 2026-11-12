@@ -1,3 +1,4 @@
+import { wphiRuleEvidence } from '../domain/wphi-rule-evidence';
 import type {
   ReportSlide,
   SlideOutline,
@@ -77,6 +78,7 @@ function analysisSubset(analysis: AnalysisEvidence, keys: readonly string[]) {
     ...(analysis.healthWeights ? {
       healthWeights: Object.fromEntries(Object.entries(analysis.healthWeights).filter(([key]) => keys.includes(`health-weight:${key}`))),
     } : {}),
+    ...(analysis.wphi ? {wphi:analysis.wphi, boundRuleStatements:wphiRuleEvidence(analysis, [...metricKeys]), ruleInstruction:'boundRuleStatements是现场配置证据，claims.kind必须是onsite-fact，不能用knowledge。每个规则句只能绑定提供该句的对应Score指标（目标句也必须绑定Score，不可仅绑定raw指标）。claims、takeaway及narration涉及算法权重或目标时，都必须逐字使用这里的完整独立句，禁止改写70/30为概括句。规则数字不是实测值。takeaway可直接用一条规则句；narration重复受控句亦可。不要将运行评分目标称为法定超标或添加未绑定次数。'} : {}),
     ...(analysis.caveat ? { caveat: analysis.caveat } : {}),
   };
 }
@@ -145,6 +147,7 @@ function buildPrompt(input: SlideComposerInput): string {
     '每条 claim.evidenceKeys 只能从 outline.evidenceKeys 选择直接支撑该 claim 的最小子集。narration 必须提供 2–4 段。',
     'takeawayClaimIds 与每段 narration.claimIds 必须覆盖文本中所有现场数字与事实对应的 claim。',
     '现场日期只能原样使用 referencedEvidence 中的 YYYY-MM-DD 起止日期；不得改写为中文日期。所有现场数字和单位必须与引用证据完全一致，数字不得使用千位分隔符。',
+    ...(input.evidence.analysis?.wphi ? ['WPHI得分和百分比按证据数值四舍五入保留两位小数；单日分析直接讲指标名称、当前值和已绑定规则，不重复报告同日相同的平均、最低和最高值。受控规则句仍保持原文。'] : []),
     '每条 onsite-fact 必须在自己的 evidenceKeys 中引用 Excel 证据；user-provided 只能引用 user-correction 并明确写明用户提供且未经现场数据核验；knowledge 不得声称现场数值；hypothesis 必须明确表达不确定性。',
     ...CLAIM_EVIDENCE_RULES,
     ...narrationRules(input.outline.order),

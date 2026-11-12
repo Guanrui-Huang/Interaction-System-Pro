@@ -1,3 +1,4 @@
+import { wphiRuleEvidence } from '../domain/wphi-rule-evidence';
 import type {
   BoundClaim,
   ReportEvidenceRef,
@@ -12,6 +13,7 @@ import {
   reportEvidenceRefsFor,
 } from '../domain/report-content-validation';
 import type { ReportEvidenceBundle } from '../domain/report-evidence';
+import { CARBON_OPTIMIZATION_TOPIC } from '../domain/report-suggested-question';
 
 const KNOWLEDGE_VISUALS = new Set([
   'process-flow',
@@ -19,6 +21,11 @@ const KNOWLEDGE_VISUALS = new Set([
   'concept-map',
   'capability-map',
 ]);
+
+const carbonAdvice = [
+  { title: '核对投加基线', detail: '对照近期投加量、处理水量、出水水质和项目配置目标，核对药剂记录与实际计量。' },
+  { title: '验证调整效果', detail: '现有记录不足以确定最优投加量。补齐药剂有效浓度和试验数据，再通过现场验证评估调整效果。' },
+];
 
 type DirectMetricSummary = {
   claimText: string;
@@ -72,6 +79,14 @@ function directMetricSummary(
   const central = `${definition.label}最新值为${displayNumber(aggregate.latest)} ${unit}，平均值为${displayNumber(aggregate.average)} ${unit}。`;
   const range = `${definition.label}期间最低值为${displayNumber(aggregate.min)} ${unit}，峰值为${displayNumber(aggregate.max)} ${unit}${peak ? `，峰值出现在${naturalDate(peak.date)}` : ''}。${changeCopy(aggregate.changeRate)}`;
 
+  const rules = wphiRuleEvidence(evidence.analysis, [ref.key]).join('');
+  if (rules || (evidence.analysis.wphi && sampleCount === 1)) {
+    const current = `${definition.label}当前为${displayNumber(aggregate.latest)} ${unit}。`;
+    const explanation = rules || (definition.limit === undefined
+      ? `${definition.label}反映所选日期的运行值。`
+      : `${definition.label}目标值为${displayNumber(definition.limit)} ${unit}。`);
+    return {claimText:`${context}${current}${explanation}`, headline:current, narration:{context,central:current,range:explanation}};
+  }
   return {
     claimText: `${context}${central}${range}`,
     headline: `${definition.label}最新值为${displayNumber(aggregate.latest)} ${unit}；期间峰值为${displayNumber(aggregate.max)} ${unit}${peak ? `，出现在${naturalDate(peak.date)}` : ''}。`,
@@ -115,6 +130,8 @@ export function composeEvidenceFallbackSlide(
 ): ReportSlide {
   const refs = reportEvidenceRefsFor(outline.evidenceKeys, evidence);
   const identityCopy = assistantIdentityCopy(evidence);
+  const isCarbonAdvice = outline.visualKind === 'recommendation-path' && refs.length === 1
+    && refs[0]?.source === 'model-knowledge' && refs[0].label === CARBON_OPTIMIZATION_TOPIC;
   const directSummaries = refs.map((ref) => directMetricSummary(ref, evidence));
   const claims: BoundClaim[] = refs.map((ref, index) => ({
     id: `${outline.id}-fallback-claim-${index + 1}`,
@@ -124,7 +141,7 @@ export function composeEvidenceFallbackSlide(
         ? '用户提供的修正已记录，未经现场数据核验。'
         : ref.source === 'assistant-profile' && identityCopy
           ? identityCopy
-          : '本项知识内容来自本页绑定的模型知识。'),
+          : isCarbonAdvice ? carbonAdvice.map(item => item.detail).join('') : '本项知识内容来自本页绑定的模型知识。'),
     kind: ref.source === 'excel'
       ? 'onsite-fact'
       : ref.source === 'user-correction'
@@ -133,7 +150,7 @@ export function composeEvidenceFallbackSlide(
     evidenceRefs: [ref],
   }));
   const claimIds = claims.map(({ id }) => id);
-  const knowledgeItems = KNOWLEDGE_VISUALS.has(outline.visualKind)
+  const knowledgeItems = isCarbonAdvice ? carbonAdvice : KNOWLEDGE_VISUALS.has(outline.visualKind)
     ? refs.filter(({ source }) => source !== 'excel' && source !== 'user-correction').map((_ref, index) => ({
         title: `知识要点 ${index + 1}`,
         detail: '该要点仅使用本页已绑定的可信知识证据。',
@@ -151,7 +168,7 @@ export function composeEvidenceFallbackSlide(
   const richSummaries = directSummaries.flatMap((summary, index) => summary
     ? [{ summary, claimId: claims[index]!.id }]
     : []);
-  const takeaway = richSummaries.length
+  const takeaway = isCarbonAdvice ? carbonAdvice[1].detail : richSummaries.length
     ? richSummaries.slice(0, 2).map(({ summary }) => summary.headline).join(' ')
     : outline.evidenceKeys.includes('assistant-profile') && identityCopy
     ? identityCopy
@@ -182,7 +199,27 @@ export function composeEvidenceFallbackSlide(
         claimIds: [claimId],
       }));
 
-  const narration: ReportSlide['narration'] = richSummaries.length
+  const narration: ReportSlide['narration'] = isCarbonAdvice
+    ? carbonAdvice.map(({ detail }, index) => ({
+        id: `${outline.id}-fallback-segment-${index + 1}`,
+        speechId: `${outline.id}-fallback-speech-${index + 1}`,
+        text: detail,
+        claimIds,
+      }))
+    : evidence.analysis?.wphi && richSummaries.length >= 2
+    ? Array.from({ length: Math.min(4, richSummaries.length) }, (_, index) => {
+        const count = Math.min(4, richSummaries.length);
+        const start = Math.floor(index * richSummaries.length / count);
+        const end = Math.floor((index + 1) * richSummaries.length / count);
+        const group = richSummaries.slice(start, end);
+        return {
+          id: `${outline.id}-fallback-segment-${index + 1}`,
+          speechId: `${outline.id}-fallback-speech-${index + 1}`,
+          text: group.map(({ summary }, offset) => `${narrationContext(outline, start + offset, summary)}${summary.narration.central}${summary.narration.range}`).join(''),
+          claimIds: group.map(({ claimId }) => claimId),
+        };
+      })
+    : richSummaries.length
     ? [
         ...metricNarration,
         {
@@ -214,7 +251,7 @@ export function composeEvidenceFallbackSlide(
     role: outline.role,
     layout: outline.layout,
     evidencePolicy: outline.evidencePolicy,
-    title: trustedFallbackTitle(refs, evidence),
+    title: isCarbonAdvice ? '碳源投加优化建议' : trustedFallbackTitle(refs, evidence),
     takeaway,
     takeawayClaimIds: claimIds,
     claims,

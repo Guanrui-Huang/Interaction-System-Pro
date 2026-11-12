@@ -3,10 +3,15 @@ import { BUSINESS_PAGE_NAMES, type BusinessPage, type DashboardDataset } from '.
 import {
   ANALYSIS_METHODS,
   ANALYSIS_METRICS,
+  availableAnalysisMetrics,
+  metricDefinitionFor,
+  normalizeAnalysisPlan,
   parseAnalysisPlan,
+  type AnalysisMetricKey,
   type AnalysisPlan,
 } from '../domain/analysis-plan';
 import type { ReportIntentPlan } from '../domain/report-intent';
+import { CARBON_OPTIMIZATION_TOPIC, matchSuggestedReportQuestion } from '../domain/report-suggested-question';
 import { redactAnalysisText } from '../domain/analysis-evidence';
 import {
   ReportContentValidationError,
@@ -90,14 +95,59 @@ function availableDateRange(dataset: DashboardDataset): { from: string; to: stri
   return from && to ? { from, to } : undefined;
 }
 
-function metricCatalog() {
-  return Object.entries(ANALYSIS_METRICS).map(([key, definition]) => ({
+type DateRange = AnalysisPlan['dateRange'];
+
+function recentDateRange(available: DateRange, dayCount: number): DateRange {
+  const start = new Date(Date.parse(available.to) - (dayCount - 1) * 86_400_000).toISOString().slice(0, 10);
+  return { from: start < available.from ? available.from : start, to: available.to };
+}
+
+function explicitRecentRange(question: string, available: DateRange | undefined): DateRange | undefined {
+  if (!available || /\d{4}[-/.年]|\d{1,2}月\d{1,2}[日号]/u.test(question)) return undefined;
+  const periods = [...question.matchAll(/(?:最近|近|过去)\s*([1-9]\d{0,3})\s*(?:天|日)/gu)];
+  if (periods.length !== 1) return undefined;
+  const days = Number(periods[0][1]);
+  // A named rolling CV metric already contains its own seven-day window.
+  if (days === 7 && /CV|变异系数/iu.test(question)) return undefined;
+  return recentDateRange(available, days);
+}
+
+function suggestedQuestionIntent(input: ReportIntentPlanningInput, available: DateRange | undefined): ReportIntentPlan | undefined {
+  if (!available || input.conversation?.length) return undefined;
+  const question = matchSuggestedReportQuestion(input.question);
+  if (!question) return undefined;
+  const isTnTrend = question === 'total-nitrogen-trend';
+
+  const candidates: AnalysisMetricKey[] = isTnTrend ? ['tn'] : ['carbonSourceKg', 'carbonKgPerM3', 'processedM3', 'tn'];
+  const availableMetrics = new Set(availableAnalysisMetrics(input.dataset));
+  const metrics = candidates.filter(key => availableMetrics.has(key));
+  if (!metrics.includes(candidates[0]!)) return undefined;
+
+  return {
+    kind: 'report',
+    intents: [{ kind: isTnTrend ? 'trend' : 'recommendation', questionPart: input.question, evidencePolicy: isTnTrend ? 'data' : 'mixed' }],
+    knowledgeTopics: isTnTrend ? [] : [CARBON_OPTIMIZATION_TOPIC],
+    assistantProfile: false,
+    analysisPlan: normalizeAnalysisPlan({
+      modules: [...new Set(metrics.map(key => ANALYSIS_METRICS[key].module))],
+      metrics,
+      dateRange: recentDateRange(available, 30),
+      methods: isTnTrend ? ['trend', 'summary'] : ['summary', 'comparison'],
+      includeAlerts: false,
+      includeHealthWeights: false,
+    }),
+  };
+}
+
+function metricCatalog(dataset:DashboardDataset) {
+  return availableAnalysisMetrics(dataset).map(key => {const definition=metricDefinitionFor(key,dataset.daily.at(-1));return ({
     key,
     module: definition.module,
     label: definition.label,
     unit: definition.unit,
     ...(definition.limit === undefined ? {} : { limit: definition.limit }),
-  }));
+    ...(definition.direction?{direction:definition.direction}:{}),
+  });});
 }
 
 function responseShape(): string {
@@ -111,15 +161,28 @@ function safeContext(input: ReportIntentPlanningInput, sensitiveValues: readonly
   }));
 }
 
-function buildPlanningPrompt(input: ReportIntentPlanningInput, sensitiveValues: readonly string[]): string {
-  const dateRange = availableDateRange(input.dataset);
+function dateInstructions(available: DateRange | undefined, requested: DateRange | undefined): string[] {
+  if (!available) return ['可用日期范围：无'];
+  return [
+    `可用日期范围：${available.from} 至 ${available.to}`,
+    `最新数据日期：${available.to}。当前、最新和未指定绝对日期的近 N 日均以该日期为基准，范围包含最新日。`,
+    ...(requested ? [`用户要求的相对时间区间已经计算：${requested.from} 至 ${requested.to}。现场分析使用这个区间。`] : []),
+  ];
+}
+
+function buildPlanningPrompt(input: ReportIntentPlanningInput, sensitiveValues: readonly string[], available: DateRange | undefined, requested: DateRange | undefined): string {
   return [
     '你是智慧污水处理厂的问题意图规划器。只输出一个 JSON 对象；不要输出解释、Markdown 或代码围栏。',
     `用户问题：${redactAnalysisText(input.question, sensitiveValues)}`,
     `来源页面（仅作理解提示）：${input.page} (${BUSINESS_PAGE_NAMES[input.page]})`,
     `紧凑会话上下文：${JSON.stringify(safeContext(input, sensitiveValues))}`,
-    `可用日期范围：${dateRange?.from ?? '无'} 至 ${dateRange?.to ?? '无'}`,
-    `完整指标目录（只可使用 key）：${JSON.stringify(metricCatalog())}`,
+    ...dateInstructions(available, requested),
+    `完整指标目录（只可使用 key）：${JSON.stringify(metricCatalog(input.dataset))}`,
+    ...(input.dataset.wphi ? [
+      `WPHI说明：${JSON.stringify({maintenance:input.dataset.wphi.config.maintenance,targets:input.dataset.wphi.config.targets,enabled:input.dataset.wphi.config.enabled})}；健康评分使用七维得分，不使用旧四维。检修或停用维度不可提供得分，选择可用运行指标并说明评分暂停。综合健康分析包含全部参与维度；运行目标用tnOutWphi，出水水质阈值用tn。`,
+      'WPHI评分规则、七个维度含义和目标值是本项目的已配置事实，涉及这些问题时使用data并选择healthScore或对应维度Score，规则随证据一起提供；不得把这些规则拆成纯knowledgeTopics页。',
+      'tnCv是已用完整历史计算好的每日滚动7天CV；用户询问某日的7天CV时，analysisPlan只选择指定日期，不要仅因提到7天而扩大查询日期范围。',
+    ] : []),
     `输出必须严格匹配：${responseShape()}。`,
     '纯知识问题使用 knowledge；任何现场数值、趋势、达标、异常、费用、能耗或运行状态必须使用 data 或 mixed，并提供 analysisPlan。',
     '纯知识或身份问题必须完全省略 analysisPlan，不得返回空 analysisPlan。',
@@ -173,14 +236,17 @@ function modelResponseStrings(response: ModelResponse): string[] {
   ];
 }
 
-function validateSemantics(result: ModelResponse, dataset: DashboardDataset): ReportIntentPlan {
+function validateSemantics(result: ModelResponse, dataset: DashboardDataset, requested: DateRange | undefined): ReportIntentPlan {
   if (result.kind === 'clarification') return result;
 
   const needsAnalysis = result.intents.some((intent) => intent.evidencePolicy !== 'knowledge');
   let analysisPlan: AnalysisPlan | undefined;
   if (needsAnalysis && result.analysisPlan !== undefined) {
     try {
-      analysisPlan = parseAnalysisPlan(JSON.stringify(result.analysisPlan), dataset);
+      const modelPlan = result.analysisPlan;
+      const plan = requested && modelPlan && typeof modelPlan === 'object' && !Array.isArray(modelPlan)
+        ? { ...modelPlan, dateRange: requested } : modelPlan;
+      analysisPlan = parseAnalysisPlan(JSON.stringify(plan), dataset);
     } catch (error) {
       throw invalidIntent(error);
     }
@@ -203,12 +269,15 @@ function buildRepairPrompt(input: {
   originalOutput: string;
   issues: readonly string[];
   catalog: ReturnType<typeof metricCatalog>;
+  available: DateRange | undefined;
+  requested: DateRange | undefined;
   sensitiveValues: readonly string[];
 }): string {
   return [
     '将下面内容修复为一个严格 JSON 对象。只修复 JSON 语法、字段结构或语义约束；不得编造现场事实或额外解释。',
     `允许的 JSON 结构：${responseShape()}。`,
     `完整指标目录（只可使用 key）：${JSON.stringify(input.catalog)}`,
+    ...dateInstructions(input.available, input.requested),
     '纯知识或身份问题必须完全省略 analysisPlan，不得返回空 analysisPlan。',
     `结构问题：${JSON.stringify(input.issues.map((issue) => redactAnalysisText(issue, input.sensitiveValues)))}`,
     `原始输出：${redactAnalysisText(input.originalOutput, input.sensitiveValues)}`,
@@ -219,6 +288,10 @@ export async function planReportIntent(
   input: ReportIntentPlanningInput,
   dependencies: ReportIntentPlanningDependencies,
 ): Promise<ReportIntentPlan> {
+  const available = availableDateRange(input.dataset);
+  const suggested = suggestedQuestionIntent(input, available);
+  if (suggested) return suggested;
+  const requested = explicitRecentRange(input.question, available);
   const requestCompletion = dependencies.requestCompletion ?? requestDeepSeekCompletion;
   const sensitiveValues = [
     dependencies.settings.apiKey,
@@ -235,7 +308,7 @@ export async function planReportIntent(
     responseFormat: { type: 'json_object' },
   });
 
-  const content = await request(buildPlanningPrompt(input, sensitiveValues));
+  const content = await request(buildPlanningPrompt(input, sensitiveValues, available, requested));
   return parseStructuredModelOutput({
     content,
     parse: (candidate) => {
@@ -243,7 +316,7 @@ export async function planReportIntent(
       const response = parseModelResponse(candidate);
       for (const value of modelResponseStrings(response)) assertSafeIntentOutput(value, sensitiveValues);
       try {
-        return validateSemantics(response, input.dataset);
+        return validateSemantics(response, input.dataset, requested);
       } catch (error) {
         if (!(error instanceof ReportIntentPlanningError)) throw error;
         throw new StructuredModelOutputShapeError([
@@ -254,7 +327,9 @@ export async function planReportIntent(
     repair: async (failure) => request(buildRepairPrompt({
       originalOutput: failure.content,
       issues: failure.issues,
-      catalog: metricCatalog(),
+      catalog: metricCatalog(input.dataset),
+      available,
+      requested,
       sensitiveValues,
     })),
     invalidError: () => invalidIntent(),

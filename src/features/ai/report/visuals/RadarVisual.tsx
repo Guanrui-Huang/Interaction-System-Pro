@@ -1,5 +1,6 @@
 import { curveLinearClosed, lineRadial, scaleLinear } from 'd3';
 import type { VisualSpec } from '../../../../../shared/report';
+import { WPHI_DIMENSIONS } from '../../../../../shared/wphi';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
 type RadarSpec = Extract<VisualSpec, { kind: 'radar' }>;
@@ -8,6 +9,7 @@ const CENTER = SIZE / 2;
 const RADIUS = 138;
 const LABEL_RADIUS = 1.18;
 const LABEL_EDGE_INSET = 18;
+const wphiLabels: Record<string, string> = Object.fromEntries(Object.entries(WPHI_DIMENSIONS).map(([key,label]) => [`${key}Score`,label]));
 
 function radarLabelPlacement(index: number, axesLength: number) {
   const angle = index * Math.PI * 2 / axesLength;
@@ -32,7 +34,8 @@ export function emphasizeRadarRatios(
 export function RadarVisual({ visual }: { visual: RadarSpec }) {
   const angle = (index: number) => index * Math.PI * 2 / visual.axes.length;
   const point = (index: number, ratio: number) => ({ x: CENTER + Math.sin(angle(index)) * RADIUS * ratio, y: CENTER - Math.cos(angle(index)) * RADIUS * ratio });
-  const emphasizedRatios = emphasizeRadarRatios(visual.axes);
+  const isWphi = visual.axes.every(axis => Boolean(wphiLabels[axis.key]));
+  const emphasizedRatios = emphasizeRadarRatios(visual.axes, isWphi ? 1 : 1.8);
   const data = visual.axes.map((axis, index) => ({
     angle: angle(index),
     radius: scaleLinear().domain([0, 1]).range([0, RADIUS])(emphasizedRatios[index] ?? 0),
@@ -55,8 +58,8 @@ export function RadarVisual({ visual }: { visual: RadarSpec }) {
           return (
             <g key={axis.key}>
               <line className="report-radar__spoke" x1={CENTER} y1={CENTER} x2={outer.x} y2={outer.y} />
-              <text className="report-chart__axis-label" x={label.x} y={label.y} textAnchor={label.textAnchor}>{axis.label}</text>
-              <text className="report-radar__axis-value" x={value.x} y={value.y - 8} textAnchor={label.textAnchor}>
+              <text className="report-chart__axis-label" x={label.x} y={label.y} textAnchor={label.textAnchor}>{wphiLabels[axis.key] ?? axis.label}</text>
+              <text className="report-radar__axis-value" x={isWphi ? label.x : value.x} y={isWphi ? label.y + 14 : value.y - 8} textAnchor={label.textAnchor}>
                 {formatReportNumber(axis.value)} {axis.unit}
               </text>
             </g>

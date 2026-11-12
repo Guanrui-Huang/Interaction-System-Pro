@@ -1,6 +1,7 @@
 import { scaleBand, scaleLinear } from 'd3';
 import { useId } from 'react';
 import type { VisualSpec } from '../../../../../shared/report';
+import { WPHI_DIMENSIONS } from '../../../../../shared/wphi';
 import { useReportChartThemes } from './ReportChartThemeContext';
 import { formatReportNumber, VisualDataTable, VisualFrame } from './visual-utils';
 
@@ -8,6 +9,7 @@ type ComparisonSpec = Extract<VisualSpec, { kind: 'comparison-bars' }>;
 const WIDTH = 720;
 const HEIGHT = 320;
 const PLOT = { left: 52, right: 28, top: 34, bottom: 54 };
+const wphiLabels: Record<string, string> = Object.fromEntries(Object.entries(WPHI_DIMENSIONS).map(([key,label]) => [`${key}Score`,label]));
 
 export function ComparisonBarsVisual({ visual }: { visual: ComparisonSpec }) {
   const reactId = useId().replace(/:/g, '');
@@ -92,7 +94,7 @@ export function ComparisonBarsVisual({ visual }: { visual: ComparisonSpec }) {
                 y={HEIGHT - 20}
                 textAnchor="middle"
               >
-                {item.label}
+                {wphiLabels[item.key] ?? item.label}
               </text>
             </g>
           );

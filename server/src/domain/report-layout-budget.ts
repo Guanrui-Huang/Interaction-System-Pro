@@ -1,4 +1,5 @@
 import type { SlideOutline } from '../../../shared/report';
+import { WPHI_DIMENSIONS } from '../../../shared/wphi';
 import type { ReportEvidenceBundle } from './report-evidence';
 import {
   ReportContentValidationError,
@@ -11,7 +12,7 @@ export const LARGE_SCREEN_METRIC_COLUMNS = 4;
 export const LARGE_SCREEN_METRIC_ROWS = 2;
 export const LARGE_SCREEN_METRICS_PER_PAGE = LARGE_SCREEN_METRIC_COLUMNS * LARGE_SCREEN_METRIC_ROWS;
 export const LARGE_SCREEN_ALERTS_PER_PAGE = 5;
-export const LARGE_SCREEN_RADAR_AXES_PER_PAGE = 6;
+export const LARGE_SCREEN_RADAR_AXES_PER_PAGE = 7;
 
 function failOutline(): never {
   throw new ReportContentValidationError('REPORT_OUTLINE_INVALID');
@@ -201,10 +202,14 @@ export function paginateLargeScreenOutlines(
             const descriptor = descriptors.get(key);
             return descriptor?.kind === 'metric' || descriptor?.kind === 'health-weight';
           });
+    // WPHI's composite is a summary card, never an eighth radar axis.
+    const wphiScoreKeys = new Set(Object.keys(WPHI_DIMENSIONS).map(key => `${key}Score`));
+    const wphiWithSummary = Boolean(bundle.analysis?.wphi) && candidates.includes('healthScore')
+      && candidates.every(key => key === 'healthScore' || wphiScoreKeys.has(key));
     const maximum = outline.visualKind === 'alert-timeline'
       ? LARGE_SCREEN_ALERTS_PER_PAGE
       : outline.visualKind === 'radar'
-        ? LARGE_SCREEN_RADAR_AXES_PER_PAGE
+        ? LARGE_SCREEN_RADAR_AXES_PER_PAGE + (wphiWithSummary ? 1 : 0)
         : LARGE_SCREEN_METRICS_PER_PAGE;
 
     if (candidates.length <= maximum) {

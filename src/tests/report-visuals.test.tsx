@@ -454,7 +454,7 @@ it('keeps long radar axis labels inside the viewBox by anchoring edge labels inw
   expect(northLabel).toHaveAttribute('text-anchor', 'middle');
 });
 
-it.each([3, 4, 5, 6])('anchors lateral radar labels inward for %i axes', (axisCount) => {
+it.each([3, 4, 5, 6, 7])('anchors lateral radar labels inward for %i axes', (axisCount) => {
   const visual: Extract<VisualSpec, { kind: 'radar' }> = {
     kind: 'radar',
     axes: Array.from({ length: axisCount }, (_, index) => ({

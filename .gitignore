@@ -10,6 +10,8 @@ dist-server/
 tmp/
 *.tsbuildinfo
 server/.env
+/data/wphi-settings.json
+/data/wphi-settings.json.tmp
 test-results/
 playwright-report/
 /stitch_project_11671430195625544636/

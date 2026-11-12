@@ -45,6 +45,7 @@ it('injects the one shared report registry into HTTP reports and the voice gatew
   startApplication();
 
   expect(createServer).toHaveBeenCalledOnce();
+  expect(createServer).toHaveBeenCalledWith(expect.objectContaining({ wphiStatePath: resolve('data/wphi-settings.json') }));
   expect(attachVoiceWebSocketGateway).toHaveBeenCalledOnce();
   const httpOptions = (createServer as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { reportRegistry: unknown; speechAnswerRegistry: unknown };
   const voiceOptions = (attachVoiceWebSocketGateway as ReturnType<typeof vi.fn>).mock.calls[0]![1] as { reportRegistry: unknown; speechAnswers: unknown };

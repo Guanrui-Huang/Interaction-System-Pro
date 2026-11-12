@@ -7,6 +7,8 @@ import {
 import {
   ANALYSIS_METHODS,
   ANALYSIS_METRICS,
+  availableAnalysisMetrics,
+  metricDefinitionFor,
   createDefaultAnalysisPlan,
   parseAnalysisPlan,
   type AnalysisPlan,
@@ -42,13 +44,14 @@ function buildPlanningPrompt(input: {
 }): string {
   const dateRange = availableDateRange(input.dataset);
   const modules = ANALYSIS_MODULES.map((key) => `${key} (${ANALYSIS_MODULE_LABELS[key]})`);
-  const metrics = Object.entries(ANALYSIS_METRICS).map(([key, definition]) => ({
+  const metrics = availableAnalysisMetrics(input.dataset).map(key => {const definition=metricDefinitionFor(key,input.dataset.daily.at(-1));return ({
     key,
     module: definition.module,
     label: definition.label,
     unit: definition.unit,
     ...(definition.limit === undefined ? {} : { limit: definition.limit }),
-  }));
+    ...(definition.direction?{direction:definition.direction}:{}),
+  });});
 
   return [
     '你是“智慧污水处理厂”的数据分析规划器。',

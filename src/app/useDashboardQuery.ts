@@ -19,7 +19,7 @@ function isAbortError(error: unknown): boolean {
     : error instanceof Error && error.name === 'AbortError';
 }
 
-export function useDashboardQuery<T>(path: BusinessPage): DashboardQueryResult<T> {
+export function useDashboardQuery<T>(path: BusinessPage, preserveDataOnRefresh = false): DashboardQueryResult<T> {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<DashboardQueryState<T>>({ status: 'loading', data: null, error: null });
   const activeController = useRef<AbortController | null>(null);
@@ -35,7 +35,8 @@ export function useDashboardQuery<T>(path: BusinessPage): DashboardQueryResult<T
     const controller = new AbortController();
     activeController.current?.abort();
     activeController.current = controller;
-    setState({ status: 'loading', data: null, error: null });
+    setState(current => preserveDataOnRefresh && current.status === 'success'
+      ? current : { status: 'loading', data: null, error: null });
 
     void getDashboard<T>(path, { signal: controller.signal })
       .then((data) => {
@@ -56,7 +57,7 @@ export function useDashboardQuery<T>(path: BusinessPage): DashboardQueryResult<T
         activeController.current = null;
       }
     };
-  }, [attempt, path]);
+  }, [attempt, path, preserveDataOnRefresh]);
 
   return { ...state, retry };
 }

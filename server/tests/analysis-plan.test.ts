@@ -84,7 +84,7 @@ describe('public AI analysis contract', () => {
 
 describe('ANALYSIS_METRICS', () => {
   it('is a complete whitelist of numeric DailyReading fields plus computed healthScore', () => {
-    expect(Object.keys(ANALYSIS_METRICS)).toEqual([
+    expect(Object.entries(ANALYSIS_METRICS).filter(([, definition]) => Number.isFinite(definition.read(orderedDaily[0]!))).map(([key]) => key)).toEqual([
       'processedM3',
       'informationCount',
       'complianceRate',
@@ -208,7 +208,9 @@ describe('createDefaultAnalysisPlan', () => {
 
     expect(first).toEqual(second);
     expect(first.modules).toEqual([...ANALYSIS_MODULES]);
-    expect(first.metrics).toEqual(Object.keys(ANALYSIS_METRICS));
+    expect(first.metrics).toEqual(Object.entries(ANALYSIS_METRICS)
+      .filter(([, definition]) => Number.isFinite(definition.read(orderedDaily[0]!)))
+      .map(([key]) => key));
     expect(first.methods).toEqual(ANALYSIS_METHODS.filter((method) => method !== 'correlation'));
     expect(first.methods).not.toContain('correlation');
     expect(first.dateRange).toEqual({ from: orderedDaily[10].date, to: orderedDaily[39].date });

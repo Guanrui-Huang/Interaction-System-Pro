@@ -8,6 +8,8 @@ import type {
 import { WATER_QUALITY_METRICS } from '../../../shared/dashboard';
 import { calculateHealth } from '../domain/health';
 import { formatBusinessIsoDate, isBusinessIsoDate } from '../domain/business-date';
+import { DEFAULT_WPHI_CONFIG, type WphiReading } from '../../../shared/wphi';
+import { refreshWphiDataset } from '../domain/wphi-dataset';
 
 const DAILY_SHEET = '日度总览';
 const WATER_QUALITY_SHEET = '出水水质';
@@ -170,10 +172,28 @@ export function loadWorkbook(path: string): DashboardDataset {
     }
   });
 
-  return {
+  const dataset: DashboardDataset = {
     plantName: '智慧污水处理厂',
     daily,
     alerts,
     health: calculateHealth(daily),
   };
+  if (workbook.Sheets['WPHI输入']) {
+    const inputs=rowsByDate(getSheetRows(workbook,'WPHI输入'),'WPHI输入');
+    validateDateSet(inputs,dates,'WPHI输入');
+    const state=(value:unknown):boolean|null=>value===true?true:value===false?false:null;
+    const history:WphiReading[]=getSheetRows(workbook,'WPHI预热历史').map((r,index)=>({
+      date:asDate(r.date,index+2),tnIn:asNumber(r.tnIn,'tnIn',index+2),tnOut:asNumber(r.tnOut,'tnOut',index+2),
+      inflowM3:asNumber(r.inflowM3,'inflowM3',index+2),blowerKwh:asNumber(r.blowerKwh,'blowerKwh',index+2),carbonKg:asNumber(r.carbonKg,'carbonKg',index+2),systemNormal:state(r.systemNormal),
+    }));
+    for(const row of daily) {
+      const input=matchingRow(inputs,'WPHI输入',row.date);
+      history.push({date:row.date,tnIn:asNumber(input.row.tnIn,'tnIn',input.rowNumber),tnOut:row.tn,inflowM3:row.processedM3,
+        blowerKwh:row.blowerKwh,carbonKg:row.carbonSourceKg,systemNormal:state(input.row.systemNormal)});
+    }
+    if(new Set(history.map(r=>r.date)).size!==history.length) throw new Error('WORKBOOK_WPHI_DUPLICATE_DATE');
+    dataset.wphi={config:structuredClone(DEFAULT_WPHI_CONFIG),history};
+    refreshWphiDataset(dataset);
+  }
+  return dataset;
 }

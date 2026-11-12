@@ -386,12 +386,12 @@ function reportPlanResponse(question: string): { slides: Array<Omit<ModelOutline
   }
   return { slides: [
     {
-      title: '能耗联动趋势',
+      title: question === '并发语音文本校验' ? '并发语音能耗校验' : '能耗联动趋势',
       purpose: '核验单位水量电耗与鼓风能耗的同日变化',
       role: 'answer', layout: 'visual-focus', visualKind: 'trend-line', evidenceKeys: ['kwhPerM3', 'blowerKwh'],
     },
     {
-      title: '异常页证据复核',
+      title: question === '并发语音文本校验' ? '并发语音水质校验' : '异常页证据复核',
       purpose: '对齐总氮与碳源投加的日期和样本',
       role: 'evidence', layout: 'visual-focus', visualKind: 'trend-area', evidenceKeys: ['tn', 'carbonSourceKg'],
     },
@@ -471,7 +471,9 @@ function slideDraftResponse(outline: ModelOutline, evidence: ComposerEvidence): 
       : [
           { text: `${reportOpening}${outline.title}从问题意图出发展开讲解。`, claimIds },
           {
-            text: onsiteKeys.length
+            text: outline.title.startsWith('并发语音')
+              ? '下面说明本页已绑定的指标。'
+              : onsiteKeys.length
               ? `${outline.purpose}，下面直接说明相关指标结论。`
               : '本页内容来自模型知识，不声称现场数值。',
             claimIds,

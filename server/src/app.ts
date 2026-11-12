@@ -13,8 +13,10 @@ import { ReportJobRegistry } from './services/report-job-registry';
 import { planReport } from './services/intent-first-report-planner';
 import { composeSlide } from './services/intent-first-slide-composer';
 import { SpeechAnswerRegistry } from './services/voice/speech-answer-registry';
+import { wphiRouter } from './routes/wphi';
 
 export type ServerOptions = {
+  wphiStatePath?: string;
   dataset?: DashboardDataset;
   reportRegistry?: ReportJobRegistry;
   reportGenerator?: ReportGenerator;
@@ -28,7 +30,7 @@ export const LOCAL_SERVER_HOST = '127.0.0.1';
 export const LOCAL_SERVER_PORT = 8787;
 
 export function loadDefaultDataset(): DashboardDataset {
-  return loadWorkbook(resolve('data/智慧污水处理厂_演示数据.xlsx'));
+  return loadWorkbook(resolve('data/污水处理厂_WPHI.xlsx'));
 }
 
 export function createDefaultReportGenerator(
@@ -71,6 +73,7 @@ export function startLocalServer(
 export function createServer(options: ServerOptions = {}): Express {
   const app = express();
   const dataset = options.dataset ?? loadDefaultDataset();
+  const wphiControls = wphiRouter(dataset, options.wphiStatePath ?? (options.dataset ? undefined : resolve('data/wphi-settings.json')));
   const speechAnswers = options.speechAnswerRegistry ?? new SpeechAnswerRegistry();
   const reportRegistry = options.reportRegistry
     ?? options.reportGenerator?.dependencies.registry
@@ -92,6 +95,7 @@ export function createServer(options: ServerOptions = {}): Express {
     response.json({ status: 'ok' });
   });
   app.use('/api/dashboard', dashboardRouter(dataset));
+  app.use('/api/dashboard/wphi', wphiControls);
   app.use('/api/ai', reportsRouter({
     registry: reportRegistry,
     generator: reportGenerator,

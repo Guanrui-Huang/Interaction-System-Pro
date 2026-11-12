@@ -3,6 +3,10 @@ import { ATOMIC_VISUAL_KINDS } from '../../shared/report';
 import type { AnalysisEvidence } from '../src/domain/analysis-evidence';
 import type { AnalysisMetricKey } from '../src/domain/analysis-plan';
 import type { ReportEvidenceBundle } from '../src/domain/report-evidence';
+import { resolveReportEvidence } from '../src/domain/report-evidence-resolver';
+import { createWphiDataset } from '../src/domain/wphi-demo';
+import { planReportIntent } from '../src/services/report-intent-planner';
+import { composeEvidenceFallbackSlide } from '../src/services/report-evidence-fallback';
 import type { DeepSeekCompletionRequest } from '../src/services/deepseek-client';
 import {
   REPORT_PLANNER_TIMEOUT_MS,
@@ -138,6 +142,26 @@ function provider(response: unknown) {
 }
 
 describe('planReport', () => {
+  it.each([
+    ['分析近 30 日总氮变化趋势', ['trend-line']],
+    ['计算当前碳源投加优化建议', ['trend-line', 'recommendation-path']],
+  ])('gives %s a concise outline without asking the provider to repeat evidence pages', async (question, visuals) => {
+    const dataset = createWphiDataset('2026-11-11');
+    const dependencies = providerSequence('{bad json');
+    const intent = await planReportIntent({ question, page: 'overview', dataset }, dependencies);
+    if (intent.kind !== 'report') throw Error('Expected a report intent');
+    const evidence = resolveReportEvidence({ intent, dataset, modelId: 'test' });
+    const outline = await planReport(input(evidence, question), dependencies);
+
+    expect(outline.map(page => page.visualKind)).toEqual(visuals);
+    expect(dependencies.requestCompletion).not.toHaveBeenCalled();
+    if (outline.length === 2) {
+      const advice = composeEvidenceFallbackSlide(outline[1]!, evidence);
+      expect(advice.narration.map(segment => segment.text).join('')).toContain('现场验证');
+      expect(advice.takeaway).toContain('最优投加量');
+    }
+  });
+
   it('plans an actually simple report as one zero-based page', async () => {
     const result = await planReport(input(knowledgeEvidence), provider({ slides: [knowledgePage] }));
 

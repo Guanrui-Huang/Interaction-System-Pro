@@ -154,7 +154,7 @@ function evidenceSatisfiesIntent(
     && requested.metrics.every((metric) => available.scope.metrics.includes(metric))
     && requested.dateRange.from === available.scope.dateRange.from
     && requested.dateRange.to === available.scope.dateRange.to
-    && (!requested.includeHealthWeights || available.healthWeights !== undefined);
+    && (!requested.includeHealthWeights || (available.healthWeights !== undefined || available.wphi !== undefined));
 }
 
 function evidenceWithUserCorrection(

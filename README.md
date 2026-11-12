@@ -20,7 +20,7 @@
 corepack enable
 pnpm install --frozen-lockfile
 Copy-Item server/.env.example server/.env
-pnpm run generate:data
+pnpm run generate:wphi
 pnpm run dev
 ```
 
@@ -40,7 +40,17 @@ pnpm run serve:e2e
 
 进入看板并允许使用麦克风后，说 **Hi Karen** 或 **嗨，凯伦** 唤醒 AI 运营助手。唤醒词由项目内的中英双语模型在本地检测。[Sherpa-ONNX 模型来源](https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20.tar.bz2) · [模型许可证](models/kws/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20/LICENSE)
 
-## 测试
+## WPHI 厂家算法
+
+默认数据文件为 `data/污水处理厂_WPHI.xlsx`。按《污水处理厂综合健康指数（WPHI）算法说明书》及本次确认口径，系统计算出水安全、去除效率、出水稳定、抗冲击性、系统稳定、风机能耗、碳源消耗七个维度。综合指数取参与维度的算术平均，风机和碳源内部按吨水得分 70% + 总量得分 30% 计算。
+
+`pnpm run generate:wphi` 可重建确定性的模拟工作簿，保留从 2025-08-09 起的原记录，并将模拟数据延伸到北京时间当天。可传入 `pnpm run generate:wphi 2026-11-11` 指定截止日。工作簿额外预置 30 天历史用于滚动计算，2026-08-09 保留厂家示例的 7 日 CV 20% 和综合指数 96.35。重新生成后重启后端，前端和 AI 汇报即可读取最新数据。旧版工作簿可继续用 `pnpm run generate:data` 生成。
+
+健康页与总览的“评分配置与每日运行上报”可修改目标、维度开关、评分断点、日报状态与检修模式，保存到本地 `data/wphi-settings.json`，重启后恢复。检修模式不输出健康得分及评分图。无进水冲击时该维度不参与平均；真实历史缺失时不会补成正常状态。WPHI 出水总氮目标默认 4 mg/L，与水质页面原有 3 mg/L 阈值独立。
+
+本次确认的文档歧义口径：达成目标为 100 分；低值优指标超过 2 倍目标后用 `max(0, 60 - 60 × (R - 2))`；高值优指标低于 0.5 倍目标用 `120 × R`；冲击出水超目标 110% 的部分每 1% 扣 1 分；CV 用 7 天总体标准差，含评价当日。所有维度与综合分保留内部精度，仅显示时取两位小数。
+
+## 验证命令
 
 ```powershell
 pnpm run test --run

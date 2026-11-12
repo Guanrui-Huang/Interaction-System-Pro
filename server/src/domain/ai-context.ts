@@ -1,3 +1,5 @@
+import { buildAnalysisEvidence, type AnalysisEvidence } from './analysis-evidence';
+import { createDefaultAnalysisPlan, type AnalysisMetricKey } from './analysis-plan';
 import {
   BUSINESS_PAGE_NAMES,
   HEALTH_GRADE_THRESHOLDS,
@@ -38,10 +40,11 @@ type ContextMetricKey =
   | 'healthScore';
 
 type MetricConfig = {
-  key: ContextMetricKey;
+  key: AnalysisMetricKey;
   label: string;
   unit: string;
   limit?: number;
+  direction?: 'higher' | 'lower';
   value: (reading: DailyReading) => number;
 };
 
@@ -60,12 +63,13 @@ export type AiContext = {
   evidenceInstruction: string;
   metrics: AiContextMetric[];
   recentSeries: Array<{ date: string; values: Record<string, number> }>;
-  aggregates: Record<string, AiContextAggregate>;
+  aggregates: Partial<Record<AnalysisMetricKey, AiContextAggregate>>;
   alerts: AlertRecord[];
+  wphi?: AnalysisEvidence['wphi'];
   health?: {
     weights: typeof HEALTH_WEIGHTS;
     gradeThresholds: typeof HEALTH_GRADE_THRESHOLDS;
-    score: number;
+    score: number | null;
     grade: HealthGrade;
   };
   waterMetricDefinitions?: typeof WATER_QUALITY_METRICS;
@@ -151,6 +155,22 @@ export function buildAiContext({ page, dataset }: { page: BusinessPage; dataset:
     throw new Error('AI_CONTEXT_DATA_EMPTY');
   }
 
+  if (latest.wphi) {
+    const plan = createDefaultAnalysisPlan(dataset);
+    plan.metrics = plan.metrics.filter(key => page === 'overview' || page === 'health' || (page === 'water-quality' ? ['tn','tnIn','tnRemoval','tnCv','tnMean7','ammonia','tp','cod','ss'].includes(key) : ['blowerKwh','blowerKwhPerM3','carbonSourceKg','carbonKgPerM3','totalKwh','kwhPerM3'].includes(key)));
+    const evidence = buildAnalysisEvidence({plan,dataset});
+    return {
+      page,
+      sourcePageName: BUSINESS_PAGE_NAMES[page],
+      evidenceInstruction: '仅使用提供证据；综合得分为参与维度平均，检修期间不得叙述当前或历史健康评分。',
+      metrics: evidence.definitions.flatMap(d => evidence.aggregates[d.key]
+        ? [{ ...d, latest: evidence.aggregates[d.key]!.latest }] : []),
+      recentSeries: evidence.series,
+      aggregates: evidence.aggregates,
+      alerts: evidence.alerts,
+      wphi: evidence.wphi,
+    };
+  }
   const configs = metricsByPage[page];
   const recentSeries = recent.map((reading) => ({
     date: reading.date,
