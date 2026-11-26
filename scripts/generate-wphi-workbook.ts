@@ -6,7 +6,7 @@ import { createWphiDataset } from '../server/src/domain/wphi-demo';
 const shanghaiDate = new Intl.DateTimeFormat('sv-SE', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date());
-const dataset=createWphiDataset(process.argv[2] ?? shanghaiDate);
+const dataset=createWphiDataset(process.argv[2] ?? shanghaiDate, { varyRecentMonth: true });
 const workbook=XLSX.utils.book_new();
 const add=(name:string,rows:object[])=>XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet(rows),name);
 add('日度总览',dataset.daily.map(({date,processedM3,informationCount,complianceRate})=>({date,processedM3,informationCount,complianceRate})));

@@ -8,6 +8,34 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 describe('WPHI displayed data and controls',()=>{
+  it('builds a recent-month scenario with six low-score days and a recovery', () => {
+    const data = createWphiDataset('2026-11-11', { varyRecentMonth: true });
+    const month = data.daily.slice(-30);
+    const scores = month.map(row => row.wphi!.score!);
+
+    expect(scores.filter(score => score < 90)).toHaveLength(6);
+    expect(Math.max(...scores) - Math.min(...scores)).toBeGreaterThan(25);
+    expect(Math.min(...scores)).toBeGreaterThanOrEqual(65);
+    expect(scores.at(-1)).toBeGreaterThanOrEqual(90);
+    for (const row of month) {
+      expect(Number.isFinite(row.wphi!.metrics.tnCv)).toBe(true);
+      const included = row.wphi!.dimensions.filter(dimension => dimension.included);
+      expect(row.wphi!.score).toBeCloseTo(included.reduce((total, dimension) => total + dimension.score!, 0) / included.length, 10);
+      const reading = data.wphi!.history.find(reading => reading.date === row.date)!;
+      expect(row).toMatchObject({ tn: reading.tnOut, processedM3: reading.inflowM3,
+        blowerKwh: reading.blowerKwh, carbonSourceKg: reading.carbonKg });
+    }
+  });
+
+  it('keeps the earlier records and the manufacturer example when varying the recent month', () => {
+    const original = createWphiDataset('2026-11-11');
+    const varied = createWphiDataset('2026-11-11', { varyRecentMonth: true });
+
+    expect(varied.daily.slice(0, -30)).toEqual(original.daily.slice(0, -30));
+    expect(varied.wphi!.history.slice(0, -30)).toEqual(original.wphi!.history.slice(0, -30));
+    expect(varied.daily.find(row => row.date === '2026-08-09')!.wphi!.score).toBeCloseTo(96.34920634920636, 10);
+  });
+
   it('extends simulated readings through a requested date while retaining existing records', () => {
     const original = createWphiDataset();
     const updated = createWphiDataset('2026-11-11');
